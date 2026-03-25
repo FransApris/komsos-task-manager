@@ -4,35 +4,10 @@ import { BottomNav } from './components/BottomNav';
 import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import { ChatProvider } from './contexts/ChatContext';
-import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where, setDoc, serverTimestamp, getDocFromServer } from './firebase';
+import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where, setDoc, serverTimestamp, getDocFromServer, handleFirestoreError, OperationType } from './firebase';
 import { Screen, UserAccount, Task, Notification, Inventory, Role, Badge } from './types';
 import { Loader2 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
-
-// --- Error Handling for Firestore ---
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-function handleFirestoreError(error: any, operationType: OperationType, path: string | null) {
-  const errInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-    },
-    operationType,
-    path
-  };
-  console.error('Firestore Error:', JSON.stringify(errInfo));
-  // Don't throw here to avoid crashing the app, just log and toast
-  toast.error(`Kesalahan Database (${operationType}): ${errInfo.error}`);
-}
 
 // ==========================================
 // 1. LAZY LOADING SEMUA HALAMAN (SCREENS)
@@ -123,7 +98,7 @@ export default function App() {
               await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
               userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
             } catch (err) {
-              handleFirestoreError(err, OperationType.WRITE, `users/${firebaseUser.uid}`);
+              handleFirestoreError(err, OperationType.WRITE, `users/${firebaseUser.uid}`, firebaseUser);
             }
           }
 
@@ -168,7 +143,7 @@ export default function App() {
             }
           }
         } catch (err) {
-          handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
+          handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`, firebaseUser);
         }
       } else {
         setCurrentUser(null);

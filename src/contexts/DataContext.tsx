@@ -41,19 +41,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
       setUsers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserAccount)));
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'users'));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'users', currentUser));
 
     const unsubTasks = onSnapshot(query(collection(db, 'tasks'), orderBy('createdAt', 'desc')), (snap) => {
       setTasks(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'tasks'));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'tasks', currentUser));
 
     const unsubInventory = onSnapshot(collection(db, 'inventory'), (snap) => {
       setInventory(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Inventory)));
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'inventory'));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'inventory', currentUser));
 
     const unsubMass = onSnapshot(query(collection(db, 'massSchedules'), orderBy('date', 'asc')), (snap) => {
       setMassSchedules(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MassSchedule)));
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'massSchedules'));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'massSchedules', currentUser));
 
     const isAdmin = currentUser.role === 'SUPERADMIN' || currentUser.role.startsWith('ADMIN_');
     const notifQuery = isAdmin 
@@ -73,18 +73,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error.code === 'permission-denied') {
           setNotifications([]);
         } else {
-          handleFirestoreError(error, OperationType.GET, 'notifications');
+          handleFirestoreError(error, OperationType.GET, 'notifications', currentUser);
         }
       }
     );
 
     const unsubBadges = onSnapshot(collection(db, 'badges'), (snap) => {
       setBadges(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Badge)));
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'badges'));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'badges', currentUser));
 
     const unsubAttendances = onSnapshot(collection(db, 'attendance'), (snap) => {
       setAttendances(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Attendance)));
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'attendance'));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'attendance', currentUser));
 
     const unsubReports = onSnapshot(query(collection(db, 'reports'), orderBy('createdAt', 'desc')), (snap) => {
       setReports(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Report)));
@@ -93,13 +93,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error.code === 'permission-denied') {
         setReports([]);
       } else {
-        handleFirestoreError(error, OperationType.GET, 'reports');
+        handleFirestoreError(error, OperationType.GET, 'reports', currentUser);
       }
     });
 
     const unsubTaskTypes = onSnapshot(query(collection(db, 'taskTypes'), orderBy('name', 'asc')), (snap) => {
       setTaskTypes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as TaskType)));
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'taskTypes'));
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'taskTypes', currentUser));
 
     setLoading(false);
 
