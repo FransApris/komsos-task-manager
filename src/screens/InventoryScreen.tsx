@@ -262,7 +262,7 @@ export const InventoryScreen: React.FC<{
                     <>
                       <User className="w-3 h-3 text-blue-400" />
                       <span className="text-[10px] text-gray-400">
-                        Dipinjam: {(usersDb || []).find(u => u.uid === item.assignedTo)?.name || 'Petugas'}
+                        Dipinjam: {(usersDb || []).find(u => u.uid === item.assignedTo)?.displayName || 'Petugas'}
                       </span>
                     </>
                   ) : (

@@ -231,9 +231,9 @@ export const ScheduleScreen: React.FC<{
                               <div key={idx} className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-[8px] font-bold text-white">
-                                    {user?.name.charAt(0) || 'U'}
+                                    {user?.displayName.charAt(0) || 'U'}
                                   </div>
-                                  <span className="text-xs font-medium text-gray-300">{user?.name || 'Anggota Tim'}</span>
+                                  <span className="text-xs font-medium text-gray-300">{user?.displayName || 'Anggota Tim'}</span>
                                 </div>
                                 <span className="text-[10px] text-gray-500 uppercase">{user?.role || 'USER'}</span>
                               </div>
@@ -253,7 +253,7 @@ export const ScheduleScreen: React.FC<{
                             {user?.img && user.img.startsWith('http') ? (
                               <img src={user.img} alt="Avatar" className="w-full h-full object-cover" />
                             ) : (
-                              user?.name.charAt(0) || 'U'
+                              user?.displayName.charAt(0) || 'U'
                             )}
                           </div>
                         );

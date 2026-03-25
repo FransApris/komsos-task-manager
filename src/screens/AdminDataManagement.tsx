@@ -124,7 +124,7 @@ export const AdminDataManagement: React.FC<{
   };
 
   const renderUsers = () => {
-    const filtered = (usersDb || []).filter(u => (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+    const filtered = (usersDb || []).filter(u => (u.displayName || '').toLowerCase().includes(searchTerm.toLowerCase()));
     if (filtered.length === 0) return <div className="text-center py-12 text-gray-500 text-xs">Tidak ada data anggota.</div>;
     return (
       <div className="space-y-3">
@@ -135,7 +135,7 @@ export const AdminDataManagement: React.FC<{
                 <img src={`https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${user.img || '1'}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-white">{user.name || 'Tanpa Nama'}</h3>
+                <h3 className="font-bold text-sm text-white">{user.displayName || 'Tanpa Nama'}</h3>
                 <p className="text-[10px] text-gray-500 font-medium">{user.email}</p>
                 <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-1.5 py-0.5 rounded mt-1 inline-block">{user.role}</span>
               </div>

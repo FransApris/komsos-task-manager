@@ -8,6 +8,7 @@ import {
   doc, setDoc, serverTimestamp 
 } from '../firebase';
 import { motion } from 'motion/react';
+import { toast } from 'sonner';
 
 import { Screen } from '../types';
 
@@ -36,33 +37,54 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
     setError('');
 
     try {
+      console.log("Attempting to create user with email:", email.trim());
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const user = userCredential.user;
+      console.log("Auth user created:", user.uid);
 
       // Create pending user document
-      await setDoc(doc(db, 'users', user.uid), {
+      console.log("Creating Firestore document for user:", user.uid);
+      const newUser = {
         uid: user.uid,
-        name: name.trim(),
+        displayName: name.trim(),
         email: email.trim(),
-        role: 'USER', // Default role, but status is PENDING
+        role: 'USER',
         status: 'PENDING',
         img: '1',
         points: 0,
         level: 1,
         completedTasksCount: 0,
         createdAt: serverTimestamp()
-      });
+      };
+      
+      await setDoc(doc(db, 'users', user.uid), newUser);
+      console.log("Firestore document created successfully");
 
       setIsSuccess(true);
+      toast.success("Pendaftaran berhasil! Menunggu verifikasi admin.");
     } catch (err: any) {
-      console.error("Registration error:", err);
-      if (err.code === 'auth/email-already-in-use') {
+      console.error("Registration error details:", {
+        code: err.code,
+        message: err.message,
+        stack: err.stack
+      });
+      
+      if (err.code === 'auth/network-request-failed') {
+        setError('Koneksi gagal. Periksa internet Anda atau pastikan tidak ada firewall/ad-blocker yang memblokir Google Services.');
+      } else if (err.code === 'auth/email-already-in-use') {
         setError('Email sudah terdaftar. Silakan gunakan email lain.');
       } else if (err.code === 'auth/invalid-email') {
         setError('Format email tidak valid.');
+      } else if (err.code === 'permission-denied') {
+        setError('Gagal menyimpan data: Izin ditolak oleh server. Pastikan data valid.');
       } else {
         setError('Gagal mendaftar: ' + err.message);
       }
+      
+      const toastMsg = err.code === 'auth/network-request-failed' 
+        ? "Koneksi gagal. Periksa internet Anda."
+        : "Pendaftaran gagal: " + err.message;
+      toast.error(toastMsg);
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +106,10 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
           Anda akan dapat masuk setelah akun Anda diaktifkan.
         </p>
         <button 
-          onClick={() => onNavigate('LOGIN')}
+          onClick={() => {
+            auth.signOut();
+            onNavigate('LOGIN');
+          }}
           className="w-full bg-blue-600 text-white font-black rounded-2xl py-4 shadow-lg shadow-blue-500/20 active:scale-95"
         >
           KEMBALI KE LOGIN

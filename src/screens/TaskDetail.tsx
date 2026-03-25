@@ -222,10 +222,10 @@ export const TaskDetail: React.FC<{
               return (
                 <div key={uid} className={`flex items-center gap-3 p-3 rounded-xl border ${isLeader ? 'bg-blue-600/10 border-blue-500' : 'bg-[#151b2b] border-gray-800'}`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${isLeader ? 'bg-blue-500' : 'bg-gray-700'}`}>
-                    {user?.name.charAt(0) || 'U'}
+                    {user?.displayName.charAt(0) || 'U'}
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-xs font-bold text-gray-200 truncate">{user?.name}</span>
+                    <span className="text-xs font-bold text-gray-200 truncate">{user?.displayName}</span>
                     {isLeader && (
                       <div className="flex items-center gap-1">
                         <Crown className="w-2 h-2 text-blue-400" />
@@ -237,7 +237,7 @@ export const TaskDetail: React.FC<{
                   {/* TOMBOL BERI PENALTI UNTUK ADMIN */}
                   {isAdminRole && status !== 'COMPLETED' && (
                     <button 
-                      onClick={() => handleGivePenalty(uid, user?.name)}
+                      onClick={() => handleGivePenalty(uid, user?.displayName)}
                       disabled={isLoading}
                       className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors ml-auto shadow-sm active:scale-95 disabled:opacity-50"
                       title="Tandai Mangkir / Pelanggaran"

@@ -4,10 +4,35 @@ import { BottomNav } from './components/BottomNav';
 import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import { ChatProvider } from './contexts/ChatContext';
-import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where, setDoc, serverTimestamp } from './firebase';
+import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where, setDoc, serverTimestamp, getDocFromServer } from './firebase';
 import { Screen, UserAccount, Task, Notification, Inventory, Role, Badge } from './types';
 import { Loader2 } from 'lucide-react';
-import { Toaster } from 'sonner';
+import { toast, Toaster } from 'sonner';
+
+// --- Error Handling for Firestore ---
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+function handleFirestoreError(error: any, operationType: OperationType, path: string | null) {
+  const errInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error:', JSON.stringify(errInfo));
+  // Don't throw here to avoid crashing the app, just log and toast
+  toast.error(`Kesalahan Database (${operationType}): ${errInfo.error}`);
+}
 
 // ==========================================
 // 1. LAZY LOADING SEMUA HALAMAN (SCREENS)
@@ -74,48 +99,76 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Ambil data detail user dari Firestore
-        let userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        
-        if (!userDoc.exists()) {
-          // Jika user belum ada (misal login Google pertama kali), buatkan dengan status PENDING
-          const isSuperAdmin = firebaseUser.email === "fad2beth@gmail.com";
-          const newUser: any = {
-            uid: firebaseUser.uid,
-            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User Baru',
-            email: firebaseUser.email,
-            role: isSuperAdmin ? 'SUPERADMIN' : 'USER',
-            status: isSuperAdmin ? 'ACTIVE' : 'PENDING',
-            img: firebaseUser.photoURL || '1',
-            points: 0,
-            level: 1,
-            completedTasksCount: 0,
-            createdAt: serverTimestamp()
-          };
-          await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-          userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        }
-
-        if (userDoc.exists()) {
-          const userData = { id: userDoc.id, ...userDoc.data() } as UserAccount;
-          setCurrentUser(userData);
+        const isSuperAdmin = firebaseUser.email === "fad2beth@gmail.com";
+        try {
+          // Ambil data detail user dari Firestore
+          let userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           
-          // Redirect berdasarkan Role
-          if (currentScreen === 'SPLASH' || currentScreen === 'LOGIN' || currentScreen === 'REGISTER') {
-            if (userData.status === 'PENDING') {
-              alert("Akun Anda sedang menunggu verifikasi dari Superadmin. Silakan hubungi pengurus jika pendaftaran Anda belum disetujui.");
-              auth.signOut();
-              setCurrentScreen('LOGIN');
-            } else if (userData.status === 'REJECTED') {
-              alert("Pendaftaran Anda ditolak. Silakan hubungi pengurus untuk informasi lebih lanjut.");
-              auth.signOut();
-              setCurrentScreen('LOGIN');
-            } else if (userData.role === 'SUPERADMIN' || userData.role.startsWith('ADMIN_')) {
-              setCurrentScreen('ADMIN_DASHBOARD');
-            } else {
-              setCurrentScreen('USER_DASHBOARD');
+          if (!userDoc.exists()) {
+            // Jika user belum ada (misal login Google pertama kali), buatkan dengan status PENDING
+            const newUser: any = {
+              uid: firebaseUser.uid,
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User Baru',
+              email: firebaseUser.email,
+              role: isSuperAdmin ? 'SUPERADMIN' : 'USER',
+              status: isSuperAdmin ? 'ACTIVE' : 'PENDING',
+              img: firebaseUser.photoURL || '1',
+              points: 0,
+              level: 1,
+              completedTasksCount: 0,
+              createdAt: serverTimestamp()
+            };
+            
+            try {
+              await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+              userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+            } catch (err) {
+              handleFirestoreError(err, OperationType.WRITE, `users/${firebaseUser.uid}`);
             }
           }
+
+          if (userDoc.exists()) {
+            const userData = { id: userDoc.id, ...userDoc.data() } as UserAccount;
+            
+            // Redirect berdasarkan Status
+            if (userData.status === 'PENDING' && !isSuperAdmin) {
+              // Jika sedang di layar REGISTER, jangan sign out dulu, biarkan RegisterScreen menampilkan sukses
+              if (currentScreen !== 'REGISTER') {
+                toast.warning("Akun Anda sedang menunggu verifikasi dari Superadmin.", {
+                  description: "Silakan hubungi pengurus jika pendaftaran Anda belum disetujui.",
+                  duration: 5000
+                });
+                setTimeout(() => {
+                  auth.signOut();
+                  setCurrentScreen('LOGIN');
+                }, 3000);
+              }
+              return;
+            } else if (userData.status === 'REJECTED') {
+              toast.error("Pendaftaran Anda ditolak.", {
+                description: "Silakan hubungi pengurus untuk informasi lebih lanjut.",
+                duration: 5000
+              });
+              setTimeout(() => {
+                auth.signOut();
+                setCurrentScreen('LOGIN');
+              }, 3000);
+              return;
+            }
+
+            setCurrentUser(userData);
+            
+            // Redirect berdasarkan Role jika baru login
+            if (currentScreen === 'SPLASH' || currentScreen === 'LOGIN' || currentScreen === 'REGISTER') {
+              if (userData.role === 'SUPERADMIN' || userData.role.startsWith('ADMIN_')) {
+                setCurrentScreen('ADMIN_DASHBOARD');
+              } else {
+                setCurrentScreen('USER_DASHBOARD');
+              }
+            }
+          }
+        } catch (err) {
+          handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
         }
       } else {
         setCurrentUser(null);
@@ -133,7 +186,15 @@ export default function App() {
     if (!currentUser) return; // Hanya tarik data jika sudah login
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
-      setUsersDb(snap.docs.map(doc => ({ id: doc.id, uid: doc.id, ...doc.data() } as UserAccount)));
+      setUsersDb(snap.docs.map(doc => {
+        const data = doc.data();
+        return { 
+          id: doc.id, 
+          uid: doc.id, 
+          ...data,
+          displayName: data.displayName || (data as any).name || 'User Baru'
+        } as UserAccount;
+      }));
     }, (error) => console.error("Users Snapshot Error:", error));
 
     const unsubTasks = onSnapshot(collection(db, 'tasks'), (snap) => {

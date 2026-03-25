@@ -42,10 +42,11 @@ export const syncUserAccount = async (authUser: any) => {
       // Jika user baru, buatkan dokumen profil default
       const newUser: Partial<UserAccount> = {
         uid: authUser.uid,
-        name: authUser.displayName || "Anggota Komsos",
+        displayName: authUser.displayName || "Anggota Komsos",
         email: authUser.email,
         img: authUser.photoURL || "1", // "1" sebagai ID avatar default
         role: "USER", // Role default untuk anggota baru
+        status: "PENDING", // Status default untuk anggota baru
         createdAt: serverTimestamp(),
         notificationPrefs: {
           taskUpdates: true,

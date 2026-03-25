@@ -9,14 +9,14 @@ interface EditProps {
 }
 
 export default function EditProfileModal({ user, onClose, onRefresh }: EditProps) {
-  const [name, setName] = useState(user.name);
+  const [displayName, setDisplayName] = useState(user.displayName || user.name || '');
   const [imgUrl, setImgUrl] = useState(user.img);
   const [loading, setLoading] = useState(false);
 
   const handleSave = async () => {
     setLoading(true);
     try {
-      await updateUserProfile(user.uid, { name, img: imgUrl });
+      await updateUserProfile(user.uid, { displayName, img: imgUrl });
       alert("Profil berhasil diperbarui!");
       onRefresh(); // Memperbarui tampilan di halaman utama
       onClose();
@@ -43,8 +43,8 @@ export default function EditProfileModal({ user, onClose, onRefresh }: EditProps
             <input 
               type="text" 
               className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
             />
           </div>
           <div>

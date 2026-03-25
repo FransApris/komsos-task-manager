@@ -240,7 +240,7 @@ export const UserDashboard: React.FC<{
           <div className="flex justify-between items-start mb-2">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-extrabold tracking-tight text-white">Halo, {user?.name?.split(' ')[0] || 'User'} 👋</h2>
+                <h2 className="text-2xl font-extrabold tracking-tight text-white">Halo, {user?.displayName?.split(' ')[0] || 'User'} 👋</h2>
                 {user?.role === 'SUPERADMIN' && <ShieldCheck className="w-5 h-5 text-blue-500" />}
               </div>
               <div className="flex items-center gap-2 mt-1">

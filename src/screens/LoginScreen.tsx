@@ -46,7 +46,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onDemoLogin, onNavigat
     const demoUser: UserAccount = {
       id: `demo_${lowerName}`,
       uid: `demo_${lowerName}`,
-      name: displayName,
+      displayName: displayName,
       email: `${lowerName}@demo.komsos.com`,
       role: role,
       img: img,
@@ -87,6 +87,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onDemoLogin, onNavigat
     const userEmail = `${name.trim().toLowerCase().replace(/\s+/g, '')}@komsos.com`;
     
     try {
+      if (!navigator.onLine) {
+        throw { code: 'auth/network-request-failed', message: 'Offline' };
+      }
       await signInWithEmailAndPassword(auth, userEmail, password);
     } catch (err: any) {
       console.log("Auth Code:", err.code);
@@ -107,7 +110,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onDemoLogin, onNavigat
           // Buat dokumen user baru
           await setDoc(doc(db, 'users', newUser.uid), {
             uid: newUser.uid,
-            name: existingData?.name || name.trim(),
+            displayName: existingData?.displayName || name.trim(),
             email: userEmail,
             role: existingData?.role || (userEmail === "fad2beth@gmail.com" ? 'SUPERADMIN' : 'USER'),
             status: 'PENDING',
@@ -122,10 +125,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onDemoLogin, onNavigat
         } catch (createErr: any) {
           if (createErr.code === 'auth/email-already-in-use') {
             setError('Kata sandi salah untuk akun ini.');
+          } else if (createErr.code === 'auth/network-request-failed') {
+            setError('Koneksi gagal. Periksa internet atau matikan VPN/Ad-blocker.');
           } else {
             setError('Gagal login: ' + createErr.message);
           }
         }
+      } else if (err.code === 'auth/network-request-failed') {
+        setError('Koneksi gagal. Periksa internet atau matikan VPN/Ad-blocker.');
       } else {
         setError('Terjadi kesalahan: ' + err.message);
       }
@@ -278,7 +285,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onDemoLogin, onNavigat
             <div className="space-y-2">
               {usersDb.length > 0 ? usersDb.slice(0, 3).map((u) => (
                 <div key={u.id} className="flex justify-between items-center text-[11px]">
-                  <span className="text-gray-300 font-bold">{u.name}</span>
+                  <span className="text-gray-300 font-bold">{u.displayName || 'Tanpa Nama'}</span>
                   <span className="text-gray-500 uppercase text-[9px] tracking-tighter">{getRoleLabel(u.role)}</span>
                 </div>
               )) : <p className="text-gray-600 text-[10px] italic">Memuat data tim...</p>}

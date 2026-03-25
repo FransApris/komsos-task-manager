@@ -85,7 +85,7 @@ export const CreateTaskScreen: React.FC<{
       await addDoc(collection(db, 'notifications'), {
         userId: 'ALL', // Secara realitas, ini bisa di-map ke assignedUsers saja
         title: 'Tugas Baru Ditugaskan',
-        message: `Tugas baru "${title}" telah dibuat oleh ${currentUser.name}.`,
+        message: `Tugas baru "${title}" telah dibuat oleh ${currentUser.displayName}.`,
         type: 'TASK',
         read: false,
         createdAt: serverTimestamp()
@@ -267,10 +267,10 @@ export const CreateTaskScreen: React.FC<{
                         }`}
                       >
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${isLeader ? 'bg-blue-500' : 'bg-gray-700'}`}>
-                          {user?.name.charAt(0)}
+                          {user?.displayName.charAt(0)}
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-xs text-gray-300">{user?.name}</span>
+                          <span className="text-xs text-gray-300">{user?.displayName}</span>
                           {isLeader && <span className="text-[8px] font-bold text-blue-400 uppercase tracking-tighter">Ketua Tim</span>}
                         </div>
                         <button 
@@ -409,11 +409,11 @@ export const CreateTaskScreen: React.FC<{
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 ${
                           assignedUsers.includes(user.uid) ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-400'
                         }`}>
-                          {user.name.charAt(0)}
+                          {user.displayName.charAt(0)}
                         </div>
                         <div className="text-left flex-1">
                           <p className={`text-sm font-bold line-clamp-1 ${assignedUsers.includes(user.uid) ? 'text-blue-400' : 'text-gray-200'}`}>
-                            {user.name}
+                            {user.displayName}
                           </p>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-[9px] text-gray-500 uppercase tracking-wider">{user.role}</span>
@@ -453,11 +453,11 @@ export const CreateTaskScreen: React.FC<{
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 ${
                         assignedUsers.includes(user.uid) ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-400'
                       }`}>
-                        {user.name.charAt(0)}
+                        {user.displayName.charAt(0)}
                       </div>
                       <div className="text-left flex-1">
                         <p className={`text-sm font-bold line-clamp-1 ${assignedUsers.includes(user.uid) ? 'text-blue-400' : 'text-gray-200'}`}>
-                          {user.name}
+                          {user.displayName}
                         </p>
                         <p className="text-[9px] text-gray-500 uppercase tracking-wider mt-0.5">{user.role}</p>
                       </div>

@@ -21,7 +21,7 @@ export const EditProfile: React.FC<{
   user?: UserAccount | null
 }> = ({ onNavigate, user }) => {
   const [profileImage, setProfileImage] = useState(user?.img?.startsWith('http') || user?.img?.startsWith('blob:') || user?.img?.startsWith('data:') ? user.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${user?.img || '1'}`);
-  const [name, setName] = useState(user?.name || '');
+  const [name, setName] = useState(user?.displayName || '');
   const [email, setEmail] = useState(user?.email || '');
   const [role, setRole] = useState<Role>(user?.role || 'USER');
   const [availability, setAvailability] = useState<AvailabilityStatus>(user?.availability || 'AVAILABLE');
@@ -37,7 +37,7 @@ export const EditProfile: React.FC<{
 
   useEffect(() => {
     if (user) {
-      setName(user.name);
+      setName(user.displayName);
       setEmail(user.email);
       setRole(user.role);
       setAvailability(user.availability || 'AVAILABLE');
@@ -79,7 +79,7 @@ export const EditProfile: React.FC<{
       const userRef = doc(db, 'users', userId);
       
       await updateDoc(userRef, {
-        name: name.trim(),
+        displayName: name.trim(),
         email: email.trim(),
         role: role,
         img: profileImage,

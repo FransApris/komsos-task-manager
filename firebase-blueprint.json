@@ -9,7 +9,7 @@
           "type": "string",
           "description": "Firebase Auth UID"
         },
-        "name": {
+        "displayName": {
           "type": "string",
           "description": "User's full name"
         },
@@ -50,7 +50,7 @@
           "description": "Account verification status"
         }
       },
-      "required": ["uid", "name", "email", "role", "createdAt", "status"]
+      "required": ["uid", "displayName", "email", "role", "createdAt", "status"]
     },
     "Task": {
       "title": "Task",

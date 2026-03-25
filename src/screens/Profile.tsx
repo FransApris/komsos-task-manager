@@ -83,7 +83,7 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
         <div className="w-24 h-24 rounded-full bg-gray-800 overflow-hidden ring-4 ring-blue-500/20 mb-4">
           <img src={user?.img?.startsWith('http') || user?.img?.startsWith('blob:') || user?.img?.startsWith('data:') ? user.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${user?.img || '1'}`} alt="Profile" className="w-full h-full object-cover" />
         </div>
-        <h2 className="text-xl font-extrabold mb-1 text-white">{user?.name || 'User'}</h2>
+        <h2 className="text-xl font-extrabold mb-1 text-white">{user?.displayName || 'User'}</h2>
         <p className="text-sm text-gray-400 font-medium mb-6">{user?.email || 'user@komsos.org'}</p>
         
         <div className="flex gap-2 mb-4">

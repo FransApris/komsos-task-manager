@@ -62,6 +62,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const activeTasks = tasksDb.filter(t => t.status === 'IN_PROGRESS' || t.status === 'OPEN');
   const pendingVerifications = tasksDb.filter(t => t.status === 'WAITING_VERIFICATION');
+  const pendingUsers = usersDb.filter(u => u.status === 'PENDING');
   const unreadCount = notificationsDb.filter(n => !n.read).length;
 
   // === LOGIKA REWARD & TUTUP BUKU BULANAN ===
@@ -141,7 +142,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <img src={user?.img?.startsWith('http') ? user.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${user?.img || '1'}`} alt="Profile" className="w-full h-full object-cover" />
           </div>
           <div>
-            <h1 className="text-sm font-extrabold tracking-tight text-white leading-tight">Halo, {user?.name?.split(' ')[0] || 'Admin'}</h1>
+            <h1 className="text-sm font-extrabold tracking-tight text-white leading-tight">Halo, {user?.displayName?.split(' ')[0] || 'Admin'}</h1>
             <div className="flex items-center gap-1.5">
               <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">{getRoleName()}</p>
               <div className="flex items-center gap-1 ml-1">
@@ -177,7 +178,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div className="p-5 space-y-6">
         
         {/* STATISTIK UTAMA */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 rounded-2xl shadow-lg shadow-blue-500/20 relative overflow-hidden group">
             <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><ClipboardList size={60} /></div>
             <p className="text-3xl font-black text-white mb-1">{activeTasks.length}</p>
@@ -189,7 +190,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
           <div className="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20 shadow-lg relative overflow-hidden">
             <p className="text-3xl font-black text-amber-500 mb-1">{pendingVerifications.length}</p>
-            <p className="text-[9px] text-amber-500/70 font-bold uppercase tracking-wider">Perlu Verifikasi</p>
+            <p className="text-[9px] text-amber-500/70 font-bold uppercase tracking-wider">Verifikasi Tugas</p>
+          </div>
+          <div className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 shadow-lg relative overflow-hidden cursor-pointer" onClick={() => onNavigate('USER_VERIFICATION')}>
+            <p className="text-3xl font-black text-red-500 mb-1">{pendingUsers.length}</p>
+            <p className="text-[9px] text-red-500/70 font-bold uppercase tracking-wider">Pendaftar Baru</p>
           </div>
         </div>
 
@@ -336,7 +341,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <img src={u.img?.startsWith('http') ? u.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${u.img || '1'}`} alt="Avatar" className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-white">{u.name}</p>
+                    <p className="text-sm font-bold text-white">{u.displayName}</p>
                     <p className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">{u.points || 0} Poin</p>
                   </div>
                   {i === 0 && <Trophy className="w-6 h-6 text-amber-500 shrink-0" />}

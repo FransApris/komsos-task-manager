@@ -11,7 +11,7 @@ export interface PortfolioLink {
 
 export interface UserAccount {
   id: string;
-  name: string;
+  displayName: string;
   email: string;
   role: Role;
   img: string;

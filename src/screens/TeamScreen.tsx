@@ -32,7 +32,7 @@ export const TeamScreen: React.FC<{
 
   const startEditing = (user: UserAccount) => {
     setEditingUserId(user.id);
-    setEditName(user.name);
+    setEditName(user.displayName || '');
     setEditRole(user.role);
     setEditEmail(user.email || '');
     setIsAdding(false);
@@ -46,9 +46,9 @@ export const TeamScreen: React.FC<{
       try {
         const userRef = doc(db, 'users', editingUserId);
         await updateDoc(userRef, {
-          name: editName,
+          displayName: editName.trim(),
           role: editRole,
-          email: editEmail
+          email: editEmail.trim().toLowerCase()
         });
         setEditingUserId(null);
       } catch (error) {
@@ -85,9 +85,10 @@ export const TeamScreen: React.FC<{
         
         await setDoc(doc(db, 'users', tempId), {
           uid: tempId,
-          name: editName.trim(),
+          displayName: editName.trim(),
           email: editEmail.trim().toLowerCase(),
           role: editRole,
+          status: 'ACTIVE',
           img: Math.floor(Math.random() * 20).toString(),
           createdAt: serverTimestamp()
         });
@@ -213,7 +214,7 @@ export const TeamScreen: React.FC<{
             <div key={member.id} className="flex flex-col p-4 bg-[#151b2b] rounded-2xl border border-gray-800">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-full bg-gray-800 overflow-hidden shrink-0">
-                  <img src={member.img?.startsWith('http') ? member.img : `https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80&v=${member.img}`} alt={member.name} className="w-full h-full object-cover" />
+                  <img src={member.img?.startsWith('http') ? member.img : `https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80&v=${member.img}`} alt={member.displayName} className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1 min-w-0">
                   {editingUserId === member.id ? (
@@ -234,7 +235,7 @@ export const TeamScreen: React.FC<{
                       />
                     </div>
                   ) : (
-                    <h4 className="font-bold text-white text-base">{member.name}</h4>
+                    <h4 className="font-bold text-white text-base">{member.displayName || 'Tanpa Nama'}</h4>
                   )}
                   
                   {(!isSuperAdmin || editingUserId !== member.id) && (
@@ -247,7 +248,7 @@ export const TeamScreen: React.FC<{
                       {/* TOMBOL BERI LENCANA */}
                       {isAdmin && (
                         <button 
-                          onClick={() => setSelectedUserForBadge({ id: member.id || member.uid, name: member.name })}
+                          onClick={() => setSelectedUserForBadge({ id: member.id || member.uid || '', name: member.displayName || '' })}
                           className="text-[10px] bg-yellow-500/10 text-yellow-500 px-3 py-1.5 rounded-lg border border-yellow-500/20 font-bold flex items-center gap-1.5 hover:bg-yellow-500/20 transition-colors"
                         >
                           <Award className="w-3.5 h-3.5" /> Beri Lencana
@@ -281,14 +282,14 @@ export const TeamScreen: React.FC<{
                       <a 
                         href={`mailto:${member.email}`}
                         className="p-2 bg-gray-800 rounded-full hover:bg-blue-600 transition-colors shadow-sm"
-                        title={`Kirim email ke ${member.name}`}
+                        title={`Kirim email ke ${member.displayName}`}
                       >
                         <Mail className="w-4 h-4 text-gray-300 hover:text-white" />
                       </a>
                       <a 
                         href={`tel:${(member as any).phone || '+6281234567890'}`}
                         className="p-2 bg-gray-800 rounded-full hover:bg-emerald-600 transition-colors shadow-sm"
-                        title={`Telepon ${member.name}`}
+                        title={`Telepon ${member.displayName}`}
                       >
                         <Phone className="w-4 h-4 text-gray-300 hover:text-white" />
                       </a>

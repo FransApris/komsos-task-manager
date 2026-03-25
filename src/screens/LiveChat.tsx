@@ -30,7 +30,7 @@ export const LiveChat: React.FC<{
   const handleSend = async () => {
     if (!message.trim() || !currentUser) return;
     
-    const senderName = currentUser.name;
+    const senderName = currentUser.displayName;
     const senderRole = role || 'USER';
     
     await sendMessage(message, currentUser.uid, senderName, senderRole, currentTaskId);

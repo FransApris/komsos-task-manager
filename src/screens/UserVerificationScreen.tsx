@@ -26,7 +26,14 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
     try {
       const q = query(collection(db, 'users'), where('status', '==', 'PENDING'));
       const snap = await getDocs(q);
-      const users = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserAccount));
+      const users = snap.docs.map(doc => {
+        const data = doc.data();
+        return { 
+          id: doc.id, 
+          ...data,
+          displayName: data.displayName || (data as any).name || 'User Baru'
+        } as UserAccount;
+      });
       setPendingUsers(users);
     } catch (error) {
       console.error("Error fetching pending users:", error);
@@ -78,7 +85,7 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
   };
 
   const filteredUsers = pendingUsers.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -132,12 +139,12 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
                     <div className="w-12 h-12 rounded-2xl bg-gray-800 overflow-hidden ring-2 ring-blue-500/20">
                       <img 
                         src={u.img?.startsWith('http') ? u.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80`} 
-                        alt={u.name} 
+                        alt={u.displayName} 
                         className="w-full h-full object-cover" 
                       />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-bold text-base leading-tight mb-1">{u.name}</h3>
+                      <h3 className="font-bold text-base leading-tight mb-1">{u.displayName}</h3>
                       <div className="flex items-center gap-1.5 text-gray-500 text-xs">
                         <Mail size={12} /> {u.email}
                       </div>

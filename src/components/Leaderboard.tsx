@@ -61,7 +61,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ users }) => {
                 <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden ring-2 ring-gray-700/50 group-hover:ring-blue-500/30 transition-all">
                   <img 
                     src={u.img?.startsWith('http') ? u.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${u.img || '1'}`} 
-                    alt={u.name} 
+                    alt={u.displayName} 
                     className="w-full h-full object-cover" 
                   />
                 </div>
@@ -75,7 +75,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ users }) => {
                 </motion.div>
               </div>
               <div>
-                <p className="text-sm font-bold text-white leading-tight">{u.name}</p>
+                <p className="text-sm font-bold text-white leading-tight">{u.displayName || 'Tanpa Nama'}</p>
                 <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter">Level {u.level || 1}</p>
               </div>
             </div>

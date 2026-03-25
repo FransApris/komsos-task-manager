@@ -15,13 +15,26 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isSuperAdmin() {
+      return isAuthenticated() &&
+        (
+          (request.auth.token.email == "fad2beth@gmail.com") ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPERADMIN')
+        );
+    }
+
     function isAdmin() {
       return isAuthenticated() &&
         (
-          (request.auth.token.email == "fad2beth@gmail.com" && request.auth.token.email_verified == true) ||
+          isSuperAdmin() ||
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['SUPERADMIN', 'ADMIN_MULTIMEDIA', 'ADMIN_PHOTO_VIDEO', 'ADMIN_PUBLICATION'])
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN_MULTIMEDIA', 'ADMIN_PHOTO_VIDEO', 'ADMIN_PUBLICATION'])
         );
+    }
+
+    function isEmailOwner(email) {
+      return isAuthenticated() && request.auth.token.email == email;
     }
 
     function isValidEmail(email) {
@@ -49,18 +62,18 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasRequiredFields(['uid', 'name', 'email', 'role', 'createdAt', 'status']) &&
+      return hasRequiredFields(['uid', 'displayName', 'email', 'role', 'createdAt', 'status']) &&
              data.uid is string && data.uid.size() < 128 &&
-             data.name is string && data.name.size() < 100 &&
+             data.displayName is string && data.displayName.size() < 100 &&
              isValidEmail(data.email) &&
-             data.role in ['SUPERADMIN', 'ADMIN_MULTIMEDIA', 'ADMIN_PHOTO_VIDEO', 'ADMIN_PUBLICATION', 'USER'] &&
+             data.role in ['SUPERADMIN', 'ADMIN_MULTIMEDIA', 'ADMIN_PHOTO_VIDEO', 'ADMIN_PUBLICATION', 'USER', 'GUEST'] &&
              data.status in ['PENDING', 'ACTIVE', 'REJECTED'] &&
              data.createdAt is timestamp;
     }
 
     function isValidTask(data) {
       return hasRequiredFields(['title', 'type', 'date', 'time', 'status', 'createdBy', 'createdAt']) &&
-             hasOnlyAllowedFields(['title', 'description', 'type', 'date', 'time', 'status', 'assignedUsers', 'createdBy', 'createdAt']) &&
+             hasOnlyAllowedFields(['title', 'description', 'type', 'date', 'time', 'status', 'assignedUsers', 'createdBy', 'createdAt', 'updatedAt', 'location', 'teamLeaderId', 'requiredEquipment', 'evidence']) &&
              data.title is string && data.title.size() < 200 &&
              data.status in ['IN_PROGRESS', 'WAITING_VERIFICATION', 'COMPLETED'] &&
              data.createdAt is timestamp;
@@ -101,11 +114,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
-                    ((userId == request.auth.uid && request.resource.data.role == 'USER') || isAdmin());
+                    ((userId == request.auth.uid && (request.resource.data.role == 'USER' || isSuperAdmin())) || isAdmin());
       allow update: if isAuthenticated() && isValidUser(request.resource.data) &&
                     isImmutable('uid') && isImmutable('createdAt') &&
-                    (isAdmin() || (isOwner(userId) && isImmutable('role')));
-      allow delete: if isAdmin();
+                    (isAdmin() || (isOwner(userId) && isImmutable('role') && isImmutable('status')));
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.email == request.auth.token.email);
     }
 
     match /tasks/{taskId} {
@@ -149,7 +162,7 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow read: if isOwner(resource.data.userId) || resource.data.userId == 'ALL' || isAdmin();
       allow create: if (isAdmin() || isOwner(request.resource.data.userId)) && isValidNotification(request.resource.data);
       allow update: if (isOwner(resource.data.userId) || isAdmin()) && isImmutable('userId') && isImmutable('title') && isValidNotification(request.resource.data);
       allow delete: if isOwner(resource.data.userId) || isAdmin();
