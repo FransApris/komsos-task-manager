@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircle2, PlayCircle, Plus, Upload, Award, FileText, Send, MessageSquare, Image as ImageIcon, Crown, Briefcase, Camera, Activity, UserX } from 'lucide-react';
+import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircle2, PlayCircle, Plus, Upload, Award, FileText, Send, MessageSquare, Image as ImageIcon, Crown, Briefcase, Camera, Activity, UserX, Trash2 } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Inventory, TaskType } from '../types';
-import { db, doc, updateDoc, serverTimestamp, collection, addDoc } from '../firebase';
+import { db, doc, updateDoc, serverTimestamp, collection, addDoc, auth } from '../firebase';
 import { arrayRemove, arrayUnion } from 'firebase/firestore'; 
 
 export const TaskDetail: React.FC<{ 
@@ -56,6 +56,25 @@ export const TaskDetail: React.FC<{
     } catch (err) {
       console.error("Error giving penalty:", err);
       alert("Gagal memproses penalti.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // --- FUNGSI BARU: HAPUS PROGRESS ---
+  const handleDeleteProgress = async (progressItem: any) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus laporan progress ini?")) return;
+    
+    setIsLoading(true);
+    try {
+      await updateDoc(doc(db, 'tasks', task.id), {
+        progressHistory: arrayRemove(progressItem),
+        updatedAt: serverTimestamp()
+      });
+      alert("Progress berhasil dihapus.");
+    } catch (err) {
+      console.error("Error deleting progress:", err);
+      alert("Gagal menghapus progress.");
     } finally {
       setIsLoading(false);
     }
@@ -286,31 +305,53 @@ export const TaskDetail: React.FC<{
           <div>
             <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Riwayat Progress</h3>
             <div className="space-y-4">
-              {(task as any).progressHistory.map((progress: any, index: number) => (
-                <div key={index} className="bg-[#151b2b] p-4 rounded-xl border border-gray-800 relative overflow-hidden">
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
-                  <div className="flex justify-between items-center mb-2 pl-2">
-                    <span className="text-xs font-bold text-blue-400">{progress.userName}</span>
-                    <span className="text-[10px] text-gray-500">
-                      {new Date(progress.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  
-                  {progress.note && (
-                    <p className="text-sm text-gray-300 mb-3 pl-2">{progress.note}</p>
-                  )}
-                  
-                  {progress.img && (
-                    <div className="mt-2 rounded-lg overflow-hidden border border-gray-700 bg-black/50">
-                      <img 
-                        src={progress.img} 
-                        alt="Bukti Progress" 
-                        className="w-full max-h-60 object-contain"
-                      />
+              {/* Balik urutan agar yang terbaru ada di atas menggunakan .slice().reverse() */}
+              {(task as any).progressHistory.slice().reverse().map((progress: any, index: number) => {
+                // Cek apakah ini postingan miliknya sendiri ATAU dia adalah Admin
+                const isMyProgress = progress.userId === auth.currentUser?.uid;
+                const canDelete = isMyProgress || isAdminRole;
+
+                return (
+                  <div key={index} className="bg-[#151b2b] p-4 rounded-xl border border-gray-800 relative overflow-hidden group">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+                    
+                    <div className="flex justify-between items-start mb-2 pl-2">
+                      <div>
+                        <span className="text-xs font-bold text-blue-400 block">{progress.userName}</span>
+                        <span className="text-[10px] text-gray-500">
+                          {new Date(progress.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      
+                      {/* Tombol Hapus: Hanya muncul jika canDelete = true */}
+                      {canDelete && (
+                        <button 
+                          onClick={() => handleDeleteProgress(progress)}
+                          disabled={isLoading}
+                          className="p-1.5 text-gray-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                          title="Hapus laporan ini"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                    
+                    {progress.note && (
+                      <p className="text-sm text-gray-300 mb-3 pl-2">{progress.note}</p>
+                    )}
+                    
+                    {progress.img && (
+                      <div className="mt-2 rounded-lg overflow-hidden border border-gray-700 bg-black/50">
+                        <img 
+                          src={progress.img} 
+                          alt="Bukti Progress" 
+                          className="w-full max-h-60 object-contain"
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
