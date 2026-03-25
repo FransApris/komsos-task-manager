@@ -1,0 +1,434 @@
+import React, { useState } from 'react';
+import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircle2, PlayCircle, Plus, Upload, Award, FileText, Send, MessageSquare, Image as ImageIcon, Crown, Briefcase, Camera, Activity, UserX } from 'lucide-react';
+import { Screen, Role, UserAccount, Task, Inventory, TaskType } from '../types';
+import { db, doc, updateDoc, serverTimestamp, collection, addDoc } from '../firebase';
+import { arrayRemove, arrayUnion } from 'firebase/firestore'; // <-- Tambahan untuk manipulasi array
+
+export const TaskDetail: React.FC<{ 
+  onNavigate: (s: Screen) => void, 
+  role?: Role, 
+  usersDb?: UserAccount[],
+  taskId: string | null,
+  tasksDb?: Task[],
+  inventoryDb?: Inventory[],
+  taskTypes?: TaskType[]
+}> = ({ onNavigate, role, usersDb = [], taskId, tasksDb = [], inventoryDb = [], taskTypes = [] }) => {
+  const task = (tasksDb || []).find(t => t.id === taskId);
+  const [proofNotes, setProofNotes] = useState('');
+  const [showProofModal, setShowProofModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'DETAIL' | 'CHAT'>('DETAIL');
+  const [chatMessage, setChatMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  if (!task) {
+    return (
+      <div className="flex-1 flex flex-col bg-[#0a0f18] items-center justify-center p-10 text-center">
+        <p className="text-gray-500 mb-4">Tugas tidak ditemukan.</p>
+        <button onClick={() => onNavigate('TASKS')} className="text-blue-500 font-bold">Kembali ke Daftar Tugas</button>
+      </div>
+    );
+  }
+
+  const status = task.status;
+  const isAdminRole = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
+
+  // --- FUNGSI BARU: BERIKAN PENALTI PELANGGARAN ---
+  const handleGivePenalty = async (uid: string, userName?: string) => {
+    if (!window.confirm(`Tandai ${userName || 'petugas'} tidak hadir / melanggar? Mereka akan dicopot dari tugas ini dan mendapatkan PENGURANGAN POIN KINERJA.`)) return;
+    
+    setIsLoading(true);
+    try {
+      // 1. Copot dari tugas dan masukkan ke daftar pelanggar (missedUsers)
+      await updateDoc(doc(db, 'tasks', task.id), {
+        assignedUsers: arrayRemove(uid),
+        missedUsers: arrayUnion(uid)
+      });
+
+      // 2. Kirim Notifikasi Peringatan (SP) secara otomatis ke petugas tersebut
+      await addDoc(collection(db, 'notifications'), {
+        userId: uid,
+        title: '⚠️ Penugasan Dibatalkan (Penalti)',
+        message: `Anda telah dicopot dari tugas "${task.title}" karena pelanggaran/tidak hadir. Poin kinerja Anda telah dikurangi sebesar 20 Poin.`,
+        type: 'ALERT',
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
+      alert("Petugas berhasil dicopot dan diberikan penalti.");
+    } catch (err) {
+      console.error("Error giving penalty:", err);
+      alert("Gagal memproses penalti.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    setIsLoading(true);
+    try {
+      const taskRef = doc(db, 'tasks', task.id);
+      await updateDoc(taskRef, {
+        status: 'COMPLETED',
+        updatedAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Error verifying task:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmitProof = async () => {
+    setIsLoading(true);
+    try {
+      const taskRef = doc(db, 'tasks', task.id);
+      await updateDoc(taskRef, {
+        status: 'WAITING_VERIFICATION',
+        proofNotes: proofNotes,
+        updatedAt: serverTimestamp()
+      });
+      setShowProofModal(false);
+    } catch (err) {
+      console.error("Error submitting proof:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getIcon = (type: string) => {
+    const t = type?.toLowerCase();
+    switch(t) {
+      case 'peliputan': return <Video className="w-5 h-5 text-blue-500"/>;
+      case 'dokumentasi': return <ImageIcon className="w-5 h-5 text-emerald-500"/>;
+      case 'publikasi': return <FileText className="w-5 h-5 text-amber-500"/>;
+      case 'desain': return <ImageIcon className="w-5 h-5 text-purple-500"/>;
+      case 'obs': return <Video className="w-5 h-5 text-red-500"/>;
+      case 'editing': return <Video className="w-5 h-5 text-indigo-500"/>;
+      case 'tugas lain': return <CheckCircle2 className="w-5 h-5 text-gray-500"/>;
+      default: 
+        const foundType = taskTypes.find(tt => tt.name.toLowerCase() === t);
+        if (foundType) {
+          return <Activity className="w-5 h-5" style={{ color: foundType.color }} />;
+        }
+        return <CheckCircle2 className="w-5 h-5 text-blue-500"/>;
+    }
+  };
+
+  const getIconBg = (type: string) => {
+    const t = type?.toLowerCase();
+    switch(t) {
+      case 'peliputan': return 'bg-blue-500/10';
+      case 'dokumentasi': return 'bg-emerald-500/10';
+      case 'publikasi': return 'bg-amber-500/10';
+      case 'desain': return 'bg-purple-500/10';
+      case 'obs': return 'bg-red-500/10';
+      case 'editing': return 'bg-indigo-500/10';
+      case 'tugas lain': return 'bg-gray-500/10';
+      default: return 'bg-blue-500/10';
+    }
+  };
+
+  const [messages, setMessages] = useState([
+    { id: 1, sender: 'Yohanes', text: 'Kamera 1 sudah siap di posisi.', time: '07:30', isMe: false },
+    { id: 2, sender: 'Maria', text: 'Audio aman, mic altar sudah dicek.', time: '07:35', isMe: false },
+  ]);
+
+  return (
+    <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40">
+      <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
+        <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800" onClick={() => onNavigate(isAdminRole ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD')}>
+          <ChevronLeft className="w-5 h-5 text-gray-300" />
+        </button>
+        <h1 className="text-lg font-extrabold tracking-tight text-white">Detail Tugas</h1>
+        <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
+          <MoreHorizontal className="w-5 h-5 text-gray-300" />
+        </button>
+      </header>
+
+      <div className="h-48 bg-gray-800 relative">
+        <img 
+          src="/background.jpg" 
+          alt="Latar Belakang Tugas"
+          className="w-full h-full object-cover opacity-50" 
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f18] to-transparent"></div>
+        <div className="absolute bottom-4 left-5">
+          <div className="flex items-center gap-2 mb-2">
+            {status === 'IN_PROGRESS' && <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Sedang Berlangsung</span>}
+            {status === 'WAITING_VERIFICATION' && <span className="bg-yellow-500 text-black text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Menunggu Verifikasi</span>}
+            {status === 'COMPLETED' && <span className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Selesai</span>}
+            <span className="bg-gray-800/80 backdrop-blur text-gray-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider border border-gray-700">Tinggi</span>
+          </div>
+          <h2 className="text-2xl font-extrabold leading-tight text-white">{task.title}</h2>
+        </div>
+      </div>
+
+      <div className="flex border-b border-gray-800/50 bg-[#0a0f18] sticky top-[72px] z-10">
+        <button 
+          onClick={() => setActiveTab('DETAIL')}
+          className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'DETAIL' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+        >
+          Detail Tugas
+        </button>
+        <button 
+          onClick={() => setActiveTab('CHAT')}
+          className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'CHAT' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+        >
+          <MessageSquare className="w-4 h-4" /> Diskusi Tim
+        </button>
+      </div>
+
+      {activeTab === 'DETAIL' ? (
+        <>
+          <div className="p-5 space-y-6">
+            <div className="flex items-center justify-between bg-[#151b2b] p-4 rounded-2xl border border-gray-800">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 ${getIconBg(task.type)} rounded-xl`} style={taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase()) ? { backgroundColor: `${taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase())?.color}20` } : {}}>{getIcon(task.type)}</div>
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Kategori</p>
+              <p className="font-bold text-sm text-white">{task.type}</p>
+            </div>
+          </div>
+          <div className="w-px h-8 bg-gray-800"></div>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-500/10 rounded-xl"><MapPin className="w-5 h-5 text-purple-500"/></div>
+            <div>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Lokasi</p>
+              <p className="font-bold text-sm text-white">Gereja Pusat</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Jadwal</h3>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-gray-300">
+              <Calendar className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium">{task.date}</span>
+            </div>
+            <div className="flex items-center gap-3 text-gray-300">
+              <Clock className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium">{task.time}</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Tim Penugasan</h3>
+          <div className="grid grid-cols-1 gap-3">
+            {task.assignedUsers?.map(uid => {
+              const user = usersDb.find(u => u.uid === uid);
+              const isLeader = task.teamLeaderId === uid;
+              return (
+                <div key={uid} className={`flex items-center gap-3 p-3 rounded-xl border ${isLeader ? 'bg-blue-600/10 border-blue-500' : 'bg-[#151b2b] border-gray-800'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${isLeader ? 'bg-blue-500' : 'bg-gray-700'}`}>
+                    {user?.name.charAt(0) || 'U'}
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-xs font-bold text-gray-200 truncate">{user?.name}</span>
+                    {isLeader && (
+                      <div className="flex items-center gap-1">
+                        <Crown className="w-2 h-2 text-blue-400" />
+                        <span className="text-[8px] font-bold text-blue-400 uppercase tracking-tighter">Ketua Tim</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* TOMBOL BERI PENALTI UNTUK ADMIN */}
+                  {isAdminRole && status !== 'COMPLETED' && (
+                    <button 
+                      onClick={() => handleGivePenalty(uid, user?.name)}
+                      disabled={isLoading}
+                      className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors ml-auto shadow-sm active:scale-95 disabled:opacity-50"
+                      title="Tandai Mangkir / Pelanggaran"
+                    >
+                      <UserX className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {(!task.assignedUsers || task.assignedUsers.length === 0) && (
+              <p className="text-xs text-gray-500 italic p-3 bg-[#151b2b] rounded-xl border border-gray-800 text-center">Belum ada petugas. Tugas ini terbuka untuk diambil.</p>
+            )}
+          </div>
+        </div>
+
+        {(task.requiredEquipment || []).length > 0 && (
+          <div>
+            <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Peralatan yang Dibutuhkan</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {(task.requiredEquipment || []).map(id => {
+                const item = inventoryDb.find(i => i.id === id);
+                return (
+                  <div key={id} className="flex items-center gap-3 p-3 bg-[#151b2b] rounded-xl border border-gray-800">
+                    <div className="p-1.5 bg-gray-800 rounded-lg">
+                      <Camera className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-gray-200 truncate">{item?.name || "Peralatan"}</span>
+                      <span className="text-[8px] font-bold text-gray-500 uppercase tracking-tighter">{item?.category || "Kategori"}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Deskripsi</h3>
+          <p className="text-sm text-gray-300 leading-relaxed bg-[#151b2b] p-4 rounded-xl border border-gray-800">
+            {task.description || "Tidak ada deskripsi."}
+          </p>
+        </div>
+
+        {/* Status & Verification Section */}
+        {status === 'WAITING_VERIFICATION' && (
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-yellow-500/20 rounded-xl shrink-0"><CheckCircle2 className="w-5 h-5 text-yellow-500" /></div>
+              <div className="flex-1">
+                <h3 className="font-bold text-sm text-yellow-500 mb-1">Menunggu Verifikasi Admin</h3>
+                <p className="text-xs text-gray-400 mb-3">Tugas ini telah dilaporkan selesai oleh petugas dan sedang menunggu verifikasi.</p>
+                
+                <div className="bg-[#0a0f18] p-3 rounded-xl border border-gray-800 mb-3">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Catatan Petugas</p>
+                  <p className="text-sm text-gray-300">{(task as any).proofNotes || "Tugas telah diselesaikan sesuai instruksi."}</p>
+                </div>
+
+                {isAdminRole && (
+                  <button 
+                    onClick={handleVerify}
+                    disabled={isLoading}
+                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 rounded-xl transition-colors text-sm disabled:opacity-50"
+                  >
+                    {isLoading ? 'Memproses...' : 'Verifikasi & Berikan Poin'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {status === 'COMPLETED' && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-emerald-500/20 rounded-xl shrink-0"><Award className="w-5 h-5 text-emerald-500" /></div>
+              <div>
+                <h3 className="font-bold text-sm text-emerald-500 mb-1">Tugas Selesai & Diverifikasi</h3>
+                <p className="text-xs text-gray-400 mb-2">Tugas ini telah diverifikasi oleh Admin.</p>
+                <div className="inline-flex items-center gap-1.5 bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                  <span className="text-emerald-400 font-bold text-sm">+50 Poin Reward</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        </div>
+        </>
+      ) : (
+        <div className="flex-1 flex flex-col p-5">
+          <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+            {messages.map(msg => (
+              <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[80%] rounded-2xl p-3 ${msg.isMe ? 'bg-blue-600 text-white rounded-tr-none shadow-lg shadow-blue-500/20' : 'bg-[#151b2b] border border-gray-800 text-gray-200 rounded-tl-none'}`}>
+                  {!msg.isMe && <p className="text-[10px] font-bold text-gray-400 mb-1">{msg.sender}</p>}
+                  <p className="text-sm">{msg.text}</p>
+                  <p className="text-[10px] text-right mt-1 opacity-70">{msg.time}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 sticky bottom-0 bg-[#0a0f18] pt-2">
+            <input 
+              type="text" 
+              value={chatMessage}
+              onChange={(e) => setChatMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && chatMessage.trim()) {
+                  setMessages([...messages, { id: Date.now(), sender: 'Saya', text: chatMessage, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), isMe: true }]);
+                  setChatMessage('');
+                }
+              }}
+              placeholder="Ketik pesan..."
+              className="flex-1 bg-[#151b2b] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+            />
+            <button 
+              onClick={() => {
+                if (chatMessage.trim()) {
+                  setMessages([...messages, { id: Date.now(), sender: 'Saya', text: chatMessage, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), isMe: true }]);
+                  setChatMessage('');
+                }
+              }}
+              className="p-3 bg-blue-600 hover:bg-blue-700 rounded-xl text-white transition-colors shadow-lg shadow-blue-500/20"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Action Button */}
+      {status === 'IN_PROGRESS' && activeTab === 'DETAIL' && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[390px] px-5 z-20 flex gap-3">
+          <button 
+            onClick={() => onNavigate('TASK_UPDATE')}
+            className="flex-1 bg-[#151b2b] text-white font-bold py-4 rounded-2xl border border-gray-800 active:scale-[0.98] transition-transform"
+          >
+            Update Progress
+          </button>
+          {!isAdminRole && (
+            <button 
+              onClick={() => setShowProofModal(true)}
+              className="flex-1 bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-transform"
+            >
+              Selesaikan Tugas
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Proof Submission Modal */}
+      {showProofModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151b2b] w-full max-w-sm rounded-3xl border border-gray-800 p-6 shadow-2xl">
+            <h3 className="text-lg font-extrabold text-white mb-2">Selesaikan Tugas</h3>
+            <p className="text-sm text-gray-400 mb-6">Kirimkan bukti atau catatan penyelesaian tugas untuk diverifikasi oleh Admin.</p>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Catatan Penyelesaian</label>
+                <textarea 
+                  rows={3}
+                  value={proofNotes}
+                  onChange={(e) => setProofNotes(e.target.value)}
+                  placeholder="Tuliskan laporan singkat..."
+                  className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl p-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all resize-none"
+                ></textarea>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowProofModal(false)}
+                className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-[#0a0f18] border border-gray-800 hover:bg-gray-800 transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={handleSubmitProof}
+                disabled={isLoading}
+                className="flex-1 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-colors disabled:opacity-50"
+              >
+                {isLoading ? 'Mengirim...' : 'Kirim Bukti'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+export default TaskDetail;

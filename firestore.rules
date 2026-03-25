@@ -1,0 +1,176 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          (request.auth.token.email == "fad2beth@gmail.com" && request.auth.token.email_verified == true) ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['SUPERADMIN', 'ADMIN_MULTIMEDIA', 'ADMIN_PHOTO_VIDEO', 'ADMIN_PUBLICATION'])
+        );
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(allowedFields) {
+      return request.resource.data.keys().hasOnly(allowedFields);
+    }
+
+    function hasRequiredFields(requiredFields) {
+      return request.resource.data.keys().hasAll(requiredFields);
+    }
+
+    function isImmutable(field) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field]);
+    }
+
+    function validString(field, maxLen) {
+      return request.resource.data[field] is string && request.resource.data[field].size() <= maxLen;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'name', 'email', 'role', 'createdAt', 'status']) &&
+             data.uid is string && data.uid.size() < 128 &&
+             data.name is string && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.role in ['SUPERADMIN', 'ADMIN_MULTIMEDIA', 'ADMIN_PHOTO_VIDEO', 'ADMIN_PUBLICATION', 'USER'] &&
+             data.status in ['PENDING', 'ACTIVE', 'REJECTED'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidTask(data) {
+      return hasRequiredFields(['title', 'type', 'date', 'time', 'status', 'createdBy', 'createdAt']) &&
+             hasOnlyAllowedFields(['title', 'description', 'type', 'date', 'time', 'status', 'assignedUsers', 'createdBy', 'createdAt']) &&
+             data.title is string && data.title.size() < 200 &&
+             data.status in ['IN_PROGRESS', 'WAITING_VERIFICATION', 'COMPLETED'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return hasRequiredFields(['userId', 'title', 'message', 'read', 'createdAt']) &&
+             data.title is string && data.title.size() < 200 &&
+             data.message is string && data.message.size() < 1000 &&
+             data.read is bool && data.createdAt is timestamp &&
+             (!('type' in data) || (data.type is string && data.type.size() < 100));
+    }
+
+    function isValidChatMessage(data) {
+      return hasRequiredFields(['taskId', 'senderId', 'text', 'createdAt']) &&
+             data.text is string && data.text.size() < 2000 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidInventory(data) {
+      return hasRequiredFields(['name', 'category', 'status', 'lastChecked']) &&
+             data.name is string && data.name.size() < 200 &&
+             data.category in ['Kamera', 'Audio', 'Lighting', 'Aksesoris', 'Lainnya'] &&
+             data.status in ['AVAILABLE', 'IN_USE', 'MAINTENANCE', 'BROKEN'];
+    }
+
+    function isValidVCast(data) {
+      return hasRequiredFields(['title', 'status', 'createdAt']) &&
+             data.title is string && data.title.size() < 200 &&
+             data.status in ['IDEA', 'PRE_PROD', 'RECORDING', 'EDITING', 'PUBLISHED'] &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules per Collection
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    ((userId == request.auth.uid && request.resource.data.role == 'USER') || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) &&
+                    isImmutable('uid') && isImmutable('createdAt') &&
+                    (isAdmin() || (isOwner(userId) && isImmutable('role')));
+      allow delete: if isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidTask(request.resource.data);
+      allow update: if isAuthenticated() && 
+                    isValidTask(request.resource.data) &&
+                    isImmutable('createdBy') && isImmutable('createdAt') &&
+                    (
+                      isAdmin() || 
+                      (request.auth.uid in resource.data.assignedUsers) ||
+                      // Fitur AMBIL TUGAS: Izinkan user mendaftarkan diri sendiri
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedUsers']))
+                    );
+      allow delete: if isAdmin();
+    }
+
+    match /inventory/{itemId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin() && isValidInventory(request.resource.data);
+    }
+
+    match /massSchedules/{massId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedUsers']));
+    }
+
+    match /attendance/{attendanceId} {
+      allow read, create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /badges/{badgeId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if (isAdmin() || isOwner(request.resource.data.userId)) && isValidNotification(request.resource.data);
+      allow update: if (isOwner(resource.data.userId) || isAdmin()) && isImmutable('userId') && isImmutable('title') && isValidNotification(request.resource.data);
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /chatMessages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidChatMessage(request.resource.data) && 
+                    request.resource.data.senderId == request.auth.uid;
+      allow update: if false; 
+      allow delete: if isAdmin();
+    }
+
+    match /taskTypes/{typeId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /vcast/{contentId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin() && isValidVCast(request.resource.data);
+    }
+  }
+}

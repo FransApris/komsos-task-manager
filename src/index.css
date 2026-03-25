@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+* {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+*::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+body {
+  @apply bg-[#0a0f18] overflow-hidden;
+}
