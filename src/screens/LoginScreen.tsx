@@ -9,15 +9,16 @@ import {
   googleProvider, signInWithPopup, collection, query, 
   where, getDocs, deleteDoc 
 } from '../firebase';
-import { UserAccount, Role } from '../types';
+import { UserAccount, Role, Screen } from '../types';
 
 interface LoginScreenProps {
   onLogin?: (name: string) => void;
   onDemoLogin?: (user: UserAccount) => void;
+  onNavigate: (screen: Screen) => void;
   usersDb: UserAccount[];
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onDemoLogin, usersDb }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onDemoLogin, onNavigate, usersDb }) => {
   const [mode, setMode] = useState<'login' | 'forgot'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -109,6 +110,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onDemoLogin, usersDb }
             name: existingData?.name || name.trim(),
             email: userEmail,
             role: existingData?.role || (userEmail === "fad2beth@gmail.com" ? 'SUPERADMIN' : 'USER'),
+            status: 'PENDING',
             img: existingData?.img || '1',
             createdAt: serverTimestamp()
           });
@@ -235,13 +237,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onDemoLogin, usersDb }
           </button>
 
           {mode === 'login' && (
-            <button 
-              onClick={handleGoogleLogin} disabled={isLoading}
-              className="w-full flex justify-center items-center bg-white text-gray-900 font-bold rounded-2xl py-4 hover:bg-gray-100 transition-colors active:scale-95 gap-3"
-            >
-              <Chrome className="w-5 h-5 text-blue-500" />
-              Google Account
-            </button>
+            <div className="space-y-3">
+              <button 
+                onClick={handleGoogleLogin} disabled={isLoading}
+                className="w-full flex justify-center items-center bg-white text-gray-900 font-bold rounded-2xl py-4 hover:bg-gray-100 transition-colors active:scale-95 gap-3"
+              >
+                <Chrome className="w-5 h-5 text-blue-500" />
+                Google Account
+              </button>
+
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-800"></div></div>
+                <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest"><span className="bg-[#0a0f18] px-4 text-gray-500">Atau</span></div>
+              </div>
+
+              <button 
+                onClick={() => onNavigate('REGISTER')}
+                className="w-full flex justify-center items-center bg-emerald-600/10 text-emerald-500 font-bold rounded-2xl py-4 hover:bg-emerald-600/20 transition-all border border-emerald-500/20 active:scale-95 gap-2"
+              >
+                <ShieldCheck className="w-5 h-5" />
+                DAFTAR ANGGOTA BARU
+              </button>
+            </div>
           )}
 
           {error && error.includes('jaringan') && (

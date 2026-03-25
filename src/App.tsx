@@ -4,7 +4,7 @@ import { BottomNav } from './components/BottomNav';
 import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import { ChatProvider } from './contexts/ChatContext';
-import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where } from './firebase';
+import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where, setDoc, serverTimestamp } from './firebase';
 import { Screen, UserAccount, Task, Notification, Inventory, Role, Badge } from './types';
 import { Loader2 } from 'lucide-react';
 import { Toaster } from 'sonner';
@@ -75,7 +75,27 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Ambil data detail user dari Firestore
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        let userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        
+        if (!userDoc.exists()) {
+          // Jika user belum ada (misal login Google pertama kali), buatkan dengan status PENDING
+          const isSuperAdmin = firebaseUser.email === "fad2beth@gmail.com";
+          const newUser: any = {
+            uid: firebaseUser.uid,
+            name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User Baru',
+            email: firebaseUser.email,
+            role: isSuperAdmin ? 'SUPERADMIN' : 'USER',
+            status: isSuperAdmin ? 'ACTIVE' : 'PENDING',
+            img: firebaseUser.photoURL || '1',
+            points: 0,
+            level: 1,
+            completedTasksCount: 0,
+            createdAt: serverTimestamp()
+          };
+          await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
+          userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        }
+
         if (userDoc.exists()) {
           const userData = { id: userDoc.id, ...userDoc.data() } as UserAccount;
           setCurrentUser(userData);
@@ -83,17 +103,19 @@ export default function App() {
           // Redirect berdasarkan Role
           if (currentScreen === 'SPLASH' || currentScreen === 'LOGIN' || currentScreen === 'REGISTER') {
             if (userData.status === 'PENDING') {
-              alert("Akun Anda sedang menunggu verifikasi dari Superadmin.");
+              alert("Akun Anda sedang menunggu verifikasi dari Superadmin. Silakan hubungi pengurus jika pendaftaran Anda belum disetujui.");
               auth.signOut();
+              setCurrentScreen('LOGIN');
+            } else if (userData.status === 'REJECTED') {
+              alert("Pendaftaran Anda ditolak. Silakan hubungi pengurus untuk informasi lebih lanjut.");
+              auth.signOut();
+              setCurrentScreen('LOGIN');
             } else if (userData.role === 'SUPERADMIN' || userData.role.startsWith('ADMIN_')) {
               setCurrentScreen('ADMIN_DASHBOARD');
             } else {
               setCurrentScreen('USER_DASHBOARD');
             }
           }
-        } else {
-          setCurrentUser(null);
-          setCurrentScreen('LOGIN');
         }
       } else {
         setCurrentUser(null);
@@ -168,7 +190,7 @@ export default function App() {
       case 'SPLASH':
         return <SplashScreen onFinish={() => setCurrentScreen(currentUser ? (currentUser.role.startsWith('ADMIN') || currentUser.role === 'SUPERADMIN' ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD') : 'LOGIN')} />;
       case 'LOGIN':
-        return <LoginScreen onDemoLogin={handleDemoLogin} usersDb={usersDb} />;
+        return <LoginScreen onDemoLogin={handleDemoLogin} onNavigate={setCurrentScreen} usersDb={usersDb} />;
       case 'REGISTER':
         return <RegisterScreen onNavigate={setCurrentScreen} />;
       case 'USER_VERIFICATION':
