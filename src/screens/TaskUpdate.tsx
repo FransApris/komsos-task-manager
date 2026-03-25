@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ChevronLeft, Image as ImageIcon, FileText, Activity, X } from 'lucide-react';
+import { ChevronLeft, Image as ImageIcon, X } from 'lucide-react';
 import { Screen, Task } from '../types';
 import { db, auth, doc, updateDoc, arrayUnion, serverTimestamp } from '../firebase';
 
@@ -23,14 +23,52 @@ export const TaskUpdate: React.FC<{
     );
   }
 
-  // Konversi gambar ke Base64 agar bisa disimpan langsung di database
+  // --- FUNGSI BARU: Kompresi Gambar ke Base64 (Maks 1MB) ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => setAttachment(reader.result as string);
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Batas maksimal resolusi gambar (800px)
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+
+        // Hitung rasio untuk mengecilkan gambar tanpa mengubah proporsi
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        // Gambar ulang di canvas dengan ukuran baru
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // Kompres menjadi format JPEG dengan kualitas 60% (0.6)
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+        
+        // Simpan hasil kompresi ke state
+        setAttachment(compressedBase64);
+      };
+      // Trigger load image
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleUpdate = async () => {
@@ -56,10 +94,13 @@ export const TaskUpdate: React.FC<{
         progressHistory: arrayUnion(newProgress),
         updatedAt: serverTimestamp()
       });
+      
+      alert("Update berhasil dikirim!");
       onNavigate('TASK_DETAIL');
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error updating task progress:", err);
-      alert("Gagal mengirim update.");
+      // Menampilkan pesan error asli dari Firebase jika masih gagal
+      alert("Gagal mengirim update: " + err.message);
     } finally {
       setIsLoading(false);
     }

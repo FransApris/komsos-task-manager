@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircle2, PlayCircle, Plus, Upload, Award, FileText, Send, MessageSquare, Image as ImageIcon, Crown, Briefcase, Camera, Activity, UserX } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Inventory, TaskType } from '../types';
 import { db, doc, updateDoc, serverTimestamp, collection, addDoc } from '../firebase';
-import { arrayRemove, arrayUnion } from 'firebase/firestore'; // <-- Tambahan untuk manipulasi array
+import { arrayRemove, arrayUnion } from 'firebase/firestore'; 
 
 export const TaskDetail: React.FC<{ 
   onNavigate: (s: Screen) => void, 
@@ -38,13 +38,11 @@ export const TaskDetail: React.FC<{
     
     setIsLoading(true);
     try {
-      // 1. Copot dari tugas dan masukkan ke daftar pelanggar (missedUsers)
       await updateDoc(doc(db, 'tasks', task.id), {
         assignedUsers: arrayRemove(uid),
         missedUsers: arrayUnion(uid)
       });
 
-      // 2. Kirim Notifikasi Peringatan (SP) secara otomatis ke petugas tersebut
       await addDoc(collection(db, 'notifications'), {
         userId: uid,
         title: '⚠️ Penugasan Dibatalkan (Penalti)',
@@ -282,6 +280,41 @@ export const TaskDetail: React.FC<{
             {task.description || "Tidak ada deskripsi."}
           </p>
         </div>
+
+        {/* --- MULAI KODE RIWAYAT PROGRESS --- */}
+        {((task as any).progressHistory && (task as any).progressHistory.length > 0) && (
+          <div>
+            <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Riwayat Progress</h3>
+            <div className="space-y-4">
+              {(task as any).progressHistory.map((progress: any, index: number) => (
+                <div key={index} className="bg-[#151b2b] p-4 rounded-xl border border-gray-800 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+                  <div className="flex justify-between items-center mb-2 pl-2">
+                    <span className="text-xs font-bold text-blue-400">{progress.userName}</span>
+                    <span className="text-[10px] text-gray-500">
+                      {new Date(progress.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  
+                  {progress.note && (
+                    <p className="text-sm text-gray-300 mb-3 pl-2">{progress.note}</p>
+                  )}
+                  
+                  {progress.img && (
+                    <div className="mt-2 rounded-lg overflow-hidden border border-gray-700 bg-black/50">
+                      <img 
+                        src={progress.img} 
+                        alt="Bukti Progress" 
+                        className="w-full max-h-60 object-contain"
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* --- AKHIR KODE RIWAYAT PROGRESS --- */}
 
         {/* Status & Verification Section */}
         {status === 'WAITING_VERIFICATION' && (
