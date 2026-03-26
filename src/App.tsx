@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { MobileWrapper } from './components/MobileWrapper'; 
 import { BottomNav } from './components/BottomNav';
 import { AuthProvider } from './contexts/AuthContext';
@@ -16,7 +16,7 @@ const SplashScreen = React.lazy(() => import('./screens/SplashScreen'));
 const LoginScreen = React.lazy(() => import('./screens/LoginScreen'));
 const RegisterScreen = React.lazy(() => import('./screens/RegisterScreen'));
 const UserVerificationScreen = React.lazy(() => import('./screens/UserVerificationScreen'));
-const TaskVerificationScreen = React.lazy(() => import('./screens/TaskVerificationScreen')); // <-- BARU DITAMBAHKAN
+const TaskVerificationScreen = React.lazy(() => import('./screens/TaskVerificationScreen'));
 const AdminDashboard = React.lazy(() => import('./screens/AdminDashboard'));
 const UserDashboard = React.lazy(() => import('./screens/UserDashboard'));
 const CreateTaskScreen = React.lazy(() => import('./screens/CreateTaskScreen'));
@@ -52,12 +52,53 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
+  // --- Referensi untuk Data yang Berubah ---
+  const currentUserRef = useRef(currentUser);
+
   // --- State Database Global ---
   const [usersDb, setUsersDb] = useState<UserAccount[]>([]);
   const [tasksDb, setTasksDb] = useState<Task[]>([]);
   const [inventoryDb, setInventoryDb] = useState<Inventory[]>([]);
   const [notificationsDb, setNotificationsDb] = useState<Notification[]>([]);
   const [badgesDb, setBadgesDb] = useState<Badge[]>([]);
+
+  // Update referensi agar bisa dibaca oleh Event Listener HP
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  // --- FUNGSI BARU: PENGENDALI TOMBOL BACK HP ---
+  const handleNavigate = (screen: Screen) => {
+    if (screen !== currentScreen) {
+      // Masukkan halaman ke dalam sejarah browser agar tombol back HP berfungsi
+      window.history.pushState({ screen }, '', `?menu=${screen.toLowerCase()}`);
+      setCurrentScreen(screen);
+    }
+  };
+
+  useEffect(() => {
+    // Inisialisasi status awal saat aplikasi dibuka
+    window.history.replaceState({ screen: currentScreen }, '', `?menu=${currentScreen.toLowerCase()}`);
+    
+    // Fungsi ini dipanggil OTOMATIS oleh browser ketika tombol Back HP ditekan
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && e.state.screen) {
+        let nextScreen = e.state.screen as Screen;
+        const user = currentUserRef.current;
+        
+        // Cerdas: Mencegah user kembali ke halaman Login/Splash jika mereka sudah berhasil Login
+        if (user && (nextScreen === 'LOGIN' || nextScreen === 'SPLASH' || nextScreen === 'REGISTER')) {
+          nextScreen = user.role === 'SUPERADMIN' || user.role.startsWith('ADMIN_') ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD';
+          window.history.replaceState({ screen: nextScreen }, '', `?menu=${nextScreen.toLowerCase()}`);
+        }
+        
+        setCurrentScreen(nextScreen);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Pantau Status Online/Offline
   useEffect(() => {
@@ -112,7 +153,7 @@ export default function App() {
                 });
                 setTimeout(() => {
                   auth.signOut();
-                  setCurrentScreen('LOGIN');
+                  handleNavigate('LOGIN');
                 }, 3000);
               }
               return;
@@ -123,7 +164,7 @@ export default function App() {
               });
               setTimeout(() => {
                 auth.signOut();
-                setCurrentScreen('LOGIN');
+                handleNavigate('LOGIN');
               }, 3000);
               return;
             }
@@ -132,9 +173,9 @@ export default function App() {
             
             if (currentScreen === 'SPLASH' || currentScreen === 'LOGIN' || currentScreen === 'REGISTER') {
               if (userData.role === 'SUPERADMIN' || userData.role.startsWith('ADMIN_')) {
-                setCurrentScreen('ADMIN_DASHBOARD');
+                handleNavigate('ADMIN_DASHBOARD');
               } else {
-                setCurrentScreen('USER_DASHBOARD');
+                handleNavigate('USER_DASHBOARD');
               }
             }
           }
@@ -144,7 +185,7 @@ export default function App() {
       } else {
         setCurrentUser(null);
         if (currentScreen !== 'REGISTER' && currentScreen !== 'SPLASH') {
-          setCurrentScreen('LOGIN');
+          handleNavigate('LOGIN');
         }
       }
     });
@@ -201,15 +242,15 @@ export default function App() {
 
   const handleLogout = () => {
     auth.signOut();
-    setCurrentScreen('LOGIN');
+    handleNavigate('LOGIN');
   };
 
   const handleDemoLogin = (user: UserAccount) => {
     setCurrentUser(user);
     if (user.role === 'SUPERADMIN' || user.role.startsWith('ADMIN_')) {
-      setCurrentScreen('ADMIN_DASHBOARD');
+      handleNavigate('ADMIN_DASHBOARD');
     } else {
-      setCurrentScreen('USER_DASHBOARD');
+      handleNavigate('USER_DASHBOARD');
     }
   };
 
@@ -219,65 +260,65 @@ export default function App() {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'SPLASH':
-        return <SplashScreen onFinish={() => setCurrentScreen(currentUser ? (currentUser.role.startsWith('ADMIN') || currentUser.role === 'SUPERADMIN' ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD') : 'LOGIN')} />;
+        return <SplashScreen onFinish={() => handleNavigate(currentUser ? (currentUser.role.startsWith('ADMIN') || currentUser.role === 'SUPERADMIN' ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD') : 'LOGIN')} />;
       case 'LOGIN':
-        return <LoginScreen onDemoLogin={handleDemoLogin} onNavigate={setCurrentScreen} usersDb={usersDb} />;
+        return <LoginScreen onDemoLogin={handleDemoLogin} onNavigate={handleNavigate} usersDb={usersDb} />;
       case 'REGISTER':
-        return <RegisterScreen onNavigate={setCurrentScreen} />;
+        return <RegisterScreen onNavigate={handleNavigate} />;
       case 'USER_VERIFICATION':
-        return <UserVerificationScreen onNavigate={setCurrentScreen} />;
-      case 'TASK_VERIFICATION':  // <-- BARU DITAMBAHKAN
-        return <TaskVerificationScreen onNavigate={setCurrentScreen} setSelectedTaskId={setSelectedTaskId} tasksDb={tasksDb} usersDb={usersDb} />;
+        return <UserVerificationScreen onNavigate={handleNavigate} />;
+      case 'TASK_VERIFICATION':
+        return <TaskVerificationScreen onNavigate={handleNavigate} setSelectedTaskId={setSelectedTaskId} tasksDb={tasksDb} usersDb={usersDb} />;
       case 'ADMIN_DASHBOARD':
-        return <AdminDashboard onNavigate={setCurrentScreen} onLogout={handleLogout} role={currentUser?.role} user={currentUser} usersDb={usersDb} tasksDb={tasksDb} notificationsDb={notificationsDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} />;
+        return <AdminDashboard onNavigate={handleNavigate} onLogout={handleLogout} role={currentUser?.role} user={currentUser} usersDb={usersDb} tasksDb={tasksDb} notificationsDb={notificationsDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} />;
       case 'USER_DASHBOARD':
-        return <UserDashboard onNavigate={setCurrentScreen} onLogout={handleLogout} user={currentUser} tasksDb={tasksDb} notificationsDb={notificationsDb} usersDb={usersDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} />;
+        return <UserDashboard onNavigate={handleNavigate} onLogout={handleLogout} user={currentUser} tasksDb={tasksDb} notificationsDb={notificationsDb} usersDb={usersDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} />;
       case 'CREATE_TASK':
-        return <CreateTaskScreen onNavigate={setCurrentScreen} currentUser={currentUser} usersDb={usersDb} inventoryDb={inventoryDb} />;
+        return <CreateTaskScreen onNavigate={handleNavigate} currentUser={currentUser} usersDb={usersDb} inventoryDb={inventoryDb} />;
       case 'INVENTORY':
-        return <InventoryScreen onNavigate={setCurrentScreen} role={currentUser?.role} usersDb={usersDb} inventoryDb={inventoryDb} currentUser={currentUser} />;
+        return <InventoryScreen onNavigate={handleNavigate} role={currentUser?.role} usersDb={usersDb} inventoryDb={inventoryDb} currentUser={currentUser} />;
       case 'ATTENDANCE':
-        return <AttendanceScreen onNavigate={setCurrentScreen} role={currentUser?.role || 'USER'} currentUser={currentUser} tasksDb={tasksDb} />;
+        return <AttendanceScreen onNavigate={handleNavigate} role={currentUser?.role || 'USER'} currentUser={currentUser} tasksDb={tasksDb} />;
       case 'MASS_SCHEDULE':
-        return <MassScheduleScreen onNavigate={setCurrentScreen} role={currentUser?.role || 'USER'} usersDb={usersDb} currentUser={currentUser} />;
+        return <MassScheduleScreen onNavigate={handleNavigate} role={currentUser?.role || 'USER'} usersDb={usersDb} currentUser={currentUser} />;
       case 'VCAST_MANAGER':
-        return <VCastManagerScreen onNavigate={setCurrentScreen} role={currentUser?.role} usersDb={usersDb} />;
+        return <VCastManagerScreen onNavigate={handleNavigate} role={currentUser?.role} usersDb={usersDb} />;
       case 'TASKS':
-        return <TasksScreen onNavigate={setCurrentScreen} role={currentUser?.role} tasksDb={tasksDb} usersDb={usersDb} setSelectedTaskId={setSelectedTaskId} />;
+        return <TasksScreen onNavigate={handleNavigate} role={currentUser?.role} tasksDb={tasksDb} usersDb={usersDb} setSelectedTaskId={setSelectedTaskId} />;
       case 'TASK_DETAIL':
-        return <TaskDetail onNavigate={setCurrentScreen} role={currentUser?.role} usersDb={usersDb} taskId={selectedTaskId} tasksDb={tasksDb} inventoryDb={inventoryDb} />;
+        return <TaskDetail onNavigate={handleNavigate} role={currentUser?.role} usersDb={usersDb} taskId={selectedTaskId} tasksDb={tasksDb} inventoryDb={inventoryDb} />;
       case 'TASK_UPDATE':
-        return <TaskUpdate onNavigate={setCurrentScreen} taskId={selectedTaskId} tasksDb={tasksDb} />;
+        return <TaskUpdate onNavigate={handleNavigate} taskId={selectedTaskId} tasksDb={tasksDb} />;
       case 'TEAM':
-        return <TeamScreen onNavigate={setCurrentScreen} role={currentUser?.role} usersDb={usersDb} currentUser={currentUser} />;
+        return <TeamScreen onNavigate={handleNavigate} role={currentUser?.role} usersDb={usersDb} currentUser={currentUser} />;
       case 'PROFILE':
-        return <Profile onNavigate={setCurrentScreen} onLogout={handleLogout} user={currentUser} />;
+        return <Profile onNavigate={handleNavigate} onLogout={handleLogout} user={currentUser} />;
       case 'EDIT_PROFILE':
-        return <EditProfile onNavigate={setCurrentScreen} user={currentUser} />;
+        return <EditProfile onNavigate={handleNavigate} user={currentUser} />;
       case 'APP_SETTINGS':
-        return <AppSettings onNavigate={setCurrentScreen} />;
+        return <AppSettings onNavigate={handleNavigate} />;
       case 'NOTIFICATIONS':
-        return <Notifications onNavigate={setCurrentScreen} role={currentUser?.role || 'USER'} notificationsDb={notificationsDb} />;
+        return <Notifications onNavigate={handleNavigate} role={currentUser?.role || 'USER'} notificationsDb={notificationsDb} />;
       case 'NOTIFICATION_SETTINGS':
-        return <NotificationSettings onNavigate={setCurrentScreen} user={currentUser} />;
+        return <NotificationSettings onNavigate={handleNavigate} user={currentUser} />;
       case 'CHANGE_PASSWORD':
-        return <ChangePassword onNavigate={setCurrentScreen} currentUser={currentUser} setUsersDb={setUsersDb} setCurrentUser={setCurrentUser} />;
+        return <ChangePassword onNavigate={handleNavigate} currentUser={currentUser} setUsersDb={setUsersDb} setCurrentUser={setCurrentUser} />;
       case 'HELP_CENTER':
-        return <HelpCenter onNavigate={setCurrentScreen} />;
+        return <HelpCenter onNavigate={handleNavigate} />;
       case 'LIVE_CHAT':
-        return <LiveChat onNavigate={setCurrentScreen} role={currentUser?.role || 'USER'} currentUser={currentUser} />;
+        return <LiveChat onNavigate={handleNavigate} role={currentUser?.role || 'USER'} currentUser={currentUser} />;
       case 'EMAIL_SUPPORT':
-        return <EmailSupport onNavigate={setCurrentScreen} />;
+        return <EmailSupport onNavigate={handleNavigate} />;
       case 'ADMIN_DATA_MANAGEMENT':
-        return <AdminDataManagement onNavigate={setCurrentScreen} usersDb={usersDb} tasksDb={tasksDb} inventoryDb={inventoryDb} notificationsDb={notificationsDb} badgesDb={badgesDb} />;
+        return <AdminDataManagement onNavigate={handleNavigate} usersDb={usersDb} tasksDb={tasksDb} inventoryDb={inventoryDb} notificationsDb={notificationsDb} badgesDb={badgesDb} />;
       case 'REPORTS':
-        return <ReportsScreen onNavigate={setCurrentScreen} role={currentUser?.role || 'USER'} currentUser={currentUser} tasksDb={tasksDb} usersDb={usersDb} />;
+        return <ReportsScreen onNavigate={handleNavigate} role={currentUser?.role || 'USER'} currentUser={currentUser} tasksDb={tasksDb} usersDb={usersDb} />;
       case 'TASK_TYPE_MANAGEMENT':
-        return <TaskTypeManagement onNavigate={setCurrentScreen} />;
+        return <TaskTypeManagement onNavigate={handleNavigate} />;
       case 'PERFORMANCE_STATS':
-        return <PerformanceStats onNavigate={setCurrentScreen} role={currentUser?.role} tasksDb={tasksDb} badgesDb={badgesDb} currentUser={currentUser} />;
+        return <PerformanceStats onNavigate={handleNavigate} role={currentUser?.role} tasksDb={tasksDb} badgesDb={badgesDb} currentUser={currentUser} />;
       default:
-        return <SplashScreen onFinish={() => setCurrentScreen('LOGIN')} />;
+        return <SplashScreen onFinish={() => handleNavigate('LOGIN')} />;
     }
   };
 
@@ -302,7 +343,7 @@ export default function App() {
             </Suspense>
             <BottomNav 
               currentScreen={currentScreen} 
-              onNavigate={setCurrentScreen} 
+              onNavigate={handleNavigate} 
               role={currentUser?.role}
               unreadNotifications={notificationsDb.filter(n => !n.read).length}
             />
