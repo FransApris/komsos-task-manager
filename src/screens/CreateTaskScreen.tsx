@@ -3,6 +3,7 @@ import { ChevronLeft, Calendar, Clock, MapPin, Users, FileText, CheckCircle2, Al
 import { Screen, UserAccount, Inventory, TaskType } from '../types';
 import { db, collection, addDoc, serverTimestamp } from '../firebase';
 import { useData } from '../contexts/DataContext';
+import { toast } from 'sonner';
 
 export const CreateTaskScreen: React.FC<{ 
   onNavigate: (s: Screen) => void,
@@ -100,7 +101,7 @@ export const CreateTaskScreen: React.FC<{
     } catch (error) {
       console.error("Error creating task:", error);
       setIsSubmitting(false);
-      alert("Gagal membuat tugas. Silakan coba lagi.");
+      toast.error("Gagal membuat tugas. Silakan coba lagi.");
     }
   };
 

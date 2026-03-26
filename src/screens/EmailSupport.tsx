@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, Send, CheckCircle2, Loader2 } from 'lucide-react';
 import { Screen } from '../types';
 import { db, auth, collection, addDoc, serverTimestamp } from '../firebase';
+import { toast } from 'sonner';
 
 export const EmailSupport: React.FC<{ onNavigate: (s: Screen) => void }> = ({ onNavigate }) => {
   const [sent, setSent] = useState(false);
@@ -34,7 +35,7 @@ export const EmailSupport: React.FC<{ onNavigate: (s: Screen) => void }> = ({ on
       }, 2500);
     } catch (error) {
       console.error('Error sending ticket:', error);
-      alert("Gagal mengirim pesan. Silakan periksa koneksi internet Anda.");
+      toast.error("Gagal mengirim pesan. Silakan periksa koneksi internet Anda.");
     } finally {
       setIsLoading(false);
     }

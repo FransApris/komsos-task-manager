@@ -3,6 +3,8 @@ import { ChevronLeft, Plus, Trash2, Edit2, Save, X, Type as TypeIcon, Palette } 
 import { Screen, TaskType } from '../types';
 import { db, doc, deleteDoc, collection, addDoc, updateDoc, serverTimestamp } from '../firebase';
 import { useData } from '../contexts/DataContext';
+import { toast } from 'sonner';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const TaskTypeManagement: React.FC<{ 
   onNavigate: (s: Screen) => void 
@@ -11,6 +13,18 @@ export const TaskTypeManagement: React.FC<{
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const openConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm });
+  };
 
   // Form state
   const [name, setName] = useState('');
@@ -35,10 +49,11 @@ export const TaskTypeManagement: React.FC<{
         color,
         createdAt: serverTimestamp()
       });
+      toast.success('Jenis tugas berhasil ditambahkan');
       resetForm();
     } catch (e) {
       console.error(e);
-      alert('Gagal menambahkan jenis tugas.');
+      toast.error('Gagal menambahkan jenis tugas.');
     } finally {
       setLoading(false);
     }
@@ -53,26 +68,33 @@ export const TaskTypeManagement: React.FC<{
         description: description.trim(),
         color
       });
+      toast.success('Jenis tugas berhasil diperbarui');
       resetForm();
     } catch (e) {
       console.error(e);
-      alert('Gagal memperbarui jenis tugas.');
+      toast.error('Gagal memperbarui jenis tugas.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Hapus jenis tugas ini?')) return;
-    setLoading(true);
-    try {
-      await deleteDoc(doc(db, 'taskTypes', id));
-    } catch (e) {
-      console.error(e);
-      alert('Gagal menghapus jenis tugas.');
-    } finally {
-      setLoading(false);
-    }
+    openConfirm(
+      'Konfirmasi Hapus',
+      'Apakah Anda yakin ingin menghapus jenis tugas ini secara permanen? Tindakan ini tidak dapat dibatalkan.',
+      async () => {
+        setLoading(true);
+        try {
+          await deleteDoc(doc(db, 'taskTypes', id));
+          toast.success('Jenis tugas berhasil dihapus');
+        } catch (e) {
+          console.error(e);
+          toast.error('Gagal menghapus jenis tugas.');
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
   };
 
   const startEdit = (type: TaskType) => {
@@ -209,6 +231,14 @@ export const TaskTypeManagement: React.FC<{
           </p>
         </div>
       </div>
+
+      <ConfirmationModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
     </div>
   );
 };

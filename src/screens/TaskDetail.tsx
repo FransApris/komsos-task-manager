@@ -3,6 +3,8 @@ import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircl
 import { Screen, Role, UserAccount, Task, Inventory, TaskType } from '../types';
 import { db, doc, updateDoc, serverTimestamp, collection, addDoc, auth } from '../firebase';
 import { arrayRemove, arrayUnion } from 'firebase/firestore'; 
+import { toast } from 'sonner';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const TaskDetail: React.FC<{ 
   onNavigate: (s: Screen) => void, 
@@ -20,6 +22,18 @@ export const TaskDetail: React.FC<{
   const [chatMessage, setChatMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const openConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm });
+  };
+
   if (!task) {
     return (
       <div className="flex-1 flex flex-col bg-[#0a0f18] items-center justify-center p-10 text-center">
@@ -34,50 +48,58 @@ export const TaskDetail: React.FC<{
 
   // --- FUNGSI BARU: BERIKAN PENALTI PELANGGARAN ---
   const handleGivePenalty = async (uid: string, userName?: string) => {
-    if (!window.confirm(`Tandai ${userName || 'petugas'} tidak hadir / melanggar? Mereka akan dicopot dari tugas ini dan mendapatkan PENGURANGAN POIN KINERJA.`)) return;
-    
-    setIsLoading(true);
-    try {
-      await updateDoc(doc(db, 'tasks', task.id), {
-        assignedUsers: arrayRemove(uid),
-        missedUsers: arrayUnion(uid)
-      });
+    openConfirm(
+      'Berikan Penalti',
+      `Tandai ${userName || 'petugas'} tidak hadir / melanggar? Mereka akan dicopot dari tugas ini dan mendapatkan PENGURANGAN POIN KINERJA.`,
+      async () => {
+        setIsLoading(true);
+        try {
+          await updateDoc(doc(db, 'tasks', task.id), {
+            assignedUsers: arrayRemove(uid),
+            missedUsers: arrayUnion(uid)
+          });
 
-      await addDoc(collection(db, 'notifications'), {
-        userId: uid,
-        title: '⚠️ Penugasan Dibatalkan (Penalti)',
-        message: `Anda telah dicopot dari tugas "${task.title}" karena pelanggaran/tidak hadir. Poin kinerja Anda telah dikurangi sebesar 20 Poin.`,
-        type: 'ALERT',
-        read: false,
-        createdAt: serverTimestamp()
-      });
+          await addDoc(collection(db, 'notifications'), {
+            userId: uid,
+            title: '⚠️ Penugasan Dibatalkan (Penalti)',
+            message: `Anda telah dicopot dari tugas "${task.title}" karena pelanggaran/tidak hadir. Poin kinerja Anda telah dikurangi sebesar 20 Poin.`,
+            type: 'ALERT',
+            read: false,
+            createdAt: serverTimestamp()
+          });
 
-      alert("Petugas berhasil dicopot dan diberikan penalti.");
-    } catch (err) {
-      console.error("Error giving penalty:", err);
-      alert("Gagal memproses penalti.");
-    } finally {
-      setIsLoading(false);
-    }
+          toast.success("Petugas berhasil dicopot dan diberikan penalti.");
+        } catch (err) {
+          console.error("Error giving penalty:", err);
+          toast.error("Gagal memproses penalti.");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    );
   };
 
   // --- FUNGSI BARU: HAPUS PROGRESS ---
   const handleDeleteProgress = async (progressItem: any) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus laporan progress ini?")) return;
-    
-    setIsLoading(true);
-    try {
-      await updateDoc(doc(db, 'tasks', task.id), {
-        progressHistory: arrayRemove(progressItem),
-        updatedAt: serverTimestamp()
-      });
-      alert("Progress berhasil dihapus.");
-    } catch (err) {
-      console.error("Error deleting progress:", err);
-      alert("Gagal menghapus progress.");
-    } finally {
-      setIsLoading(false);
-    }
+    openConfirm(
+      'Hapus Progress',
+      "Apakah Anda yakin ingin menghapus laporan progress ini?",
+      async () => {
+        setIsLoading(true);
+        try {
+          await updateDoc(doc(db, 'tasks', task.id), {
+            progressHistory: arrayRemove(progressItem),
+            updatedAt: serverTimestamp()
+          });
+          toast.success("Progress berhasil dihapus.");
+        } catch (err) {
+          console.error("Error deleting progress:", err);
+          toast.error("Gagal menghapus progress.");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    );
   };
 
   const handleVerify = async () => {
@@ -517,6 +539,14 @@ export const TaskDetail: React.FC<{
           </div>
         </div>
       )}
+
+      <ConfirmationModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
     </div>
   );
 };

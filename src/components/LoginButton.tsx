@@ -1,12 +1,13 @@
 import { loginWithGoogle } from "../services/authService";
+import { toast } from "sonner";
 
 export default function LoginButton() {
   const handleLogin = async () => {
     try {
       await loginWithGoogle();
-      alert("Berhasil Login!");
+      toast.success("Berhasil Login!");
     } catch (err: any) {
-      alert("Login Gagal: " + err.message);
+      toast.error("Login Gagal: " + err.message);
     }
   };
 

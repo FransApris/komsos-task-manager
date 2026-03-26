@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 // PERBAIKAN: Menambahkan Video, Palette, Clock, dan Users ke dalam import
 import { X, Award, Camera, ShieldCheck, Star, Zap, CheckCircle2, Video, Palette, Clock, Users } from 'lucide-react';
 import { awardBadge } from '../services/badgeService';
+import { toast } from 'sonner';
 
 interface AwardBadgeModalProps {
   userId: string;
@@ -31,10 +32,10 @@ export const AwardBadgeModal: React.FC<AwardBadgeModalProps> = ({ userId, userNa
     try {
       // Memanggil fungsi dari badgeService.ts milikmu
       await awardBadge(userId, selectedBadge.name, selectedBadge.id);
-      alert(`Lencana ${selectedBadge.name} berhasil diberikan kepada ${userName}!`);
+      toast.success(`Lencana ${selectedBadge.name} berhasil diberikan kepada ${userName}!`);
       onClose();
     } catch (error) {
-      alert('Gagal memberikan lencana. Periksa koneksi atau izin.');
+      toast.error('Gagal memberikan lencana. Periksa koneksi atau izin.');
     } finally {
       setLoading(false);
     }

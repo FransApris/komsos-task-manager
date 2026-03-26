@@ -3,6 +3,8 @@ import { ChevronLeft, Plus, Calendar, Clock, MapPin, CheckCircle2, UserPlus, Tra
 import { Screen, Role, UserAccount, MassSchedule } from '../types';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from '../firebase';
 import { useData } from '../contexts/DataContext';
+import { toast } from 'sonner';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const MassScheduleScreen: React.FC<{ 
   onNavigate: (s: Screen) => void, 
@@ -21,6 +23,18 @@ export const MassScheduleScreen: React.FC<{
     location: 'Gereja St. Paulus Juanda',
   });
 
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const openConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm });
+  };
+
   const isAdmin = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
 
   const handleAdd = async () => {
@@ -33,10 +47,12 @@ export const MassScheduleScreen: React.FC<{
         createdBy: currentUser?.uid || 'system',
         createdAt: serverTimestamp()
       });
+      toast.success('Agenda berhasil ditambahkan');
       setShowAddModal(false);
       setNewSchedule({ title: '', type: 'Misa', date: '', time: '', location: 'Gereja St. Paulus Juanda' });
     } catch (e) {
       console.error(e);
+      toast.error('Gagal menambahkan agenda');
     }
   };
 
@@ -49,18 +65,27 @@ export const MassScheduleScreen: React.FC<{
       await updateDoc(doc(db, 'massSchedules', schedule.id), {
         assignedUsers: updatedUsers
       });
+      toast.success('Berhasil bergabung ke agenda');
     } catch (e) {
       console.error(e);
+      toast.error('Gagal bergabung ke agenda');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Hapus agenda ini?')) return;
-    try {
-      await deleteDoc(doc(db, 'massSchedules', id));
-    } catch (e) {
-      console.error(e);
-    }
+    openConfirm(
+      'Hapus Agenda',
+      'Apakah Anda yakin ingin menghapus agenda ini secara permanen?',
+      async () => {
+        try {
+          await deleteDoc(doc(db, 'massSchedules', id));
+          toast.success('Agenda berhasil dihapus');
+        } catch (e) {
+          console.error(e);
+          toast.error('Gagal menghapus agenda');
+        }
+      }
+    );
   };
 
   const getTypeColor = (type: string) => {
@@ -218,6 +243,14 @@ export const MassScheduleScreen: React.FC<{
           </div>
         </div>
       )}
+
+      <ConfirmationModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { ChevronLeft, CheckCircle2, Video, FileText, Activity, Users, Briefcase,
 import { Screen, Task, UserAccount } from '../types';
 import { db, doc, updateDoc, serverTimestamp } from '../firebase';
 import { useData } from '../contexts/DataContext';
+import { toast } from 'sonner';
 
 export const TaskVerificationScreen: React.FC<{ 
   onNavigate: (s: Screen) => void,
@@ -31,7 +32,7 @@ export const TaskVerificationScreen: React.FC<{
       // Sukses: otomatis hilang dari daftar tanpa alert
     } catch (err) {
       console.error("Error verifying task:", err);
-      alert("Gagal memverifikasi tugas.");
+      toast.error("Gagal memverifikasi tugas.");
     } finally {
       setIsLoading(false);
     }

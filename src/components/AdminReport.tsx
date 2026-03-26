@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FileText, Download, BarChart3, Loader2 } from 'lucide-react';
 import { generateUsageReport } from '../services/reportService';
+import { toast } from 'sonner';
 
 export default function AdminReport() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -9,9 +10,9 @@ export default function AdminReport() {
     setIsGenerating(true);
     try {
       await generateUsageReport("Laporan Bulanan Multimedia", "Maret 2026");
-      alert("Laporan berhasil dibuat dan disimpan di database.");
+      toast.success("Laporan berhasil dibuat dan disimpan di database.");
     } catch (err) {
-      alert("Hanya Admin yang dapat membuat laporan.");
+      toast.error("Hanya Admin yang dapat membuat laporan.");
     } finally {
       setIsGenerating(false);
     }

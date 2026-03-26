@@ -8,6 +8,8 @@ import {
 import { db, auth, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from '../firebase';
 import { motion } from 'motion/react';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
+import { toast } from 'sonner';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const InventoryScreen: React.FC<{ 
   onNavigate: (s: Screen) => void, 
@@ -22,6 +24,18 @@ export const InventoryScreen: React.FC<{
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<Inventory | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const openConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm });
+  };
 
   // State untuk Fitur Scanner
   const [isScanning, setIsScanning] = useState(false);
@@ -78,7 +92,7 @@ export const InventoryScreen: React.FC<{
     if (!editingItem || editingItem.id !== finalId) {
       const isIdExist = inventoryDb.some(i => i.id === finalId);
       if (isIdExist) {
-        alert(`ID Barcode "${finalId}" sudah digunakan oleh barang lain. Gunakan ID yang unik.`);
+        toast.error(`ID Barcode "${finalId}" sudah digunakan oleh barang lain. Gunakan ID yang unik.`);
         return;
       }
     }
@@ -108,6 +122,7 @@ export const InventoryScreen: React.FC<{
             updatedAt: serverTimestamp()
           });
         }
+        toast.success('Barang berhasil diperbarui');
       } else {
         // Tambah Baru menggunakan custom ID (setDoc)
         await setDoc(doc(db, 'inventory', finalId), {
@@ -117,28 +132,35 @@ export const InventoryScreen: React.FC<{
           assignedTo: null,
           createdAt: serverTimestamp()
         });
+        toast.success('Barang berhasil ditambahkan');
       }
       setIsAdding(false);
       setEditingItem(null);
     } catch (error) {
       console.error("Error saving inventory item:", error);
-      alert("Gagal menyimpan barang. Pastikan koneksi internet stabil.");
+      toast.error("Gagal menyimpan barang. Pastikan koneksi internet stabil.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Hapus barang ini dari inventaris?")) return;
-    setIsLoading(true);
-    try {
-      await deleteDoc(doc(db, 'inventory', id));
-    } catch (error) {
-      console.error("Error deleting item:", error);
-      alert("Gagal menghapus barang.");
-    } finally {
-      setIsLoading(false);
-    }
+    openConfirm(
+      'Hapus Barang',
+      'Apakah Anda yakin ingin menghapus barang ini dari inventaris?',
+      async () => {
+        setIsLoading(true);
+        try {
+          await deleteDoc(doc(db, 'inventory', id));
+          toast.success('Barang berhasil dihapus');
+        } catch (error) {
+          console.error("Error deleting item:", error);
+          toast.error("Gagal menghapus barang.");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    );
   };
 
   // --- LOGIKA PEMINJAMAN VIA SCANNER ---
@@ -147,7 +169,7 @@ export const InventoryScreen: React.FC<{
     
     const activeUserId = currentUser?.uid || auth.currentUser?.uid;
     if (!activeUserId) {
-      alert("Anda harus login untuk meminjam alat.");
+      toast.error("Anda harus login untuk meminjam alat.");
       return;
     }
 
@@ -159,7 +181,7 @@ export const InventoryScreen: React.FC<{
       );
 
       if (!item) {
-        alert(`❌ Barang dengan Barcode/Nama "${scanId}" tidak ditemukan!`);
+        toast.error(`Barang dengan Barcode/Nama "${scanId}" tidak ditemukan!`);
         setIsLoading(false);
         return;
       }
@@ -172,7 +194,7 @@ export const InventoryScreen: React.FC<{
           assignedTo: activeUserId,
           updatedAt: serverTimestamp()
         });
-        alert(`✅ Berhasil MEMINJAM: ${item.name}`);
+        toast.success(`Berhasil MEMINJAM: ${item.name}`);
         
       } else if (item.status === 'IN_USE') {
         if (item.assignedTo === activeUserId || isAdminRole) {
@@ -181,19 +203,19 @@ export const InventoryScreen: React.FC<{
             assignedTo: null,
             updatedAt: serverTimestamp()
           });
-          alert(`✅ Berhasil MENGEMBALIKAN: ${item.name}`);
+          toast.success(`Berhasil MENGEMBALIKAN: ${item.name}`);
         } else {
-          alert(`❌ Gagal! Alat ini sedang dipinjam oleh anggota lain.`);
+          toast.error(`Gagal! Alat ini sedang dipinjam oleh anggota lain.`);
         }
       } else {
-        alert(`❌ Tidak bisa dipinjam. Status alat sedang: ${item.status}`);
+        toast.error(`Tidak bisa dipinjam. Status alat sedang: ${item.status}`);
       }
 
       setScanId('');
       setIsScanning(false);
     } catch (error) {
       console.error("Error scanning item:", error);
-      alert("Terjadi kesalahan sistem saat memproses scan.");
+      toast.error("Terjadi kesalahan sistem saat memproses scan.");
     } finally {
       setIsLoading(false);
     }
@@ -503,6 +525,14 @@ export const InventoryScreen: React.FC<{
           onClose={() => setIsCameraScanning(false)}
         />
       )}
+
+      <ConfirmationModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
     </div>
   );
 };

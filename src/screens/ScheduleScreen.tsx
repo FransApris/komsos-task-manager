@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Screen, Role, UserAccount, Task } from '../types';
 import { Calendar as CalendarIcon, Clock, MapPin, Video, Users, CheckCircle2, ChevronLeft, ChevronRight, Filter, Plus, Edit2, Trash2, Image as ImageIcon, FileText, X, Save, Loader2 } from 'lucide-react';
 import { db, doc, deleteDoc, updateDoc } from '../firebase';
+import { toast } from 'sonner';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const ScheduleScreen: React.FC<{ 
   onNavigate: (s: Screen) => void, 
@@ -17,6 +19,18 @@ export const ScheduleScreen: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editForm, setEditForm] = useState({ title: '', date: '', time: '', location: '', type: '' });
+
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const openConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm });
+  };
 
   const isAdminRole = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
 
@@ -63,16 +77,22 @@ export const ScheduleScreen: React.FC<{
 
   // --- FUNGSI HAPUS TUGAS ---
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Apakah Anda yakin ingin menghapus jadwal tugas ini? Tindakan ini tidak dapat dibatalkan.')) return;
-    setIsLoading(true);
-    try {
-      await deleteDoc(doc(db, 'tasks', id));
-    } catch (error) {
-      console.error("Gagal menghapus tugas:", error);
-      alert("Gagal menghapus tugas. Periksa koneksi Anda atau pastikan Anda adalah Admin.");
-    } finally {
-      setIsLoading(false);
-    }
+    openConfirm(
+      'Hapus Jadwal',
+      'Apakah Anda yakin ingin menghapus jadwal tugas ini? Tindakan ini tidak dapat dibatalkan.',
+      async () => {
+        setIsLoading(true);
+        try {
+          await deleteDoc(doc(db, 'tasks', id));
+          toast.success("Jadwal tugas berhasil dihapus");
+        } catch (error) {
+          console.error("Gagal menghapus tugas:", error);
+          toast.error("Gagal menghapus tugas. Periksa koneksi Anda atau pastikan Anda adalah Admin.");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    );
   };
 
   // --- FUNGSI MULAI EDIT TUGAS ---
@@ -99,10 +119,11 @@ export const ScheduleScreen: React.FC<{
         location: editForm.location.trim(),
         type: editForm.type
       });
+      toast.success("Jadwal tugas berhasil diperbarui");
       setEditingTask(null); // Tutup modal setelah sukses
     } catch (error) {
       console.error("Gagal memperbarui tugas:", error);
-      alert("Gagal memperbarui tugas.");
+      toast.error("Gagal memperbarui tugas.");
     } finally {
       setIsLoading(false);
     }
@@ -400,6 +421,14 @@ export const ScheduleScreen: React.FC<{
           </div>
         </div>
       )}
+
+      <ConfirmationModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
     </div>
   );
 };

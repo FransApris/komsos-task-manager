@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Calendar, Clock, MapPin, Users, UserPlus, Check, Tag } from 'lucide-react';
 import { auth } from '../firebase';
 import { subscribeToMassSchedules, joinMassAssignment } from '../services/massService';
+import { toast } from 'sonner';
 
 export default function MassScheduleList() {
   const [schedules, setSchedules] = useState<any[]>([]);
@@ -15,9 +16,9 @@ export default function MassScheduleList() {
   const handleJoin = async (id: string) => {
     try {
       await joinMassAssignment(id);
-      alert("Berhasil mengonfirmasi kehadiran!");
+      toast.success("Berhasil mengonfirmasi kehadiran!");
     } catch (err) {
-      alert("Gagal memproses kehadiran.");
+      toast.error("Gagal memproses kehadiran.");
     }
   };
 

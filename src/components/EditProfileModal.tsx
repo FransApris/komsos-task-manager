@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { updateUserProfile } from '../services/userService';
 import { Save, X } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface EditProps {
   user: any;
@@ -17,11 +18,11 @@ export default function EditProfileModal({ user, onClose, onRefresh }: EditProps
     setLoading(true);
     try {
       await updateUserProfile(user.uid, { displayName, img: imgUrl });
-      alert("Profil berhasil diperbarui!");
+      toast.success("Profil berhasil diperbarui!");
       onRefresh(); // Memperbarui tampilan di halaman utama
       onClose();
     } catch (err) {
-      alert("Gagal memperbarui profil.");
+      toast.error("Gagal memperbarui profil.");
     } finally {
       setLoading(false);
     }

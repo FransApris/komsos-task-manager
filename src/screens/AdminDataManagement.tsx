@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Database, Users, ClipboardList, Wrench, Calendar, Search, Filter, Download, Trash2, Edit2, Bell, MessageSquare, CheckSquare, FileBarChart, Award, Sparkles, Activity, Plus, X, Save, Loader2 } from 'lucide-react';
+import { ChevronLeft, Database, Users, ClipboardList, Wrench, Calendar, Search, Filter, Download, Trash2, Edit2, Bell, MessageSquare, CheckSquare, FileBarChart, Award, Sparkles, Activity, Plus, X, Save, Loader2, Trophy, Medal, Crown, Flame, Music, Video, Book, Coffee, PenTool, Code, Heart, Star, Shield, Target, Camera, Zap } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Inventory, MassSchedule, Notification, ChatMessage, Attendance, Report, Badge } from '../types';
 import { db, doc, deleteDoc, collection, addDoc, serverTimestamp, updateDoc } from '../firebase';
 import { toast } from 'sonner';
@@ -38,27 +38,50 @@ export const AdminDataManagement: React.FC<{
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const openConfirm = (title: string, message: string, onConfirm: () => void, isDanger = true) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm, isDanger });
+  };
+
   const handleDelete = async (collectionName: string, id: string) => {
-    if (!window.confirm('Hapus data ini secara permanen?')) return;
-    try {
-      await deleteDoc(doc(db, collectionName, id));
-      toast.success('Data berhasil dihapus');
-    } catch (e) {
-      console.error(`Error deleting from ${collectionName}:`, e);
-      toast.error('Gagal menghapus data');
-    }
+    openConfirm(
+      'Konfirmasi Hapus',
+      'Apakah Anda yakin ingin menghapus data ini secara permanen? Tindakan ini tidak dapat dibatalkan.',
+      async () => {
+        try {
+          await deleteDoc(doc(db, collectionName, id));
+          toast.success('Data berhasil dihapus');
+        } catch (e) {
+          console.error(`Error deleting from ${collectionName}:`, e);
+          toast.error('Gagal menghapus data');
+        }
+      }
+    );
   };
 
   const handleOpenBadgeModal = (badge?: Badge) => {
     if (badge) {
       setEditingBadge(badge);
       setBadgeForm({
-        userId: badge.userId,
-        title: badge.title,
-        description: badge.description,
-        icon: badge.icon,
-        color: badge.color,
-        status: badge.status
+        userId: badge.userId || '',
+        title: badge.title || '',
+        description: badge.description || '',
+        icon: badge.icon || 'Award',
+        color: badge.color || '#3b82f6',
+        status: badge.status || 'earned'
       });
     } else {
       setEditingBadge(null);
@@ -108,92 +131,98 @@ export const AdminDataManagement: React.FC<{
   };
 
   const handleSeedAll = async () => {
-    if (!window.confirm('Ingin menambahkan data contoh untuk semua fitur? Data akan ditambahkan ke koleksi yang sudah ada.')) return;
-    setIsSeeding(true);
-    try {
-      const firstUser = usersDb.find(u => u.role === 'USER')?.uid || 'system';
-      const adminUser = usersDb[0]?.uid || 'system';
+    openConfirm(
+      'Seed Data',
+      'Ingin menambahkan data contoh untuk semua fitur? Data akan ditambahkan ke koleksi yang sudah ada.',
+      async () => {
+        setIsSeeding(true);
+        try {
+          const firstUser = usersDb.find(u => u.role === 'USER')?.uid || 'system';
+          const adminUser = usersDb[0]?.uid || 'system';
 
-      // 1. Seed Inventory (Peralatan)
-      const sampleItems = [
-        { name: 'Kamera Sony A7III', category: 'Kamera', status: 'AVAILABLE' },
-        { name: 'Mic Wireless Rode GO II', category: 'Audio', status: 'AVAILABLE' },
-        { name: 'LED Lighting Godox', category: 'Lighting', status: 'AVAILABLE' },
-        { name: 'Tripod Libec', category: 'Aksesoris', status: 'AVAILABLE' }
-      ];
-      
-      const createdInventoryIds: string[] = [];
-      for (const item of sampleItems) {
-        const docRef = await addDoc(collection(db, 'inventory'), {
-          ...item,
-          assignedTo: null,
-          lastChecked: serverTimestamp()
-        });
-        createdInventoryIds.push(docRef.id);
-      }
+          // 1. Seed Inventory (Peralatan)
+          const sampleItems = [
+            { name: 'Kamera Sony A7III', category: 'Kamera', status: 'AVAILABLE' },
+            { name: 'Mic Wireless Rode GO II', category: 'Audio', status: 'AVAILABLE' },
+            { name: 'LED Lighting Godox', category: 'Lighting', status: 'AVAILABLE' },
+            { name: 'Tripod Libec', category: 'Aksesoris', status: 'AVAILABLE' }
+          ];
+          
+          const createdInventoryIds: string[] = [];
+          for (const item of sampleItems) {
+            const docRef = await addDoc(collection(db, 'inventory'), {
+              ...item,
+              assignedTo: null,
+              lastChecked: serverTimestamp()
+            });
+            createdInventoryIds.push(docRef.id);
+          }
 
-      // 2. Seed Tasks (Tugas)
-      const taskTypes = ['Peliputan', 'Dokumentasi', 'Publikasi', 'Desain', 'OBS', 'Editing', 'Tugas Lain'];
-      for (const type of taskTypes) {
-        await addDoc(collection(db, 'tasks'), {
-          title: `Tugas Contoh ${type}`,
-          type: type,
-          date: '2026-04-05',
-          time: '08:00 - 10:00',
-          status: 'IN_PROGRESS',
-          assignedUsers: [firstUser],
-          teamLeaderId: firstUser,
-          requiredEquipment: createdInventoryIds.slice(0, 2),
-          createdBy: adminUser,
-          createdAt: serverTimestamp()
-        });
-      }
+          // 2. Seed Tasks (Tugas)
+          const taskTypes = ['Peliputan', 'Dokumentasi', 'Publikasi', 'Desain', 'OBS', 'Editing', 'Tugas Lain'];
+          for (const type of taskTypes) {
+            await addDoc(collection(db, 'tasks'), {
+              title: `Tugas Contoh ${type}`,
+              type: type,
+              date: '2026-04-05',
+              time: '08:00 - 10:00',
+              status: 'IN_PROGRESS',
+              assignedUsers: [firstUser],
+              teamLeaderId: firstUser,
+              requiredEquipment: createdInventoryIds.slice(0, 2),
+              createdBy: adminUser,
+              createdAt: serverTimestamp()
+            });
+          }
 
-      // 3. Seed Agenda (Misa)
-      await addDoc(collection(db, 'massSchedules'), {
-        title: 'Misa Minggu Pagi',
-        date: '2026-03-29',
-        time: '08:00',
-        location: 'Gereja St. Paulus',
-        status: 'OPEN',
-        assignedUsers: [],
-        createdBy: adminUser,
-        createdAt: serverTimestamp()
-      });
+          // 3. Seed Agenda (Misa)
+          await addDoc(collection(db, 'massSchedules'), {
+            title: 'Misa Minggu Pagi',
+            date: '2026-03-29',
+            time: '08:00',
+            location: 'Gereja St. Paulus',
+            status: 'OPEN',
+            assignedUsers: [],
+            createdBy: adminUser,
+            createdAt: serverTimestamp()
+          });
 
-      // 4. Seed Notifications (Notifikasi)
-      if (usersDb.length > 0) {
-        await addDoc(collection(db, 'notifications'), {
-          userId: usersDb[0].uid,
-          title: 'Selamat Datang!',
-          message: 'Aplikasi Komsos siap digunakan. Silakan cek tugas Anda.',
-          read: false,
-          createdAt: serverTimestamp()
-        });
-      }
+          // 4. Seed Notifications (Notifikasi)
+          if (usersDb.length > 0) {
+            await addDoc(collection(db, 'notifications'), {
+              userId: usersDb[0].uid,
+              title: 'Selamat Datang!',
+              message: 'Aplikasi Komsos siap digunakan. Silakan cek tugas Anda.',
+              read: false,
+              createdAt: serverTimestamp()
+            });
+          }
 
-      // 5. Seed Badges (Badge)
-      if (usersDb.length > 0) {
-        await addDoc(collection(db, 'badges'), {
-          userId: usersDb[0].uid,
-          title: 'Kreator Tercepat',
-          description: 'Menyelesaikan tugas sebelum deadline.',
-          icon: 'Zap',
-          color: 'yellow',
-          approvals: 0,
-          requiredApprovals: 3,
-          status: 'pending',
-          approvedBy: []
-        });
-      }
+          // 5. Seed Badges (Badge)
+          if (usersDb.length > 0) {
+            await addDoc(collection(db, 'badges'), {
+              userId: usersDb[0].uid,
+              title: 'Kreator Tercepat',
+              description: 'Menyelesaikan tugas sebelum deadline.',
+              icon: 'Zap',
+              color: 'yellow',
+              approvals: 0,
+              requiredApprovals: 3,
+              status: 'pending',
+              approvedBy: []
+            });
+          }
 
-      alert('Data contoh berhasil ditambahkan! Silakan cek daftar di bawah atau Firebase Console.');
-    } catch (e) {
-      console.error(e);
-      alert('Terjadi kesalahan saat menambahkan data contoh.');
-    } finally {
-      setIsSeeding(false);
-    }
+          toast.success('Data contoh berhasil ditambahkan!');
+        } catch (e) {
+          console.error(e);
+          toast.error('Terjadi kesalahan saat menambahkan data contoh.');
+        } finally {
+          setIsSeeding(false);
+        }
+      },
+      false
+    );
   };
 
   const renderUsers = () => {
@@ -318,7 +347,12 @@ export const AdminDataManagement: React.FC<{
             <div key={badge.id} className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-500/10 rounded-xl" style={{ color: badge.color || '#3b82f6' }}>
-                  <Award className="w-5 h-5" />
+                  {(() => {
+                    const IconComponent = {
+                      Award, Trophy, Medal, Crown, Star, Zap, Flame, Target, Shield, Heart, Camera, Music, Video, Book, Coffee, PenTool, Code, Activity, Sparkles, Bell
+                    }[badge.icon] || Award;
+                    return <IconComponent className="w-5 h-5" />;
+                  })()}
                 </div>
                 <div>
                   <h3 className="font-bold text-sm text-white mb-1">{badge.title || 'Badge Tanpa Judul'}</h3>
@@ -365,29 +399,39 @@ export const AdminDataManagement: React.FC<{
   };
 
   const handleClearAll = async () => {
-    if (!window.confirm('PERINGATAN: Ini akan menghapus SEMUA data di koleksi ini. Lanjutkan?')) return;
-    setIsSeeding(true);
-    try {
-      let collectionName = '';
-      let items: any[] = [];
-      
-      if (activeTab === 'USERS') { collectionName = 'users'; items = usersDb; }
-      else if (activeTab === 'TASKS') { collectionName = 'tasks'; items = tasksDb; }
-      else if (activeTab === 'INVENTORY') { collectionName = 'inventory'; items = inventoryDb; }
-      else if (activeTab === 'MASS') { collectionName = 'massSchedules'; items = massSchedules; }
-      else if (activeTab === 'NOTIFS') { collectionName = 'notifications'; items = notificationsDb || []; }
-      else if (activeTab === 'BADGES') { collectionName = 'badges'; items = badgesDb || []; }
+    openConfirm(
+      'Hapus Semua Data',
+      'PERINGATAN: Ini akan menghapus SEMUA data di koleksi ini secara permanen. Tindakan ini tidak dapat dibatalkan. Lanjutkan?',
+      async () => {
+        setIsSeeding(true);
+        try {
+          let collectionName = '';
+          let items: any[] = [];
+          
+          if (activeTab === 'USERS') { collectionName = 'users'; items = usersDb; }
+          else if (activeTab === 'TASKS') { collectionName = 'tasks'; items = tasksDb; }
+          else if (activeTab === 'INVENTORY') { collectionName = 'inventory'; items = inventoryDb; }
+          else if (activeTab === 'MASS') { collectionName = 'massSchedules'; items = massSchedules; }
+          else if (activeTab === 'NOTIFS') { collectionName = 'notifications'; items = notificationsDb || []; }
+          else if (activeTab === 'BADGES') { collectionName = 'badges'; items = badgesDb || []; }
 
-      for (const item of items) {
-        await deleteDoc(doc(db, collectionName, item.id));
+          if (!collectionName || items.length === 0) {
+            toast.error('Tidak ada data untuk dihapus');
+            return;
+          }
+
+          for (const item of items) {
+            await deleteDoc(doc(db, collectionName, item.id || item.uid));
+          }
+          toast.success(`Berhasil menghapus ${items.length} data dari ${collectionName}`);
+        } catch (e) {
+          console.error(e);
+          toast.error('Gagal menghapus data.');
+        } finally {
+          setIsSeeding(false);
+        }
       }
-      alert(`Berhasil menghapus ${items.length} data dari ${collectionName}.`);
-    } catch (e) {
-      console.error(e);
-      alert('Gagal menghapus data.');
-    } finally {
-      setIsSeeding(false);
-    }
+    );
   };
 
   return (
@@ -471,9 +515,46 @@ export const AdminDataManagement: React.FC<{
 
             <div className="space-y-4">
               <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Cepat: Pilih Template</label>
+                <select 
+                  onChange={(e) => {
+                    const templates: Record<string, { title: string, description: string, icon: string, color: string }> = {
+                      'foto': { title: 'Fotografer Handal', description: 'Mengabadikan momen berharga dengan estetika tinggi.', icon: 'Camera', color: '#10b981' },
+                      'video': { title: 'Videografer Kreatif', description: 'Merekam dan menyunting video berkualitas untuk umat.', icon: 'Video', color: '#ef4444' },
+                      'editor': { title: 'Master Editor', description: 'Menyulap potongan klip menjadi karya seni visual yang memukau.', icon: 'PenTool', color: '#8b5cf6' },
+                      'writer': { title: 'Penulis Inspiratif', description: 'Menyampaikan pesan iman melalui tulisan yang menyentuh hati.', icon: 'Book', color: '#f59e0b' },
+                      'admin': { title: 'Admin Teladan', description: 'Menjaga keteraturan data dan komunikasi digital dengan rapi.', icon: 'Shield', color: '#3b82f6' },
+                      'dev': { title: 'Digital Architect', description: 'Membangun sistem digital untuk kemudahan pelayanan gereja.', icon: 'Code', color: '#06b6d4' },
+                      'design': { title: 'Visual Artist', description: 'Menciptakan desain kreatif yang memikat dan penuh makna.', icon: 'Sparkles', color: '#ec4899' },
+                      'loyal': { title: 'Relawan Setia', description: 'Selalu hadir dan siap membantu di setiap tugas dengan tulus.', icon: 'Heart', color: '#f43f5e' },
+                      'leader': { title: 'Leader Bijak', description: 'Mengarahkan tim dengan visi yang jelas dan penuh kasih.', icon: 'Crown', color: '#fbbf24' },
+                      'sound': { title: 'Audio Specialist', description: 'Memastikan kualitas suara jernih dan nyaman didengar.', icon: 'Music', color: '#6366f1' }
+                    };
+                    const template = templates[e.target.value];
+                    if (template) {
+                      setBadgeForm({ ...badgeForm, ...template });
+                    }
+                  }}
+                  className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-400 focus:border-blue-500 outline-none"
+                >
+                  <option value="">-- Pilih Template Badge --</option>
+                  <option value="foto">Fotografer</option>
+                  <option value="video">Videografer</option>
+                  <option value="editor">Editor</option>
+                  <option value="writer">Penulis</option>
+                  <option value="admin">Admin</option>
+                  <option value="dev">Programmer</option>
+                  <option value="design">Desainer</option>
+                  <option value="loyal">Relawan Setia</option>
+                  <option value="leader">Pemimpin Tim</option>
+                  <option value="sound">Audio Specialist</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">User ID (UID)</label>
                 <select 
-                  value={badgeForm.userId}
+                  value={badgeForm.userId || ''}
                   onChange={(e) => setBadgeForm({ ...badgeForm, userId: e.target.value })}
                   className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none"
                 >
@@ -488,7 +569,7 @@ export const AdminDataManagement: React.FC<{
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Judul Badge</label>
                 <input 
                   type="text"
-                  value={badgeForm.title}
+                  value={badgeForm.title || ''}
                   onChange={(e) => setBadgeForm({ ...badgeForm, title: e.target.value })}
                   placeholder="Contoh: Fotografer Handal"
                   className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none"
@@ -498,7 +579,7 @@ export const AdminDataManagement: React.FC<{
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Deskripsi</label>
                 <textarea 
-                  value={badgeForm.description}
+                  value={badgeForm.description || ''}
                   onChange={(e) => setBadgeForm({ ...badgeForm, description: e.target.value })}
                   placeholder="Berikan keterangan pencapaian..."
                   className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none h-20 resize-none"
@@ -507,30 +588,61 @@ export const AdminDataManagement: React.FC<{
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Ikon</label>
-                  <select 
-                    value={badgeForm.icon}
-                    onChange={(e) => setBadgeForm({ ...badgeForm, icon: e.target.value })}
-                    className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none"
-                  >
-                    <option value="Award">Award</option>
-                    <option value="Camera">Camera</option>
-                    <option value="Edit3">Edit</option>
-                    <option value="Zap">Zap</option>
-                    <option value="Star">Star</option>
-                    <option value="Shield">Shield</option>
-                    <option value="Target">Target</option>
-                    <option value="Heart">Heart</option>
-                  </select>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Pilih Ikon</label>
+                  <div className="grid grid-cols-4 gap-2 bg-[#0a0f18] p-2 rounded-xl border border-gray-800 max-h-32 overflow-y-auto no-scrollbar">
+                    {[
+                      { id: 'Award', icon: Award },
+                      { id: 'Trophy', icon: Trophy },
+                      { id: 'Medal', icon: Medal },
+                      { id: 'Crown', icon: Crown },
+                      { id: 'Star', icon: Star },
+                      { id: 'Zap', icon: Zap },
+                      { id: 'Flame', icon: Flame },
+                      { id: 'Target', icon: Target },
+                      { id: 'Shield', icon: Shield },
+                      { id: 'Heart', icon: Heart },
+                      { id: 'Camera', icon: Camera },
+                      { id: 'Music', icon: Music },
+                      { id: 'Video', icon: Video },
+                      { id: 'Book', icon: Book },
+                      { id: 'Coffee', icon: Coffee },
+                      { id: 'PenTool', icon: PenTool },
+                      { id: 'Code', icon: Code },
+                      { id: 'Activity', icon: Activity },
+                      { id: 'Sparkles', icon: Sparkles },
+                      { id: 'Bell', icon: Bell }
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setBadgeForm({ ...badgeForm, icon: item.id })}
+                        className={`p-2 rounded-lg flex items-center justify-center transition-all ${badgeForm.icon === item.id ? 'bg-blue-600/20 border border-blue-500 text-blue-400' : 'bg-[#151b2b] border border-transparent text-gray-500 hover:text-gray-300'}`}
+                      >
+                        <item.icon className="w-4 h-4" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Warna (Hex)</label>
-                  <input 
-                    type="color"
-                    value={badgeForm.color}
-                    onChange={(e) => setBadgeForm({ ...badgeForm, color: e.target.value })}
-                    className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-1 py-1 h-11 text-sm text-white focus:border-blue-500 outline-none"
-                  />
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 block">Warna & Preview</label>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="color"
+                      value={badgeForm.color || '#3b82f6'}
+                      onChange={(e) => setBadgeForm({ ...badgeForm, color: e.target.value })}
+                      className="w-12 h-12 bg-[#0a0f18] border border-gray-800 rounded-xl p-1 cursor-pointer outline-none"
+                    />
+                    <div 
+                      className="flex-1 h-12 rounded-xl flex items-center justify-center border border-gray-800 bg-[#0a0f18]"
+                      style={{ color: badgeForm.color }}
+                    >
+                      {(() => {
+                        const IconComponent = {
+                          Award, Trophy, Medal, Crown, Star, Zap, Flame, Target, Shield, Heart, Camera, Music, Video, Book, Coffee, PenTool, Code, Activity, Sparkles, Bell
+                        }[badgeForm.icon] || Award;
+                        return <IconComponent className="w-6 h-6" />;
+                      })()}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -561,6 +673,37 @@ export const AdminDataManagement: React.FC<{
               {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
               {isSaving ? 'Menyimpan...' : 'Simpan Badge'}
             </button>
+          </div>
+        </div>
+      )}
+      {/* Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 bg-black/90 backdrop-blur-md">
+          <div className="bg-[#151b2b] w-full max-w-sm rounded-3xl border border-gray-800 p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="text-center mb-6">
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmModal.isDanger ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                {confirmModal.isDanger ? <Trash2 className="w-8 h-8" /> : <Database className="w-8 h-8" />}
+              </div>
+              <h3 className="text-lg font-extrabold text-white mb-2">{confirmModal.title}</h3>
+              <p className="text-sm text-gray-400 leading-relaxed">{confirmModal.message}</p>
+            </div>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+                className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-all"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={() => {
+                  confirmModal.onConfirm();
+                  setConfirmModal({ ...confirmModal, isOpen: false });
+                }}
+                className={`flex-1 py-3 text-white font-bold rounded-xl transition-all shadow-lg ${confirmModal.isDanger ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'}`}
+              >
+                Ya, Lanjutkan
+              </button>
+            </div>
           </div>
         </div>
       )}

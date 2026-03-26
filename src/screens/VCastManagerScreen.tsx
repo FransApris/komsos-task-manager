@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Plus, MoreVertical, Mic, Video, Edit3, CheckCircle2, Calendar, User, Trash2, X, Save, Loader2, PlayCircle } from 'lucide-react';
 import { Screen, UserAccount, Role } from '../types';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from '../firebase';
+import { toast } from 'sonner';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 // Definisi Tipe Data Konten V-Cast
 interface VCastContent {
@@ -33,6 +35,18 @@ export const VCastManagerScreen: React.FC<{
   const [showAddModal, setShowAddModal] = useState(false);
   const [showActionModal, setShowActionModal] = useState<VCastContent | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const openConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm });
+  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -70,11 +84,12 @@ export const VCastManagerScreen: React.FC<{
           createdAt: serverTimestamp()
         });
       }
+      toast.success("Konten berhasil disimpan");
       setShowAddModal(false);
       setFormData({ title: '', description: '', status: 'IDEA', targetDate: '', pic: '' });
     } catch (error) {
       console.error(error);
-      alert("Gagal menyimpan konten.");
+      toast.error("Gagal menyimpan konten.");
     } finally {
       setIsSaving(false);
     }
@@ -83,22 +98,29 @@ export const VCastManagerScreen: React.FC<{
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     try {
       await updateDoc(doc(db, 'vcast', id), { status: newStatus, updatedAt: serverTimestamp() });
+      toast.success("Status konten diperbarui");
       setShowActionModal(null);
     } catch (error) {
       console.error(error);
-      alert("Gagal memindahkan kartu.");
+      toast.error("Gagal memindahkan kartu.");
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Hapus kartu konten ini secara permanen?")) return;
-    try {
-      await deleteDoc(doc(db, 'vcast', id));
-      setShowActionModal(null);
-    } catch (error) {
-      console.error(error);
-      alert("Gagal menghapus konten.");
-    }
+    openConfirm(
+      'Hapus Konten',
+      "Hapus kartu konten ini secara permanen?",
+      async () => {
+        try {
+          await deleteDoc(doc(db, 'vcast', id));
+          toast.success("Konten berhasil dihapus");
+          setShowActionModal(null);
+        } catch (error) {
+          console.error(error);
+          toast.error("Gagal menghapus konten.");
+        }
+      }
+    );
   };
 
   const openEdit = (content: VCastContent) => {
@@ -295,6 +317,14 @@ export const VCastManagerScreen: React.FC<{
           </div>
         </div>
       )}
+
+      <ConfirmationModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
     </div>
   );
 };

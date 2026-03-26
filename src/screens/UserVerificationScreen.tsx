@@ -10,6 +10,7 @@ import {
 import { UserAccount, Role, Screen } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 interface UserVerificationScreenProps {
   onNavigate: (screen: Screen) => void;
@@ -20,6 +21,18 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const openConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm });
+  };
 
   const fetchPendingUsers = async () => {
     setIsLoading(true);
@@ -66,22 +79,26 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
   };
 
   const handleReject = async (userId: string) => {
-    if (!window.confirm('Apakah Anda yakin ingin menolak pendaftaran ini?')) return;
-    
-    setIsProcessing(userId);
-    try {
-      await updateDoc(doc(db, 'users', userId), {
-        status: 'REJECTED',
-        updatedAt: serverTimestamp()
-      });
-      toast.info("Pendaftaran ditolak");
-      setPendingUsers(prev => prev.filter(u => u.id !== userId));
-    } catch (error) {
-      console.error("Error rejecting user:", error);
-      toast.error("Gagal menolak pendaftaran");
-    } finally {
-      setIsProcessing(null);
-    }
+    openConfirm(
+      'Tolak Pendaftaran',
+      'Apakah Anda yakin ingin menolak pendaftaran ini?',
+      async () => {
+        setIsProcessing(userId);
+        try {
+          await updateDoc(doc(db, 'users', userId), {
+            status: 'REJECTED',
+            updatedAt: serverTimestamp()
+          });
+          toast.info("Pendaftaran ditolak");
+          setPendingUsers(prev => prev.filter(u => u.id !== userId));
+        } catch (error) {
+          console.error("Error rejecting user:", error);
+          toast.error("Gagal menolak pendaftaran");
+        } finally {
+          setIsProcessing(null);
+        }
+      }
+    );
   };
 
   const filteredUsers = pendingUsers.filter(u => 
@@ -183,6 +200,14 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
           </div>
         )}
       </div>
+
+      <ConfirmationModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+      />
     </div>
   );
 };

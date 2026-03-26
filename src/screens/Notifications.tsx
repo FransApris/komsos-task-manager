@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, Bell, CheckCircle2, Clock, Video, Info, CheckCheck } from 'lucide-react';
 import { Screen, Notification } from '../types';
 import { db, doc, updateDoc, writeBatch } from '../firebase'; 
+import { toast } from 'sonner';
 
 export const Notifications: React.FC<{ 
   onNavigate: (s: Screen) => void, 
@@ -56,7 +57,7 @@ export const Notifications: React.FC<{
       await batch.commit();
     } catch (error) {
       console.error("Error marking all as read:", error);
-      alert("Gagal menandai notifikasi. Periksa koneksi Anda.");
+      toast.error("Gagal menandai notifikasi. Periksa koneksi Anda.");
     } finally {
       setIsMarking(false);
     }

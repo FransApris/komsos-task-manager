@@ -1,4 +1,5 @@
 import { db, auth } from "../firebase";
+import { toast } from "sonner";
 import { 
   collection, 
   addDoc, 
@@ -10,7 +11,7 @@ import {
 export const seedDatabase = async () => {
   const user = auth.currentUser;
   if (!user) {
-    alert("Silakan login sebagai Admin untuk mengisi data.");
+    toast.error("Silakan login sebagai Admin untuk mengisi data.");
     return;
   }
 
@@ -198,7 +199,7 @@ export const seedDatabase = async () => {
     for (const type of sampleTaskTypes) await addDoc(collection(db, "taskTypes"), type);
     for (const badge of sampleBadges) await addDoc(collection(db, "badges"), badge);
 
-    alert("Berhasil memasukkan 21 data contoh!");
+    toast.success("Berhasil memasukkan 21 data contoh!");
   } catch (error) {
     console.error("Seeder error:", error);
   }
@@ -218,7 +219,7 @@ export const clearSampleData = async () => {
     }
 
     await batch.commit();
-    alert("Database telah dikosongkan.");
+    toast.success("Database telah dikosongkan.");
   } catch (error) {
     console.error("Clear error:", error);
   }
@@ -227,7 +228,7 @@ export const clearSampleData = async () => {
 export const seedMassSchedules = async () => {
   const user = auth.currentUser;
   if (!user) {
-    alert("Harap login sebagai Admin untuk mengisi agenda.");
+    toast.error("Harap login sebagai Admin untuk mengisi agenda.");
     return;
   }
 
@@ -339,9 +340,9 @@ export const seedMassSchedules = async () => {
       await addDoc(collection(db, "massSchedules"), mass);
     }
 
-    alert("10 Agenda berhasil ditambahkan!");
+    toast.success("10 Agenda berhasil ditambahkan!");
   } catch (error: any) {
     console.error("Gagal mengisi agenda:", error);
-    alert("Error: " + error.message);
+    toast.error("Error: " + error.message);
   }
 };

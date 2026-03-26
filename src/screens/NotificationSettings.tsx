@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, BellRing, MessageSquare, Calendar, ShieldCheck, Loader2 } from 'lucide-react';
 import { Screen, UserAccount } from '../types';
 import { doc, updateDoc, db } from '../firebase'; 
+import { toast } from 'sonner';
 
 // PERBAIKAN: Menambahkan kata "export" di sini agar bisa dibaca oleh App.tsx
 export const NotificationSettings: React.FC<{ 
@@ -37,7 +38,7 @@ export const NotificationSettings: React.FC<{
       });
     } catch (err) {
       console.error(err);
-      alert("Gagal menyimpan pengaturan.");
+      toast.error("Gagal menyimpan pengaturan.");
       setSettings(settings); 
     } finally {
       setSaving(false);

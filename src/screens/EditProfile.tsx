@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, Camera, Loader2, Plus, X, Check } from 'lucide-react';
 import { Screen, UserAccount, Role, AvailabilityStatus, PortfolioLink } from '../types';
 import { db, doc, updateDoc } from '../firebase';
+import { toast } from 'sonner';
 
 // DAFTAR KEAHLIAN BAKU UNTUK KOMSOS
 const AVAILABLE_SKILLS = [
@@ -88,7 +89,7 @@ export const EditProfile: React.FC<{
         portfolioLinks: portfolioLinks
       });
 
-      alert("Profil berhasil diperbarui!");
+      toast.success("Profil berhasil diperbarui!");
       
       // Memaksa browser memuat ulang halaman ke Profil 
       // agar data terbaru langsung ditarik dari Firebase dan menyebar ke seluruh aplikasi
@@ -97,9 +98,9 @@ export const EditProfile: React.FC<{
     } catch (error: any) {
       console.error("Gagal menyimpan profil:", error);
       if (error.code === 'permission-denied') {
-        alert("Gagal menyimpan: Anda tidak memiliki izin (Permission Denied). Silakan cek Rules Firestore Anda atau pastikan Anda sudah Login.");
+        toast.error("Gagal menyimpan: Anda tidak memiliki izin (Permission Denied). Silakan cek Rules Firestore Anda atau pastikan Anda sudah Login.");
       } else {
-        alert("Terjadi kesalahan saat menyimpan profil. Periksa koneksi internet Anda.");
+        toast.error("Terjadi kesalahan saat menyimpan profil. Periksa koneksi internet Anda.");
       }
       setIsLoading(false);
     } 
