@@ -4,7 +4,7 @@ import { BottomNav } from './components/BottomNav';
 import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import { ChatProvider } from './contexts/ChatContext';
-import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where, setDoc, serverTimestamp, getDocFromServer, handleFirestoreError, OperationType } from './firebase';
+import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where, setDoc, updateDoc, serverTimestamp, getDocFromServer, handleFirestoreError, OperationType } from './firebase';
 import { Screen, UserAccount, Task, Notification, Inventory, Role, Badge } from './types';
 import { Loader2 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
@@ -67,26 +67,22 @@ export default function App() {
     currentUserRef.current = currentUser;
   }, [currentUser]);
 
-  // --- FUNGSI BARU: PENGENDALI TOMBOL BACK HP ---
+  // --- PENGENDALI TOMBOL BACK HP (Browser History API) ---
   const handleNavigate = (screen: Screen) => {
     if (screen !== currentScreen) {
-      // Masukkan halaman ke dalam sejarah browser agar tombol back HP berfungsi
       window.history.pushState({ screen }, '', `?menu=${screen.toLowerCase()}`);
       setCurrentScreen(screen);
     }
   };
 
   useEffect(() => {
-    // Inisialisasi status awal saat aplikasi dibuka
     window.history.replaceState({ screen: currentScreen }, '', `?menu=${currentScreen.toLowerCase()}`);
     
-    // Fungsi ini dipanggil OTOMATIS oleh browser ketika tombol Back HP ditekan
     const handlePopState = (e: PopStateEvent) => {
       if (e.state && e.state.screen) {
         let nextScreen = e.state.screen as Screen;
         const user = currentUserRef.current;
         
-        // Cerdas: Mencegah user kembali ke halaman Login/Splash jika mereka sudah berhasil Login
         if (user && (nextScreen === 'LOGIN' || nextScreen === 'SPLASH' || nextScreen === 'REGISTER')) {
           nextScreen = user.role === 'SUPERADMIN' || user.role.startsWith('ADMIN_') ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD';
           window.history.replaceState({ screen: nextScreen }, '', `?menu=${nextScreen.toLowerCase()}`);
@@ -100,7 +96,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Pantau Status Online/Offline
+  // Pantau Status Internet (Hardware Online/Offline)
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -111,6 +107,49 @@ export default function App() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // ==========================================
+  // FITUR BARU: LOGIKA PRESENCE (USER AKTIF)
+  // ==========================================
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const userRef = doc(db, 'users', currentUser.uid);
+
+    // Set status online saat komponen berhasil dimuat
+    const setOnlineStatus = async () => {
+      try {
+        await updateDoc(userRef, { 
+          isOnline: true, 
+          lastSeen: serverTimestamp() 
+        });
+      } catch (error) {
+        console.error("Gagal mengupdate status online:", error);
+      }
+    };
+    
+    setOnlineStatus();
+
+    // Fungsi untuk mengubah status offline saat menutup tab/browser
+    const handleBeforeUnload = () => {
+      updateDoc(userRef, { 
+        isOnline: false, 
+        lastSeen: serverTimestamp() 
+      }).catch(() => {});
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Pembersihan (Cleanup): Set offline saat pengguna logout atau aplikasi ditutup
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      updateDoc(userRef, { 
+        isOnline: false, 
+        lastSeen: serverTimestamp() 
+      }).catch(() => {});
+    };
+  }, [currentUser?.uid]); // Akan dieksekusi ulang setiap kali ID pengguna berubah
+
 
   // Pantau Status Autentikasi User (Login/Logout)
   useEffect(() => {
@@ -147,7 +186,7 @@ export default function App() {
             
             if (userData.status === 'PENDING' && !isSuperAdmin) {
               if (currentScreen !== 'REGISTER') {
-                toast.warning("Akun Anda sedang menunggu verifikasi dari Superadmin.", {
+                toast.warning("Akun Anda sedang menunggu verifikasi dari Admin/Koordinator.", {
                   description: "Silakan hubungi pengurus jika pendaftaran Anda belum disetujui.",
                   duration: 5000
                 });
@@ -241,6 +280,7 @@ export default function App() {
   }, [currentUser]);
 
   const handleLogout = () => {
+    // Status offline akan ditangani otomatis oleh useEffect Presence di atas saat currentUser menjadi null
     auth.signOut();
     handleNavigate('LOGIN');
   };
