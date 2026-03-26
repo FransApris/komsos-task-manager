@@ -16,6 +16,7 @@ const SplashScreen = React.lazy(() => import('./screens/SplashScreen'));
 const LoginScreen = React.lazy(() => import('./screens/LoginScreen'));
 const RegisterScreen = React.lazy(() => import('./screens/RegisterScreen'));
 const UserVerificationScreen = React.lazy(() => import('./screens/UserVerificationScreen'));
+const TaskVerificationScreen = React.lazy(() => import('./screens/TaskVerificationScreen')); // <-- BARU DITAMBAHKAN
 const AdminDashboard = React.lazy(() => import('./screens/AdminDashboard'));
 const UserDashboard = React.lazy(() => import('./screens/UserDashboard'));
 const CreateTaskScreen = React.lazy(() => import('./screens/CreateTaskScreen'));
@@ -76,11 +77,9 @@ export default function App() {
       if (firebaseUser) {
         const isSuperAdmin = firebaseUser.email === "fad2beth@gmail.com";
         try {
-          // Ambil data detail user dari Firestore
           let userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           
           if (!userDoc.exists()) {
-            // Jika user belum ada (misal login Google pertama kali), buatkan dengan status PENDING
             const newUser: any = {
               uid: firebaseUser.uid,
               displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User Baru',
@@ -105,9 +104,7 @@ export default function App() {
           if (userDoc.exists()) {
             const userData = { id: userDoc.id, ...userDoc.data() } as UserAccount;
             
-            // Redirect berdasarkan Status
             if (userData.status === 'PENDING' && !isSuperAdmin) {
-              // Jika sedang di layar REGISTER, jangan sign out dulu, biarkan RegisterScreen menampilkan sukses
               if (currentScreen !== 'REGISTER') {
                 toast.warning("Akun Anda sedang menunggu verifikasi dari Superadmin.", {
                   description: "Silakan hubungi pengurus jika pendaftaran Anda belum disetujui.",
@@ -133,7 +130,6 @@ export default function App() {
 
             setCurrentUser(userData);
             
-            // Redirect berdasarkan Role jika baru login
             if (currentScreen === 'SPLASH' || currentScreen === 'LOGIN' || currentScreen === 'REGISTER') {
               if (userData.role === 'SUPERADMIN' || userData.role.startsWith('ADMIN_')) {
                 setCurrentScreen('ADMIN_DASHBOARD');
@@ -158,7 +154,7 @@ export default function App() {
 
   // Sinkronisasi Data Global dari Firestore secara Real-time
   useEffect(() => {
-    if (!currentUser) return; // Hanya tarik data jika sudah login
+    if (!currentUser) return; 
 
     const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
       setUsersDb(snap.docs.map(doc => {
@@ -180,7 +176,6 @@ export default function App() {
       setInventoryDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Inventory)));
     }, (error) => console.error("Inventory Snapshot Error:", error));
 
-    // Untuk notifikasi, jika admin ambil semua, jika user ambil yang miliknya atau broadcast
     const isAdmin = currentUser.role === 'SUPERADMIN' || currentUser.role.startsWith('ADMIN_');
     const notifQuery = isAdmin 
       ? collection(db, 'notifications') 
@@ -231,6 +226,8 @@ export default function App() {
         return <RegisterScreen onNavigate={setCurrentScreen} />;
       case 'USER_VERIFICATION':
         return <UserVerificationScreen onNavigate={setCurrentScreen} />;
+      case 'TASK_VERIFICATION':  // <-- BARU DITAMBAHKAN
+        return <TaskVerificationScreen onNavigate={setCurrentScreen} setSelectedTaskId={setSelectedTaskId} tasksDb={tasksDb} usersDb={usersDb} />;
       case 'ADMIN_DASHBOARD':
         return <AdminDashboard onNavigate={setCurrentScreen} onLogout={handleLogout} role={currentUser?.role} user={currentUser} usersDb={usersDb} tasksDb={tasksDb} notificationsDb={notificationsDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} />;
       case 'USER_DASHBOARD':
