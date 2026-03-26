@@ -177,25 +177,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       <div className="p-5 space-y-6">
         
-        {/* STATISTIK UTAMA */}
+        {/* STATISTIK UTAMA (DIKEMBALIKAN KE VERSI INTERAKTIF MOTION.DIV) */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 rounded-2xl shadow-lg shadow-blue-500/20 relative overflow-hidden group">
+          <motion.div 
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onNavigate('TASKS')}
+            className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 rounded-2xl shadow-lg shadow-blue-500/20 relative overflow-hidden group cursor-pointer hover:opacity-90 transition-opacity"
+          >
             <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><ClipboardList size={60} /></div>
             <p className="text-3xl font-black text-white mb-1">{activeTasks.length}</p>
             <p className="text-[9px] text-blue-100 font-bold uppercase tracking-wider">Tugas Aktif</p>
-          </div>
-          <div className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 shadow-lg relative overflow-hidden">
+          </motion.div>
+
+          <motion.div 
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onNavigate('TEAM')}
+            className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-gray-800/50 transition-colors"
+          >
+            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><Users size={60} /></div>
             <p className="text-3xl font-black text-white mb-1">{usersDb.length}</p>
             <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Total Anggota</p>
-          </div>
-          <div className="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20 shadow-lg relative overflow-hidden">
+          </motion.div>
+
+          <motion.div 
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onNavigate('TASK_VERIFICATION')}
+            className="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-amber-500/20 transition-colors"
+          >
+            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform text-amber-500"><CheckCircle2 size={60} /></div>
             <p className="text-3xl font-black text-amber-500 mb-1">{pendingVerifications.length}</p>
             <p className="text-[9px] text-amber-500/70 font-bold uppercase tracking-wider">Verifikasi Tugas</p>
-          </div>
-          <div className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 shadow-lg relative overflow-hidden cursor-pointer" onClick={() => onNavigate('USER_VERIFICATION')}>
+          </motion.div>
+
+          <motion.div 
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onNavigate('USER_VERIFICATION')}
+            className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-red-500/20 transition-colors"
+          >
+            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform text-red-500"><UserCheck size={60} /></div>
             <p className="text-3xl font-black text-red-500 mb-1">{pendingUsers.length}</p>
             <p className="text-[9px] text-red-500/70 font-bold uppercase tracking-wider">Pendaftar Baru</p>
-          </div>
+          </motion.div>
         </div>
 
         {/* MENU CEPAT (QUICK ACTIONS) */}
