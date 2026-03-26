@@ -45,6 +45,9 @@ export interface UserAccount {
     massSchedule: boolean;
     systemAlerts: boolean;
   };
+  isOnline?: boolean;
+  lastSeen?: any;
+  divisions?: string[]; // Fitur Multi-Divisi
 }
 
 export interface SubTask {
@@ -78,7 +81,7 @@ export interface Notification {
   title: string;
   message: string;
   read: boolean;
-  isRead?: boolean; // For backward compatibility with some screens
+  isRead?: boolean;
   type?: string;
   date?: string;
   time?: string;
@@ -118,7 +121,7 @@ export interface MassSchedule {
 
 export interface Attendance {
   id: string;
-  targetId: string; // taskId or massId
+  targetId: string;
   targetType: 'TASK' | 'MASS';
   userId: string;
   checkInTime: any;
@@ -128,7 +131,7 @@ export interface Attendance {
 export interface Report {
   id: string;
   title: string;
-  period: string; // e.g., "2026-03"
+  period: string;
   summary: string;
   stats: {
     totalTasks: number;

@@ -1,222 +1,347 @@
-import React from 'react';
-import { Screen, Role, Task, UserAccount, TaskType } from '../types';
-import { CheckSquare, Clock, Video, Calendar, Plus, Image as ImageIcon, FileText, Loader2, ChevronRight, Activity } from 'lucide-react';
-import { motion } from 'motion/react';
+import React, { useState } from 'react';
+import { Screen, Role, UserAccount } from '../types';
+import { Users, Mail, Phone, ShieldAlert, CheckCircle2, ChevronDown, Plus, Trash2, Edit2, Save, X, Loader2, Award, Tag } from 'lucide-react';
+import { db, doc, updateDoc, deleteDoc, setDoc, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
+import { AwardBadgeModal } from '../components/AwardBadgeModal';
+import { BadgeGallery } from '../components/BadgeGallery';
 
-export const TasksScreen: React.FC<{ 
-  onNavigate: (s: Screen) => void, 
-  role?: Role,
-  tasksDb?: Task[],
-  usersDb?: UserAccount[],
-  taskTypes?: TaskType[],
-  setSelectedTaskId: (id: string) => void
-}> = ({ onNavigate, role, tasksDb = [], usersDb = [], taskTypes = [], setSelectedTaskId }) => { 
+interface TeamScreenProps {
+  onNavigate: (s: Screen) => void;
+  role?: Role;
+  usersDb: UserAccount[];
+  currentUser: UserAccount | null;
+  setUsersDb?: React.Dispatch<React.SetStateAction<UserAccount[]>>;
+  setCurrentUser?: React.Dispatch<React.SetStateAction<UserAccount | null>>;
+}
+
+// DAFTAR DIVISI KOMSOS
+const DIVISIONS_LIST = [
+  'Fotografi', 
+  'Videografi', 
+  'Desain Grafis', 
+  'Publikasi / Medsos', 
+  'Website / App', 
+  'Acara / Event'
+];
+
+export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersDb = [], setUsersDb, currentUser, setCurrentUser }) => {
+  const isSuperAdmin = role === 'SUPERADMIN';
+  const isAdmin = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
   
-  const [filter, setFilter] = React.useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
-  const isAdminRole = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState<Role>('USER');
+  const [editEmail, setEditEmail] = useState('');
+  const [editDivisions, setEditDivisions] = useState<string[]>([]); // State baru untuk Divisi
+  
+  const [isAdding, setIsAdding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedUserForBadge, setSelectedUserForBadge] = useState<{id: string, name: string} | null>(null);
 
-  if (!tasksDb || !usersDb) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0f18] text-gray-400">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-2" />
-        <p className="text-xs font-bold uppercase tracking-widest">Sinkronisasi...</p>
-      </div>
-    );
-  }
+  const startEditing = (user: UserAccount) => {
+    setEditingUserId(user.id);
+    setEditName(user.displayName || '');
+    setEditRole(user.role);
+    setEditEmail(user.email || '');
+    setEditDivisions(user.divisions || []); // Memuat divisi yang sudah ada
+    setIsAdding(false);
+    setErrorMessage(null);
+  };
 
-  const filteredTasks = tasksDb.filter(task => {
-    if (filter === 'ALL') return true;
-    if (filter === 'ACTIVE') return task.status === 'IN_PROGRESS' || task.status === 'WAITING_VERIFICATION';
-    if (filter === 'COMPLETED') return task.status === 'COMPLETED';
-    return true;
-  });
+  const toggleDivision = (div: string) => {
+    if (editDivisions.includes(div)) {
+      setEditDivisions(editDivisions.filter(d => d !== div));
+    } else {
+      setEditDivisions([...editDivisions, div]);
+    }
+  };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
+  const saveEdit = async () => {
+    if (editingUserId) {
+      setIsLoading(true);
+      setErrorMessage(null);
+      try {
+        const userRef = doc(db, 'users', editingUserId);
+        await updateDoc(userRef, {
+          displayName: editName.trim(),
+          role: editRole,
+          email: editEmail.trim().toLowerCase(),
+          divisions: editDivisions // Menyimpan perubahan divisi
+        });
+        setEditingUserId(null);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `users/${editingUserId}`);
+        setErrorMessage("Gagal memperbarui anggota tim.");
+      } finally {
+        setIsLoading(false);
       }
     }
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  };
-
-  const counts = {
-    all: tasksDb.length,
-    active: tasksDb.filter(t => t.status === 'IN_PROGRESS' || t.status === 'WAITING_VERIFICATION').length,
-    completed: tasksDb.filter(t => t.status === 'COMPLETED').length
-  };
-
-  const getIcon = (type: string) => {
-    const t = type?.toLowerCase();
-    if (t === 'peliputan') return <Video className="w-4 h-4 text-blue-500"/>;
-    if (t === 'dokumentasi') return <ImageIcon className="w-4 h-4 text-emerald-500"/>;
-    if (t === 'publikasi') return <FileText className="w-4 h-4 text-amber-500"/>;
-    if (t === 'desain') return <ImageIcon className="w-4 h-4 text-purple-500"/>;
-    if (t === 'obs') return <Video className="w-4 h-4 text-red-500"/>;
-    if (t === 'editing') return <Video className="w-4 h-4 text-indigo-500"/>;
-    
-    // Check dynamic task types
-    const foundType = taskTypes.find(tt => tt.name.toLowerCase() === t);
-    if (foundType) {
-      return <Activity className="w-4 h-4" style={{ color: foundType.color }} />;
+  const confirmDelete = async () => {
+    if (deleteConfirmId) {
+      setIsLoading(true);
+      setErrorMessage(null);
+      try {
+        await deleteDoc(doc(db, 'users', deleteConfirmId));
+        setDeleteConfirmId(null);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `users/${deleteConfirmId}`);
+        setErrorMessage("Gagal menghapus anggota tim.");
+      } finally {
+        setIsLoading(false);
+      }
     }
-
-    return <CheckSquare className="w-4 h-4 text-gray-500"/>;
   };
 
-  const getIconBg = (type: string) => {
-    const t = type?.toLowerCase();
-    if (t === 'peliputan') return 'bg-blue-500/10';
-    if (t === 'dokumentasi') return 'bg-emerald-500/10';
-    if (t === 'publikasi') return 'bg-amber-500/10';
-    
-    // For dynamic types, we can't easily generate a tailwind bg with opacity from hex
-    // but we can use inline style for a subtle background
-    const foundType = taskTypes.find(tt => tt.name.toLowerCase() === t);
-    if (foundType) {
-      return ''; // We'll handle it with style if needed
+  const saveNewUser = async () => {
+    if (editName.trim() && editEmail.trim()) {
+      setIsLoading(true);
+      setErrorMessage(null);
+      try {
+        const tempId = `user_${Date.now()}`;
+        await setDoc(doc(db, 'users', tempId), {
+          uid: tempId,
+          displayName: editName.trim(),
+          email: editEmail.trim().toLowerCase(),
+          role: editRole,
+          status: 'ACTIVE',
+          img: Math.floor(Math.random() * 20).toString(),
+          createdAt: serverTimestamp()
+        });
+        setIsAdding(false);
+        setEditName('');
+        setEditEmail('');
+      } catch (error) {
+        handleFirestoreError(error, OperationType.CREATE, 'users');
+        setErrorMessage("Gagal menambah anggota tim.");
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setErrorMessage("Nama dan Email harus diisi.");
     }
-
-    return 'bg-gray-500/10';
   };
 
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'IN_PROGRESS': return 'bg-blue-500';
-      case 'WAITING_VERIFICATION': return 'bg-amber-500';
-      case 'COMPLETED': return 'bg-emerald-500';
-      default: return 'bg-gray-700';
+  const getRoleLabel = (r: Role) => {
+    switch(r) {
+      case 'SUPERADMIN': return 'Superadmin';
+      case 'ADMIN_MULTIMEDIA': return 'Koord. Multimedia';
+      case 'ADMIN_PHOTO_VIDEO': return 'Koord. Photo & Video';
+      case 'ADMIN_PUBLICATION': return 'Koord. Publikasi';
+      case 'USER': return 'Petugas (User)';
+      default: return 'Unknown';
     }
   };
 
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white">
       <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
-        <h1 className="text-lg font-extrabold tracking-tight text-white">Daftar Tugas</h1>
-        {isAdminRole && (
-          <button 
-            onClick={() => onNavigate('CREATE_TASK')}
-            className="p-2 bg-blue-600 rounded-full border border-blue-500 shadow-lg shadow-blue-500/20 active:scale-90 transition-transform"
-          >
-            <Plus className="w-5 h-5 text-white" />
-          </button>
+        <h1 className="text-lg font-extrabold tracking-tight text-white">Tim Komsos</h1>
+        {isSuperAdmin && (
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => {
+                setIsAdding(true);
+                setEditingUserId(null);
+                setEditName('');
+                setEditRole('USER');
+              }}
+              className="p-2 bg-blue-600 rounded-full hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4 text-white" />
+            </button>
+            <div className="flex items-center gap-2 bg-purple-500/10 px-3 py-1.5 rounded-lg border border-purple-500/20">
+              <ShieldAlert className="w-4 h-4 text-purple-500" />
+              <span className="text-xs font-bold text-purple-500">RBAC Mode</span>
+            </div>
+          </div>
         )}
       </header>
-
+      
       <div className="p-5">
-        <div className="flex gap-4 border-b border-gray-800 mb-6">
-          <button 
-            onClick={() => setFilter('ALL')}
-            className={`pb-3 font-bold text-sm transition-all relative ${filter === 'ALL' ? 'text-blue-400' : 'text-gray-500'}`}
-          >
-            Semua
-            <span className="ml-1.5 text-[10px] opacity-60">({counts.all})</span>
-            {filter === 'ALL' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}
-          </button>
-          <button 
-            onClick={() => setFilter('ACTIVE')}
-            className={`pb-3 font-bold text-sm transition-all relative ${filter === 'ACTIVE' ? 'text-blue-400' : 'text-gray-500'}`}
-          >
-            Aktif
-            <span className="ml-1.5 text-[10px] opacity-60">({counts.active})</span>
-            {filter === 'ACTIVE' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}
-          </button>
-          <button 
-            onClick={() => setFilter('COMPLETED')}
-            className={`pb-3 font-bold text-sm transition-all relative ${filter === 'COMPLETED' ? 'text-blue-400' : 'text-gray-500'}`}
-          >
-            Selesai
-            <span className="ml-1.5 text-[10px] opacity-60">({counts.completed})</span>
-            {filter === 'COMPLETED' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}
-          </button>
-        </div>
-        
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="space-y-4"
-        >
-          {filteredTasks.length > 0 ? filteredTasks.map((task) => (
-            <motion.div 
-              variants={itemVariants}
-              key={task.id} 
-              onClick={() => {
-                setSelectedTaskId(task.id);
-                onNavigate('TASK_DETAIL');
-              }} 
-              whileTap={{ scale: 0.98 }}
-              className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 cursor-pointer transition-all relative overflow-hidden group hover:border-blue-500/50"
-            >
-              <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${getStatusColor(task.status)} group-hover:w-2 transition-all`}></div>
-              <div className="pl-3">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1 block">{task.type}</span>
-                    <h4 className="font-extrabold text-base leading-tight text-white">{task.title}</h4>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className={`p-1.5 ${getIconBg(task.type)} rounded-lg`} style={taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase()) ? { backgroundColor: `${taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase())?.color}20` } : {}}>{getIcon(task.type)}</div>
-                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${
-                      task.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-500' : 
-                      task.status === 'WAITING_VERIFICATION' ? 'bg-amber-500/20 text-amber-500' : 
-                      'bg-blue-500/20 text-blue-500'
-                    }`}>
-                      {task.status.replace('_', ' ')}
-                    </span>
+        {errorMessage && (
+          <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs font-bold">
+            {errorMessage}
+          </div>
+        )}
+
+        {isSuperAdmin && (
+          <div className="mb-6 bg-blue-500/10 border border-blue-500/20 p-4 rounded-2xl">
+            <h3 className="font-bold text-sm text-blue-400 mb-1">Pengaturan Tim (RBAC)</h3>
+            <p className="text-xs text-gray-400">Sebagai Superadmin, Anda dapat menambah, menghapus, dan mengubah role serta divisi anggota tim.</p>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {isAdding && (
+            <div className="flex flex-col p-4 bg-[#151b2b] rounded-2xl border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="font-bold text-white text-sm">Tambah Anggota Baru</h4>
+                <button onClick={() => setIsAdding(false)} className="p-1 bg-gray-800 rounded-full"><X className="w-4 h-4 text-gray-400" /></button>
+              </div>
+              <div className="space-y-3">
+                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nama anggota..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" />
+                <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Email anggota..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" />
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Role Utama</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {(['SUPERADMIN', 'ADMIN_MULTIMEDIA', 'ADMIN_PHOTO_VIDEO', 'ADMIN_PUBLICATION', 'USER'] as Role[]).map(r => (
+                      <button key={r} onClick={() => setEditRole(r)} className={`flex items-center justify-between p-2 rounded-xl border text-left transition-colors ${editRole === r ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-[#0a0f18] border-gray-800 text-gray-400'}`}>
+                        <span className="text-xs font-bold">{getRoleLabel(r)}</span>
+                        {editRole === r && <CheckCircle2 className="w-3.5 h-3.5" />}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-2 text-gray-400 text-xs font-medium mb-1.5">
-                  <Calendar className="w-3.5 h-3.5" /> {task.date}
-                </div>
+                <button onClick={saveNewUser} disabled={isLoading} className="w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl text-sm mt-2 flex items-center justify-center gap-2 disabled:opacity-50">
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Simpan Anggota'}
+                </button>
+              </div>
+            </div>
+          )}
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
-                    <Clock className="w-3.5 h-3.5" /> {task.time}
+          {usersDb.map((member) => (
+            <div key={member.id} className="flex flex-col p-4 bg-[#151b2b] rounded-2xl border border-gray-800 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4 flex-1 overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-gray-800 overflow-hidden shrink-0 border border-gray-700">
+                    <img src={member.img?.startsWith('http') ? member.img : `https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80&v=${member.img}`} alt={member.displayName} className="w-full h-full object-cover" />
                   </div>
-                  
-                  <div className="flex -space-x-1.5">
-                    {(task.assignedUsers || []).slice(0, 3).map((uid, i) => {
-                      const u = usersDb?.find(user => user.uid === uid);
-                      const img = u?.img || '1';
-
-                      return (
-                        <div key={i} className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 overflow-hidden shadow-sm">
-                          <img 
-                            src={img.startsWith('http') ? img : `https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80&v=${img}`} 
-                            alt="Avatar" 
-                            className="w-full h-full object-cover" 
-                          />
+                  <div className="flex-1 min-w-0">
+                    {editingUserId === member.id ? (
+                      <div className="space-y-2 mb-2">
+                        <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nama..." className="w-full bg-[#0a0f18] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" />
+                        <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Email..." className="w-full bg-[#0a0f18] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500" />
+                      </div>
+                    ) : (
+                      <h4 className="font-bold text-white text-base truncate">{member.displayName || 'Tanpa Nama'}</h4>
+                    )}
+                    
+                    {(!isSuperAdmin || editingUserId !== member.id) && (
+                      <div className="flex flex-col items-start gap-1.5 mt-1">
+                        <div className="inline-flex items-center gap-1.5 bg-gray-800/50 px-2.5 py-1 rounded-lg border border-gray-700">
+                          <span className={`w-2 h-2 rounded-full ${member.role === 'SUPERADMIN' ? 'bg-purple-500' : member.role?.startsWith('ADMIN') ? 'bg-blue-500' : 'bg-gray-400'}`}></span>
+                          <span className="text-[10px] font-bold text-gray-300">{getRoleLabel(member.role)}</span>
                         </div>
-                      );
-                    })}
-                    {task.assignedUsers && task.assignedUsers.length > 3 && (
-                      <div className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 flex items-center justify-center text-[8px] font-bold text-gray-400">
-                        +{task.assignedUsers.length - 3}
+
+                        {/* Tampilan Label Divisi Saat Tidak Mode Edit */}
+                        {member.divisions && member.divisions.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {member.divisions.map(div => (
+                              <span key={div} className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 text-[9px] font-bold rounded-md border border-blue-500/20">
+                                {div}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {isAdmin && (
+                          <button onClick={() => setSelectedUserForBadge({ id: member.id || member.uid || '', name: member.displayName || '' })} className="mt-1 text-[10px] bg-yellow-500/10 text-yellow-500 px-3 py-1.5 rounded-lg border border-yellow-500/20 font-bold flex items-center gap-1.5 hover:bg-yellow-500/20 transition-colors">
+                            <Award className="w-3.5 h-3.5" /> Beri Lencana
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
                 </div>
+                
+                <div className="flex flex-col gap-2 shrink-0 self-start ml-2">
+                  {isSuperAdmin && editingUserId !== member.id && (
+                    <button onClick={() => startEditing(member)} className="p-2 bg-blue-600/20 text-blue-400 rounded-xl hover:bg-blue-600/30 transition-colors">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  {isSuperAdmin && editingUserId === member.id && (
+                    <button onClick={() => setDeleteConfirmId(member.id)} className="p-2 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500/20 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  
+                  {!isSuperAdmin && editingUserId !== member.id && (
+                    <div className="flex gap-2">
+                      <a href={`mailto:${member.email}`} className="p-2 bg-gray-800 rounded-full hover:bg-blue-600 transition-colors shadow-sm"><Mail className="w-4 h-4 text-gray-300 hover:text-white" /></a>
+                      <a href={`tel:${(member as any).phone || '+6281234567890'}`} className="p-2 bg-gray-800 rounded-full hover:bg-emerald-600 transition-colors shadow-sm"><Phone className="w-4 h-4 text-gray-300 hover:text-white" /></a>
+                    </div>
+                  )}
+                </div>
               </div>
-            </motion.div>
-          )) : (
-            <motion.div 
-              variants={itemVariants}
-              className="text-center py-12 bg-[#151b2b] rounded-2xl border border-dashed border-gray-800"
-            >
-              <p className="text-gray-500 text-xs italic">Belum ada tugas terjadwal.</p>
-            </motion.div>
-          )}
-        </motion.div>
+
+              <BadgeGallery userId={member.id || member.uid} />
+
+              {deleteConfirmId === member.id && (
+                <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                  <p className="text-xs font-bold text-red-500 mb-3">Hapus anggota ini? Tindakan ini tidak dapat dibatalkan.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setDeleteConfirmId(null)} className="flex-1 py-2 bg-gray-800 text-white rounded-lg text-[10px] font-bold">Batal</button>
+                    <button onClick={confirmDelete} disabled={isLoading} className="flex-1 py-2 bg-red-600 text-white rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 disabled:opacity-50">
+                      {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Ya, Hapus'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* EDITOR ROLE DAN DIVISI (Mode Edit Sebaris) */}
+              {isSuperAdmin && editingUserId === member.id && (
+                <div className="mt-4 pt-4 border-t border-gray-800 space-y-4">
+                  
+                  {/* Pilihan Role Utama */}
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-wider">Pilih Role Utama:</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {(['SUPERADMIN', 'ADMIN_MULTIMEDIA', 'ADMIN_PHOTO_VIDEO', 'ADMIN_PUBLICATION', 'USER'] as Role[]).map(r => (
+                        <button key={r} onClick={() => setEditRole(r)} className={`flex items-center justify-between p-3 rounded-xl border text-left transition-colors ${editRole === r ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-[#0a0f18] border-gray-800 text-gray-400 hover:border-gray-600'}`}>
+                          <span className="text-sm font-bold">{getRoleLabel(r)}</span>
+                          {editRole === r && <CheckCircle2 className="w-4 h-4" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pilihan Divisi Baru */}
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-1.5"><Tag size={12}/> Pilih Divisi (Bisa >1):</p>
+                    <div className="flex flex-wrap gap-2">
+                      {DIVISIONS_LIST.map((div) => {
+                        const isSelected = editDivisions.includes(div);
+                        return (
+                          <button
+                            key={div}
+                            onClick={() => toggleDivision(div)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex items-center gap-1.5 ${isSelected ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-[#0a0f18] text-gray-500 border-gray-800 hover:border-gray-600'}`}
+                          >
+                            {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />} {div}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tombol Simpan/Batal */}
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={() => setEditingUserId(null)} className="flex-1 py-3 bg-gray-800 text-white rounded-xl text-xs font-bold hover:bg-gray-700 transition-colors">Batal</button>
+                    <button onClick={saveEdit} disabled={isLoading} className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 disabled:opacity-50">
+                      {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Save className="w-3.5 h-3.5" /> Simpan</>}
+                    </button>
+                  </div>
+
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
+
+      {selectedUserForBadge && (
+        <AwardBadgeModal 
+          userId={selectedUserForBadge.id} 
+          userName={selectedUserForBadge.name} 
+          onClose={() => setSelectedUserForBadge(null)} 
+        />
+      )}
     </div>
   );
 };
-export default TasksScreen;
+export default TeamScreen;

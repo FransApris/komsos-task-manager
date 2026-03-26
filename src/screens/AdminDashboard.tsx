@@ -52,7 +52,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isRewarding, setIsRewarding] = useState(false);
   const [resetPoints, setResetPoints] = useState(true);
 
-  // FITUR BARU: Filter user yang sedang online
+  // Filter user yang sedang online
   const onlineUsers = usersDb.filter(u => u.isOnline === true && u.uid !== user?.uid);
 
   const getRoleName = () => {
@@ -133,14 +133,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
           <div>
             <h1 className="text-sm font-extrabold tracking-tight text-white leading-tight">Halo, {user?.displayName?.split(' ')[0] || 'Admin'}</h1>
-            <div className="flex items-center gap-1.5">
-              <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">{getRoleName()}</p>
-              <div className="flex items-center gap-1 ml-1">
-                <div className={`w-1 h-1 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.4)]' : 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.4)] animate-pulse'}`} />
-                <span className={`text-[8px] font-bold uppercase tracking-wider ${isOnline ? 'text-emerald-500/80' : 'text-red-500/80'}`}>
-                  {isOnline ? 'Online' : 'Offline'}
-                </span>
-              </div>
+            <div>
+              <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-0.5">{getRoleName()}</p>
+              {user?.divisions && user.divisions.length > 0 && (
+                <p className="text-[9px] text-gray-400 font-medium mb-1">
+                  Divisi: {user.divisions.join(', ')}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-1 mt-1">
+              <div className={`w-1 h-1 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.4)]' : 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.4)] animate-pulse'}`} />
+              <span className={`text-[8px] font-bold uppercase tracking-wider ${isOnline ? 'text-emerald-500/80' : 'text-red-500/80'}`}>
+                {isOnline ? 'Online' : 'Offline'}
+              </span>
             </div>
           </div>
         </div>
@@ -157,7 +162,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       <div className="p-5 space-y-6">
         
-        {/* === FITUR BARU: SIAPA YANG ONLINE === */}
+        {/* SIAPA YANG ONLINE */}
         <div className="bg-[#151b2b]/50 border border-gray-800 p-4 rounded-3xl">
           <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
              <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" /> Anggota Aktif ({onlineUsers.length})
@@ -200,7 +205,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </motion.div>
         </div>
 
-        {/* ... sisa kode menu cepat, leaderboard, dan tugas mendesak sama seperti sebelumnya ... */}
         {/* MENU CEPAT (QUICK ACTIONS) */}
         <div>
           {isAdminRole && (
@@ -265,7 +269,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       </div>
-      {/* ... sisa kode modal reward ... */}
+
       {showRewardModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151b2b] w-full max-w-md rounded-3xl border border-gray-800 p-6 shadow-2xl animate-in zoom-in-95">
