@@ -278,7 +278,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               />
               <QuickActionBtn 
                 icon={<Calendar className="w-5 h-5 text-purple-500" />} 
-                label="Jadwal Misa" 
+                label="Agenda Komsos" 
                 color="bg-purple-500/10" 
                 onClick={() => onNavigate('MASS_SCHEDULE')} 
               />
