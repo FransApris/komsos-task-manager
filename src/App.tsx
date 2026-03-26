@@ -5,7 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where, setDoc, updateDoc, serverTimestamp, getDocFromServer, handleFirestoreError, OperationType } from './firebase';
-import { Screen, UserAccount, Task, Notification, Inventory, Role, Badge } from './types';
+import { Screen, UserAccount, Task, Notification, Inventory, Role, Badge, MassSchedule } from './types';
 import { Loader2 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
@@ -61,6 +61,7 @@ export default function App() {
   const [inventoryDb, setInventoryDb] = useState<Inventory[]>([]);
   const [notificationsDb, setNotificationsDb] = useState<Notification[]>([]);
   const [badgesDb, setBadgesDb] = useState<Badge[]>([]);
+  const [massSchedulesDb, setMassSchedulesDb] = useState<MassSchedule[]>([]);
 
   // Update referensi agar bisa dibaca oleh Event Listener HP
   useEffect(() => {
@@ -270,12 +271,17 @@ export default function App() {
       setBadgesDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Badge)));
     }, (error) => console.error("Badges Snapshot Error:", error));
 
+    const unsubMass = onSnapshot(collection(db, 'massSchedules'), (snap) => {
+      setMassSchedulesDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MassSchedule)));
+    }, (error) => console.error("Mass Schedules Snapshot Error:", error));
+
     return () => {
       unsubUsers();
       unsubTasks();
       unsubInventory();
       unsubNotifs();
       unsubBadges();
+      unsubMass();
     };
   }, [currentUser]);
 
@@ -350,7 +356,7 @@ export default function App() {
       case 'EMAIL_SUPPORT':
         return <EmailSupport onNavigate={handleNavigate} />;
       case 'ADMIN_DATA_MANAGEMENT':
-        return <AdminDataManagement onNavigate={handleNavigate} usersDb={usersDb} tasksDb={tasksDb} inventoryDb={inventoryDb} notificationsDb={notificationsDb} badgesDb={badgesDb} />;
+        return <AdminDataManagement onNavigate={handleNavigate} usersDb={usersDb} tasksDb={tasksDb} inventoryDb={inventoryDb} notificationsDb={notificationsDb} badgesDb={badgesDb} massSchedules={massSchedulesDb} />;
       case 'REPORTS':
         return <ReportsScreen onNavigate={handleNavigate} role={currentUser?.role || 'USER'} currentUser={currentUser} tasksDb={tasksDb} usersDb={usersDb} />;
       case 'TASK_TYPE_MANAGEMENT':

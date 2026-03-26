@@ -85,7 +85,7 @@ export const seedDatabase = async () => {
       }
     ];
 
-    // --- 2. JADWAL MISA (3 Data) ---
+    // --- 2. AGENDA (3 Data) ---
     const sampleMasses = [
       {
         title: "Misa Malam Paskah I",
@@ -151,13 +151,54 @@ export const seedDatabase = async () => {
       { name: "Editing", description: "Tugas editing video/foto", color: "#6366f1", createdAt: serverTimestamp() }
     ];
 
+    // --- 5. BADGES (3 Data) ---
+    const sampleBadges = [
+      {
+        userId: user.uid,
+        title: "Pahlawan Dokumentasi",
+        description: "Menyelesaikan 10 tugas dokumentasi dengan sempurna.",
+        icon: "Award",
+        color: "#f59e0b",
+        approvals: 1,
+        requiredApprovals: 1,
+        status: "earned",
+        approvedBy: ["System"],
+        createdAt: serverTimestamp()
+      },
+      {
+        userId: user.uid,
+        title: "Editor Handal",
+        description: "Mengedit video V-CAST tepat waktu selama 3 bulan berturut-turut.",
+        icon: "Sparkles",
+        color: "#a855f7",
+        approvals: 1,
+        requiredApprovals: 1,
+        status: "earned",
+        approvedBy: ["System"],
+        createdAt: serverTimestamp()
+      },
+      {
+        userId: user.uid,
+        title: "Relawan Teladan",
+        description: "Hadir di setiap agenda besar paroki.",
+        icon: "Activity",
+        color: "#10b981",
+        approvals: 1,
+        requiredApprovals: 1,
+        status: "earned",
+        approvedBy: ["System"],
+        createdAt: serverTimestamp()
+      }
+    ];
+
     // Eksekusi Pemindahan ke Firestore
     for (const task of sampleTasks) await addDoc(collection(db, "tasks"), task);
     for (const mass of sampleMasses) await addDoc(collection(db, "massSchedules"), mass);
     for (const item of sampleInventory) await addDoc(collection(db, "inventory"), item);
     for (const type of sampleTaskTypes) await addDoc(collection(db, "taskTypes"), type);
+    for (const badge of sampleBadges) await addDoc(collection(db, "badges"), badge);
 
-    alert("Berhasil memasukkan 18 data contoh!");
+    alert("Berhasil memasukkan 21 data contoh!");
   } catch (error) {
     console.error("Seeder error:", error);
   }
@@ -169,7 +210,7 @@ export const seedDatabase = async () => {
 export const clearSampleData = async () => {
   try {
     const batch = writeBatch(db);
-    const collections = ["tasks", "massSchedules", "inventory", "taskTypes"];
+    const collections = ["tasks", "massSchedules", "inventory", "taskTypes", "badges"];
 
     for (const col of collections) {
       const snap = await getDocs(collection(db, col));
@@ -186,7 +227,7 @@ export const clearSampleData = async () => {
 export const seedMassSchedules = async () => {
   const user = auth.currentUser;
   if (!user) {
-    alert("Harap login sebagai Admin untuk mengisi jadwal.");
+    alert("Harap login sebagai Admin untuk mengisi agenda.");
     return;
   }
 
@@ -298,9 +339,9 @@ export const seedMassSchedules = async () => {
       await addDoc(collection(db, "massSchedules"), mass);
     }
 
-    alert("10 Jadwal Misa berhasil ditambahkan!");
+    alert("10 Agenda berhasil ditambahkan!");
   } catch (error: any) {
-    console.error("Gagal mengisi jadwal:", error);
+    console.error("Gagal mengisi agenda:", error);
     alert("Error: " + error.message);
   }
 };

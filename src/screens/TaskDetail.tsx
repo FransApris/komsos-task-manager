@@ -340,12 +340,27 @@ export const TaskDetail: React.FC<{
                       <p className="text-sm text-gray-300 mb-3 pl-2">{progress.note}</p>
                     )}
                     
-                    {progress.img && (
+                    {/* Display multiple images if available, otherwise fallback to single img */}
+                    {progress.images && progress.images.length > 0 ? (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {progress.images.map((img: string, i: number) => (
+                          <div key={i} className="rounded-lg overflow-hidden border border-gray-800 bg-black/30 aspect-square">
+                            <img 
+                              src={img} 
+                              alt={`Bukti Progress ${i + 1}`} 
+                              className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                              onClick={() => window.open(img, '_blank')}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : progress.img && (
                       <div className="mt-2 rounded-lg overflow-hidden border border-gray-700 bg-black/50">
                         <img 
                           src={progress.img} 
                           alt="Bukti Progress" 
-                          className="w-full max-h-60 object-contain"
+                          className="w-full max-h-60 object-contain cursor-pointer"
+                          onClick={() => window.open(progress.img, '_blank')}
                         />
                       </div>
                     )}

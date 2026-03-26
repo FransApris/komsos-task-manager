@@ -73,7 +73,7 @@ export const NotificationSettings: React.FC<{
           <div className="space-y-3">
             <SettingToggle title="Update Tugas" active={settings.taskUpdates} icon={BellRing} onToggle={() => handleToggle('taskUpdates')} />
             <SettingToggle title="Pesan Tim" active={settings.chatMessages} icon={MessageSquare} onToggle={() => handleToggle('chatMessages')} />
-            <SettingToggle title="Jadwal Misa" active={settings.massSchedule} icon={Calendar} onToggle={() => handleToggle('massSchedule')} />
+            <SettingToggle title="Agenda" active={settings.massSchedule} icon={Calendar} onToggle={() => handleToggle('massSchedule')} />
             <SettingToggle title="Sistem & Keamanan" active={settings.systemAlerts} icon={ShieldCheck} onToggle={() => handleToggle('systemAlerts')} />
           </div>
         </div>

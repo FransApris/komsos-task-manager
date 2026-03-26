@@ -1,7 +1,11 @@
 import React from 'react';
-import { ChevronLeft, BarChart3, TrendingUp, Award, Target, Loader2 } from 'lucide-react';
+import { ChevronLeft, BarChart3, TrendingUp, Award, Target, Loader2, Camera, Edit3, Heart, Star, Zap, Shield, Target as TargetIcon } from 'lucide-react';
 import { Screen, Role, Task, Badge, UserAccount } from '../types';
 import { motion } from 'motion/react';
+
+const badgeIcons: Record<string, any> = {
+  Award, Camera, Edit3, Heart, Star, Zap, Shield, Target: TargetIcon
+};
 
 // ==========================================
 // FIX: VALIDASI DATA UNTUK MENCEGAH RANGEERROR
@@ -92,17 +96,20 @@ export const PerformanceStats: React.FC<{
           </h3>
           <div className="grid grid-cols-1 gap-3">
             {badgesDb.filter(b => b.userId === currentUser.uid).length > 0 ? (
-              badgesDb.filter(b => b.userId === currentUser.uid).map((badge, idx) => (
-                <div key={idx} className="bg-[#151b2b] border border-gray-800 p-4 rounded-2xl flex items-center gap-4">
-                  <div className="p-3 bg-blue-600/10 rounded-xl text-blue-500">
-                    <Award size={24} />
+              badgesDb.filter(b => b.userId === currentUser.uid).map((badge, idx) => {
+                const Icon = badgeIcons[badge.icon] || Award;
+                return (
+                  <div key={idx} className="bg-[#151b2b] border border-gray-800 p-4 rounded-2xl flex items-center gap-4">
+                    <div className="p-3 bg-blue-600/10 rounded-xl" style={{ color: badge.color || '#3b82f6' }}>
+                      <Icon size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-white">{badge.title || 'Badge Tanpa Judul'}</h4>
+                      <p className="text-xs text-gray-500">{badge.description || 'Tidak ada deskripsi'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-sm text-white">{badge.title}</h4>
-                    <p className="text-xs text-gray-500">{badge.description}</p>
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="text-center py-10 bg-gray-900/50 rounded-3xl border border-dashed border-gray-800">
                 <p className="text-xs text-gray-600">Belum ada badge yang diraih.</p>

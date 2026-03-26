@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { ChevronLeft, Image as ImageIcon, X } from 'lucide-react';
+import { ChevronLeft, Image as ImageIcon, X, Camera, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { Screen, Task } from '../types';
-import { db, auth, doc, updateDoc, arrayUnion, serverTimestamp } from '../firebase';
+import { db, auth, doc, updateDoc, arrayUnion, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
+import { CameraModal } from '../components/CameraModal';
+import { toast } from 'sonner';
 
 export const TaskUpdate: React.FC<{ 
   onNavigate: (s: Screen) => void,
@@ -10,70 +12,77 @@ export const TaskUpdate: React.FC<{
 }> = ({ onNavigate, taskId, tasksDb = [] }) => {
   const task = (tasksDb || []).find(t => t.id === taskId);
   const [progressNotes, setProgressNotes] = useState('');
-  const [attachment, setAttachment] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!task) {
     return (
       <div className="flex-1 flex flex-col bg-[#0a0f18] items-center justify-center p-10 text-center">
-        <p className="text-gray-500 mb-4">Tugas tidak ditemukan.</p>
-        <button onClick={() => onNavigate('TASKS')} className="text-blue-500 font-bold">Kembali</button>
+        <p className="text-gray-500 mb-4 text-sm">Tugas tidak ditemukan.</p>
+        <button onClick={() => onNavigate('TASKS')} className="text-blue-500 font-bold text-sm">Kembali ke Daftar Tugas</button>
       </div>
     );
   }
 
-  // --- FUNGSI BARU: Kompresi Gambar ke Base64 (Maks 1MB) ---
+  const MAX_PHOTOS = 5;
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+    const remainingSlots = MAX_PHOTOS - attachments.length;
+    if (remainingSlots <= 0) {
+      toast.error(`Maksimal ${MAX_PHOTOS} foto diperbolehkan.`);
+      return;
+    }
 
-        // Batas maksimal resolusi gambar (800px)
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
 
-        // Hitung rasio untuk mengecilkan gambar tanpa mengubah proporsi
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
+    filesToProcess.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          const MAX_SIZE = 800;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
           }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
 
-        // Gambar ulang di canvas dengan ukuran baru
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
 
-        // Kompres menjadi format JPEG dengan kualitas 60% (0.6)
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
-        
-        // Simpan hasil kompresi ke state
-        setAttachment(compressedBase64);
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+          setAttachments(prev => [...prev, compressedBase64].slice(0, MAX_PHOTOS));
+        };
+        img.src = event.target?.result as string;
       };
-      // Trigger load image
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleUpdate = async () => {
-    if (!progressNotes.trim() && !attachment) {
-      alert("Catatan atau foto progress tidak boleh kosong!");
+    if (!progressNotes.trim() && attachments.length === 0) {
+      toast.error("Catatan atau foto progress tidak boleh kosong!");
       return;
     }
     
@@ -84,7 +93,10 @@ export const TaskUpdate: React.FC<{
       
       const newProgress = {
         note: progressNotes,
-        img: attachment,
+        // For backward compatibility with UI that expects a single 'img', 
+        // we'll store the first image in 'img' and the full array in 'images'
+        img: attachments.length > 0 ? attachments[0] : null,
+        images: attachments,
         date: new Date().toISOString(),
         userId: user?.uid,
         userName: user?.displayName || 'Anggota Tim'
@@ -95,12 +107,11 @@ export const TaskUpdate: React.FC<{
         updatedAt: serverTimestamp()
       });
       
-      alert("Update berhasil dikirim!");
+      toast.success("Update progress berhasil dikirim!");
       onNavigate('TASK_DETAIL');
     } catch (err: any) {
-      console.error("Error updating task progress:", err);
-      // Menampilkan pesan error asli dari Firebase jika masih gagal
-      alert("Gagal mengirim update: " + err.message);
+      handleFirestoreError(err, OperationType.UPDATE, `tasks/${task.id}`);
+      toast.error("Gagal mengirim update: " + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -112,61 +123,131 @@ export const TaskUpdate: React.FC<{
         <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800" onClick={() => onNavigate('TASK_DETAIL')}>
           <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
-        <h1 className="text-sm font-extrabold tracking-widest uppercase text-gray-300">Update Progress</h1>
+        <h1 className="text-xs font-extrabold tracking-widest uppercase text-gray-300">Update Progress</h1>
         <div className="w-9"></div>
       </header>
 
-      <div className="p-5 space-y-6">
-        <div>
-          <h3 className="font-bold text-lg mb-2 text-white">{task.title}</h3>
-          <p className="text-xs text-gray-400 font-medium">Laporkan perkembangan tugas Anda.</p>
+      <div className="p-5 space-y-8">
+        <div className="bg-gradient-to-br from-blue-600/20 to-transparent p-5 rounded-3xl border border-blue-500/20">
+          <h3 className="font-black text-xl mb-1 text-white">{task.title}</h3>
+          <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Laporkan perkembangan tugas Anda</p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Catatan Progress</label>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 px-1">Catatan Progress</label>
             <textarea 
               rows={4} 
               value={progressNotes}
               onChange={(e) => setProgressNotes(e.target.value)}
               placeholder="Tuliskan detail pekerjaan yang sudah dilakukan..." 
-              className="w-full bg-[#151b2b] border border-gray-800 rounded-xl px-4 py-3.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm text-white resize-none"
+              className="w-full bg-[#151b2b] border border-gray-800 rounded-2xl px-5 py-4 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm text-white resize-none shadow-inner"
             ></textarea>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Lampirkan Bukti</label>
+            <div className="flex justify-between items-center mb-3 px-1">
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest">Lampirkan Bukti ({attachments.length}/{MAX_PHOTOS})</label>
+              {attachments.length > 0 && (
+                <button 
+                  onClick={() => setAttachments([])}
+                  className="text-[10px] font-bold text-red-500 uppercase tracking-widest"
+                >
+                  Hapus Semua
+                </button>
+              )}
+            </div>
             
-            {attachment ? (
-              <div className="relative w-full h-40 rounded-xl overflow-hidden border border-blue-500">
-                <img src={attachment} alt="Preview" className="w-full h-full object-cover" />
-                <button onClick={() => setAttachment(null)} className="absolute top-2 right-2 p-1.5 bg-red-600 rounded-full text-white shadow-lg">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3">
-                <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-                <button onClick={() => fileInputRef.current?.click()} className="bg-[#151b2b] border border-gray-800 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-white hover:border-gray-600 transition-colors">
-                  <ImageIcon className="w-6 h-6" />
-                  <span className="text-xs font-bold">Unggah Foto</span>
-                </button>
-              </div>
-            )}
+            <div className="grid grid-cols-2 gap-3">
+              {attachments.map((img, index) => (
+                <div key={index} className="relative aspect-square rounded-2xl overflow-hidden border border-gray-800 group shadow-lg">
+                  <img src={img} alt={`Preview ${index}`} className="w-full h-full object-cover" />
+                  <button 
+                    onClick={() => removeAttachment(index)} 
+                    className="absolute top-2 right-2 p-1.5 bg-red-600/80 backdrop-blur-md rounded-full text-white shadow-lg active:scale-90 transition-transform"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                  <div className="absolute bottom-2 left-2 bg-black/50 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-bold text-white uppercase">
+                    Foto {index + 1}
+                  </div>
+                </div>
+              ))}
+
+              {attachments.length < MAX_PHOTOS && (
+                <>
+                  <button 
+                    onClick={() => setShowCamera(true)}
+                    className="aspect-square bg-[#151b2b] border-2 border-gray-800 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-blue-500 hover:border-blue-500/50 transition-all active:scale-95 group shadow-inner"
+                  >
+                    <div className="p-3 bg-gray-800/50 rounded-full group-hover:bg-blue-500/10 transition-colors">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Kamera</span>
+                  </button>
+
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="aspect-square bg-[#151b2b] border-2 border-gray-800 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-emerald-500 hover:border-emerald-500/50 transition-all active:scale-95 group shadow-inner"
+                  >
+                    <div className="p-3 bg-gray-800/50 rounded-full group-hover:bg-emerald-500/10 transition-colors">
+                      <ImageIcon className="w-6 h-6" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Galeri</span>
+                  </button>
+                </>
+              )}
+            </div>
+            
+            <input 
+              type="file" 
+              accept="image/*" 
+              multiple 
+              className="hidden" 
+              ref={fileInputRef} 
+              onChange={handleFileUpload} 
+            />
           </div>
+        </div>
+
+        <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl flex items-start gap-3">
+          <div className="p-1 bg-blue-500/10 rounded-lg">
+            <AlertCircle className="w-4 h-4 text-blue-500 shrink-0" />
+          </div>
+          <p className="text-[10px] text-gray-500 leading-relaxed">
+            Lampirkan hingga 5 foto sebagai bukti perkembangan tugas Anda. Foto akan dikompresi secara otomatis untuk menghemat penyimpanan.
+          </p>
         </div>
       </div>
 
       <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[390px] px-5 z-20">
         <button 
           onClick={handleUpdate}
-          disabled={isLoading || (!progressNotes && !attachment)}
-          className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-transform disabled:opacity-50"
+          disabled={isLoading || (!progressNotes.trim() && attachments.length === 0)}
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black py-5 rounded-2xl shadow-xl shadow-blue-500/30 active:scale-[0.98] transition-transform disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3 uppercase tracking-widest text-sm"
         >
-          {isLoading ? 'Mengirim...' : 'Kirim Update'}
+          {isLoading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Mengirim...
+            </>
+          ) : (
+            <>
+              <Plus className="w-5 h-5" />
+              Kirim Update
+            </>
+          )}
         </button>
       </div>
+
+      <CameraModal 
+        isOpen={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={(img) => setAttachments(prev => [...prev, img].slice(0, MAX_PHOTOS))}
+        initialFacingMode="environment"
+      />
     </div>
   );
 };
+
 export default TaskUpdate;

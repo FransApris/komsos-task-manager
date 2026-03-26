@@ -542,7 +542,7 @@ export const UserDashboard: React.FC<{
               <Calendar className="w-5 h-5 text-purple-500" />
             </div>
             <div className="text-left">
-              <p className="text-xs font-bold text-white">Jadwal Misa</p>
+              <p className="text-xs font-bold text-white">Agenda</p>
               <p className="text-[10px] text-gray-500">Daftar Petugas</p>
             </div>
           </motion.button>

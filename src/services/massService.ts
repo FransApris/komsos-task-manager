@@ -5,7 +5,7 @@ import {
 } from "firebase/firestore";
 
 /**
- * Membuat Jadwal Misa Baru (Hanya Admin)
+ * Membuat Agenda Baru (Hanya Admin)
  */
 export const addMassSchedule = async (title: string, date: string, time: string, location: string) => {
   const user = auth.currentUser;
@@ -28,7 +28,7 @@ export const addMassSchedule = async (title: string, date: string, time: string,
 };
 
 /**
- * Memantau Jadwal Misa secara Real-time
+ * Memantau Agenda secara Real-time
  */
 export const subscribeToMassSchedules = (callback: (schedules: any[]) => void) => {
   const q = query(collection(db, "massSchedules"), orderBy("date", "asc"));
@@ -40,7 +40,7 @@ export const subscribeToMassSchedules = (callback: (schedules: any[]) => void) =
 };
 
 /**
- * Mendaftar sebagai Petugas Dokumentasi Misa
+ * Mendaftar sebagai Petugas Dokumentasi Agenda
  */
 export const joinMassAssignment = async (massId: string) => {
   const user = auth.currentUser;

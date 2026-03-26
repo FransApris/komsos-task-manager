@@ -1,28 +1,41 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, X, RefreshCw, Check, Loader2 } from 'lucide-react';
+import { Camera, X, RefreshCw, Check, Loader2, FlipHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-interface SelfieCameraModalProps {
+interface CameraModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCapture: (imageData: string) => void;
+  initialFacingMode?: 'user' | 'environment';
 }
 
-export const SelfieCameraModal: React.FC<SelfieCameraModalProps> = ({ isOpen, onClose, onCapture }) => {
+export const CameraModal: React.FC<CameraModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onCapture,
+  initialFacingMode = 'environment'
+}) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>(initialFacingMode);
 
-  const startCamera = async () => {
+  const startCamera = async (mode: 'user' | 'environment') => {
     setIsLoading(true);
     setError(null);
+    
+    // Stop existing stream if any
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { 
-          facingMode: 'user',
+          facingMode: mode,
           width: { ideal: 1280 },
           height: { ideal: 720 }
         },
@@ -34,10 +47,17 @@ export const SelfieCameraModal: React.FC<SelfieCameraModalProps> = ({ isOpen, on
       }
     } catch (err: any) {
       console.error("Error accessing camera:", err);
-      if (err.name === 'NotAllowedError') {
-        setError("Izin kamera ditolak. Silakan aktifkan izin kamera di pengaturan browser Anda.");
+      const errorMsg = err.message || "";
+      const errorName = err.name || "";
+
+      if (errorName === 'NotAllowedError' || errorMsg.toLowerCase().includes('dismissed') || errorMsg.toLowerCase().includes('denied')) {
+        setError("Izin kamera ditolak atau dibatalkan. Silakan aktifkan izin kamera di pengaturan browser Anda dan pastikan Anda tidak memblokir akses kamera.");
+      } else if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+        setError("Kamera tidak ditemukan. Pastikan perangkat Anda memiliki kamera yang berfungsi.");
+      } else if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+        setError("Kamera sedang digunakan oleh aplikasi lain. Silakan tutup aplikasi lain yang menggunakan kamera.");
       } else {
-        setError("Gagal mengakses kamera. Pastikan perangkat Anda memiliki kamera depan.");
+        setError(`Gagal mengakses kamera: ${errorName}. Pastikan perangkat Anda mendukung akses kamera.`);
       }
     } finally {
       setIsLoading(false);
@@ -53,13 +73,19 @@ export const SelfieCameraModal: React.FC<SelfieCameraModalProps> = ({ isOpen, on
 
   useEffect(() => {
     if (isOpen) {
-      startCamera();
+      startCamera(facingMode);
     } else {
       stopCamera();
       setCapturedImage(null);
     }
     return () => stopCamera();
   }, [isOpen]);
+
+  const toggleCamera = () => {
+    const newMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newMode);
+    startCamera(newMode);
+  };
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -72,15 +98,16 @@ export const SelfieCameraModal: React.FC<SelfieCameraModalProps> = ({ isOpen, on
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
 
-        // Mirror the image for selfie
-        context.translate(canvas.width, 0);
-        context.scale(-1, 1);
+        // Mirror the image ONLY if using front camera (selfie)
+        if (facingMode === 'user') {
+          context.translate(canvas.width, 0);
+          context.scale(-1, 1);
+        }
         
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         // Resize image to keep it under 1MB for Firestore
-        // We'll use a smaller target size for the base64 string
-        const targetWidth = 640;
+        const targetWidth = 800; // Slightly larger for progress updates
         const targetHeight = (video.videoHeight / video.videoWidth) * targetWidth;
         
         const resizeCanvas = document.createElement('canvas');
@@ -90,7 +117,7 @@ export const SelfieCameraModal: React.FC<SelfieCameraModalProps> = ({ isOpen, on
         
         if (resizeContext) {
           resizeContext.drawImage(canvas, 0, 0, targetWidth, targetHeight);
-          const dataUrl = resizeCanvas.toDataURL('image/jpeg', 0.7); // Compress to 70% quality
+          const dataUrl = resizeCanvas.toDataURL('image/jpeg', 0.6); // Compress to 60% quality
           setCapturedImage(dataUrl);
         }
       }
@@ -115,7 +142,7 @@ export const SelfieCameraModal: React.FC<SelfieCameraModalProps> = ({ isOpen, on
       <div className="relative w-full max-w-md bg-[#151b2b] rounded-3xl border border-gray-800 overflow-hidden shadow-2xl flex flex-col aspect-[3/4]">
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-20 bg-gradient-to-b from-black/50 to-transparent">
-          <h3 className="text-white font-bold text-sm uppercase tracking-widest">Ambil Selfie</h3>
+          <h3 className="text-white font-bold text-sm uppercase tracking-widest">Ambil Foto</h3>
           <button 
             onClick={onClose}
             className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
@@ -140,7 +167,7 @@ export const SelfieCameraModal: React.FC<SelfieCameraModalProps> = ({ isOpen, on
               </div>
               <p className="text-sm text-gray-300">{error}</p>
               <button 
-                onClick={startCamera}
+                onClick={() => startCamera(facingMode)}
                 className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold text-sm"
               >
                 Coba Lagi
@@ -153,13 +180,13 @@ export const SelfieCameraModal: React.FC<SelfieCameraModalProps> = ({ isOpen, on
             autoPlay 
             playsInline 
             muted
-            className={`w-full h-full object-cover scale-x-[-1] ${capturedImage || isLoading || error ? 'hidden' : 'block'}`}
+            className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''} ${capturedImage || isLoading || error ? 'hidden' : 'block'}`}
           />
 
           {capturedImage && (
             <img 
               src={capturedImage} 
-              alt="Captured Selfie" 
+              alt="Captured" 
               className="w-full h-full object-cover"
             />
           )}
@@ -167,16 +194,20 @@ export const SelfieCameraModal: React.FC<SelfieCameraModalProps> = ({ isOpen, on
           {/* Hidden Canvas for processing */}
           <canvas ref={canvasRef} className="hidden" />
           
-          {/* Scanning Overlay */}
+          {/* Controls Overlay */}
           {!capturedImage && !isLoading && !error && (
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="w-64 h-64 border-2 border-white/30 rounded-full border-dashed animate-[spin_10s_linear_infinite]" />
-              <div className="absolute w-72 h-72 border border-blue-500/20 rounded-full" />
+            <div className="absolute bottom-6 right-6">
+              <button 
+                onClick={toggleCamera}
+                className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white border border-white/20 backdrop-blur-md transition-all active:scale-90"
+              >
+                <FlipHorizontal size={24} />
+              </button>
             </div>
           )}
         </div>
 
-        {/* Controls */}
+        {/* Bottom Controls */}
         <div className="p-6 bg-[#151b2b] border-t border-gray-800 flex justify-center items-center gap-6">
           {!capturedImage ? (
             <button 

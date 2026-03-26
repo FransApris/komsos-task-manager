@@ -39,10 +39,17 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan
         setIsLoading(false);
       } catch (err: any) {
         console.error("Error starting scanner:", err);
-        if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
-          setError("Izin kamera ditolak. Silakan aktifkan izin kamera di pengaturan browser Anda dan pastikan situs ini diizinkan.");
+        const errorMsg = err.message || "";
+        const errorName = err.name || "";
+
+        if (errorName === 'NotAllowedError' || errorMsg.toLowerCase().includes('dismissed') || errorMsg.toLowerCase().includes('denied')) {
+          setError("Izin kamera ditolak atau dibatalkan. Silakan aktifkan izin kamera di pengaturan browser Anda dan pastikan Anda tidak memblokir akses kamera.");
+        } else if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+          setError("Kamera tidak ditemukan. Pastikan perangkat Anda memiliki kamera yang berfungsi.");
+        } else if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+          setError("Kamera sedang digunakan oleh aplikasi lain. Silakan tutup aplikasi lain yang menggunakan kamera.");
         } else {
-          setError("Gagal mengakses kamera. Pastikan perangkat memiliki kamera dan izin diberikan.");
+          setError(`Gagal mengakses kamera: ${errorName || 'Error'}. Pastikan perangkat Anda mendukung akses kamera.`);
         }
         setIsLoading(false);
       }

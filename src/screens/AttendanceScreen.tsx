@@ -4,7 +4,7 @@ import { Screen, Role, UserAccount, Task } from '../types';
 import { db, collection, addDoc, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
-import { SelfieCameraModal } from '../components/SelfieCameraModal';
+import { CameraModal } from '../components/CameraModal';
 
 // Koordinat Gereja (Contoh: Gereja St. Paulus Juanda)
 const CHURCH_COORDS = {
@@ -210,7 +210,7 @@ export const AttendanceScreen: React.FC<{
               className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${targetType === 'MASS' ? 'bg-purple-600/10 border-purple-500 text-purple-500' : 'bg-[#151b2b] border-gray-800 text-gray-500'}`}
             >
               <Calendar size={20} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Jadwal Misa</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest">Agenda</span>
             </button>
           </div>
 
@@ -220,7 +220,7 @@ export const AttendanceScreen: React.FC<{
               onChange={(e) => setTargetId(e.target.value)}
               className="w-full bg-[#151b2b] border border-gray-800 rounded-2xl px-5 py-4 text-sm text-white appearance-none focus:border-blue-500 transition-all outline-none"
             >
-              <option value="">-- Pilih {targetType === 'TASK' ? 'Tugas' : 'Misa'} --</option>
+              <option value="">-- Pilih {targetType === 'TASK' ? 'Tugas' : 'Agenda'} --</option>
               {targetType === 'TASK' ? (
                 myActiveTasks.map(t => (
                   <option key={t.id} value={t.id}>{t.title} ({t.time})</option>
@@ -319,10 +319,11 @@ export const AttendanceScreen: React.FC<{
       </div>
 
       {/* Camera Modal */}
-      <SelfieCameraModal 
+      <CameraModal 
         isOpen={showCamera}
         onClose={() => setShowCamera(false)}
         onCapture={(img) => setSelfieImg(img)}
+        initialFacingMode="user"
       />
     </div>
   );

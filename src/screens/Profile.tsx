@@ -42,18 +42,19 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
   const claimStarterBadges = async () => {
     if (!user?.uid) return;
     const starterBadges = [
-      { title: 'Anggota Baru', icon: 'Award', color: '#3b82f6', description: 'Selamat bergabung di Komsos Juanda!', status: 'earned' },
-      { title: 'Fotografer', icon: 'Camera', color: '#10b981', description: 'Telah mendokumentasikan 5 acara.', status: 'earned' },
-      { title: 'Penulis Berita', icon: 'Edit3', color: '#f59e0b', description: 'Telah menulis 3 artikel berita.', status: 'earned' }
+      { title: 'Anggota Baru', icon: 'Award', color: '#3b82f6', description: 'Selamat bergabung di Komsos Juanda!', status: 'earned' as const },
+      { title: 'Fotografer', icon: 'Camera', color: '#10b981', description: 'Telah mendokumentasikan 5 acara.', status: 'earned' as const },
+      { title: 'Penulis Berita', icon: 'Edit3', color: '#f59e0b', description: 'Telah menulis 3 artikel berita.', status: 'earned' as const }
     ];
 
     for (const b of starterBadges) {
       await addDoc(collection(db, 'badges'), {
         ...b,
         userId: user.uid,
-        createdAt: new Date().toISOString(),
-        approvedBy: 'System',
-        approvalCount: 1
+        approvals: 1,
+        requiredApprovals: 1,
+        approvedBy: ['System'],
+        createdAt: new Date().toISOString()
       });
     }
   };
@@ -223,7 +224,7 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
                          }}>
                       <Icon className="w-7 h-7" />
                     </div>
-                    <span className="text-[9px] font-bold text-gray-400 text-center uppercase tracking-tighter leading-tight">{badge.title}</span>
+                    <span className="text-[9px] font-bold text-gray-400 text-center uppercase tracking-tighter leading-tight">{badge.title || 'Badge'}</span>
                   </div>
                 );
               })}
