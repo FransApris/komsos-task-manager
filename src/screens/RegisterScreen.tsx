@@ -102,7 +102,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
         </motion.div>
         <h2 className="text-2xl font-black text-white mb-3">PENDAFTARAN BERHASIL!</h2>
         <p className="text-gray-400 text-sm mb-8 leading-relaxed">
-          Akun Anda telah berhasil dibuat dan sedang menunggu verifikasi dari Superadmin. 
+          Akun Anda telah berhasil dibuat dan sedang menunggu verifikasi dari <strong>Superadmin atau Koordinator Komsos</strong>. 
           Anda akan dapat masuk setelah akun Anda diaktifkan.
         </p>
         <button 

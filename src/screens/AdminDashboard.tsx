@@ -65,6 +65,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const pendingUsers = usersDb.filter(u => u.status === 'PENDING');
   const unreadCount = notificationsDb.filter(n => !n.read).length;
 
+  // === LOGIKA REWARD & TUTUP BUKU BULANAN ===
   const topUsers = [...usersDb].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 3);
 
   const handleDistributeRewards = async () => {
@@ -82,19 +83,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       for (let i = 0; i < topUsers.length; i++) {
         if (topUsers[i] && (topUsers[i].points || 0) > 0) {
+          // 1. Berikan Badge
           promises.push(addDoc(collection(db, 'badges'), {
             userId: topUsers[i].uid,
             title: rewards[i].title,
             description: rewards[i].desc,
             icon: rewards[i].icon,
             color: rewards[i].color,
-            status: 'earned',
+            status: 'earned', // Langsung aktif
             approvals: 1,
             requiredApprovals: 1,
             approvedBy: [user?.uid || 'system'],
             createdAt: serverTimestamp()
           }));
 
+          // 2. Kirim Notifikasi ke User Tersebut
           promises.push(addDoc(collection(db, 'notifications'), {
             userId: topUsers[i].uid,
             title: '🎉 Selamat! Anda Juara!',
@@ -106,13 +109,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
       }
 
+      // 3. Reset Poin Semua Orang (Jika dicentang)
       if (resetPoints) {
         usersDb.forEach(u => {
           const uId = u.id || u.uid;
           if (uId) {
             promises.push(updateDoc(doc(db, 'users', uId), { 
               points: 0, 
-              completedTasksCount: 0 
+              completedTasksCount: 0 // Opsional: Mereset hitungan tugas bulanan
             }));
           }
         });
@@ -173,57 +177,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       <div className="p-5 space-y-6">
         
-        {/* STATISTIK UTAMA (INTERAKTIF) */}
+        {/* STATISTIK UTAMA */}
         <div className="grid grid-cols-2 gap-3">
-          <motion.div 
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onNavigate('TASKS')}
-            className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 rounded-2xl shadow-lg shadow-blue-500/20 relative overflow-hidden group cursor-pointer hover:opacity-90 transition-opacity"
-          >
+          <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 rounded-2xl shadow-lg shadow-blue-500/20 relative overflow-hidden group">
             <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><ClipboardList size={60} /></div>
             <p className="text-3xl font-black text-white mb-1">{activeTasks.length}</p>
             <p className="text-[9px] text-blue-100 font-bold uppercase tracking-wider">Tugas Aktif</p>
-          </motion.div>
-
-          <motion.div 
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onNavigate('TEAM')}
-            className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-gray-800/50 transition-colors"
-          >
-            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><Users size={60} /></div>
+          </div>
+          <div className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 shadow-lg relative overflow-hidden">
             <p className="text-3xl font-black text-white mb-1">{usersDb.length}</p>
             <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Total Anggota</p>
-          </motion.div>
-
-          <motion.div 
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onNavigate('TASK_VERIFICATION')}
-            className="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-amber-500/20 transition-colors"
-          >
-            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform text-amber-500"><CheckCircle2 size={60} /></div>
+          </div>
+          <div className="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20 shadow-lg relative overflow-hidden">
             <p className="text-3xl font-black text-amber-500 mb-1">{pendingVerifications.length}</p>
             <p className="text-[9px] text-amber-500/70 font-bold uppercase tracking-wider">Verifikasi Tugas</p>
-          </motion.div>
-
-          <motion.div 
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onNavigate('USER_VERIFICATION')}
-            className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-red-500/20 transition-colors"
-          >
-            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform text-red-500"><UserCheck size={60} /></div>
+          </div>
+          <div className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 shadow-lg relative overflow-hidden cursor-pointer" onClick={() => onNavigate('USER_VERIFICATION')}>
             <p className="text-3xl font-black text-red-500 mb-1">{pendingUsers.length}</p>
             <p className="text-[9px] text-red-500/70 font-bold uppercase tracking-wider">Pendaftar Baru</p>
-          </motion.div>
+          </div>
         </div>
 
         {/* MENU CEPAT (QUICK ACTIONS) */}
         <div>
-          {role === 'SUPERADMIN' && (
+          {/* --- 1. MENU KHUSUS ADMIN & KOORDINATOR --- */}
+          {isAdminRole && (
             <div className="mb-6">
               <h3 className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                <Shield className="w-4 h-4" /> Otoritas Superadmin
+                <Shield className="w-4 h-4" /> Otoritas Pengurus Komsos
               </h3>
               <div className="grid grid-cols-2 gap-3">
+                {/* Tombol Verifikasi Pendaftar & Manajemen Tim kini bisa diakses semua Admin */}
                 <QuickActionBtn 
                   icon={<UserCheck className="w-5 h-5 text-white" />} 
                   label="Verifikasi Pendaftar" 
@@ -236,22 +220,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   color="bg-indigo-500/10" 
                   onClick={() => onNavigate('TEAM')} 
                 />
-                <QuickActionBtn 
-                  icon={<Database className="w-5 h-5 text-emerald-500" />} 
-                  label="Database Master" 
-                  color="bg-emerald-500/10" 
-                  onClick={() => onNavigate('ADMIN_DATA_MANAGEMENT')} 
-                />
-                <QuickActionBtn 
-                  icon={<Gift className="w-5 h-5 text-amber-500" />} 
-                  label="Tutup Buku (Reward)" 
-                  color="bg-amber-500/10" 
-                  onClick={() => setShowRewardModal(true)} 
-                />
+                
+                {/* Namun, Database Master & Tutup Buku HANYA untuk SUPERADMIN */}
+                {role === 'SUPERADMIN' && (
+                  <>
+                    <QuickActionBtn 
+                      icon={<Database className="w-5 h-5 text-emerald-500" />} 
+                      label="Database Master" 
+                      color="bg-emerald-500/10" 
+                      onClick={() => onNavigate('ADMIN_DATA_MANAGEMENT')} 
+                    />
+                    <QuickActionBtn 
+                      icon={<Gift className="w-5 h-5 text-amber-500" />} 
+                      label="Tutup Buku (Reward)" 
+                      color="bg-amber-500/10" 
+                      onClick={() => setShowRewardModal(true)} 
+                    />
+                  </>
+                )}
               </div>
             </div>
           )}
 
+          {/* --- 2. MENU OPERASIONAL KOORDINATOR (Juga dilihat Superadmin) --- */}
           <div>
             <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
               <Activity className="w-4 h-4" /> Operasional Komsos
@@ -281,6 +272,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 color="bg-pink-500/10" 
                 onClick={() => onNavigate('REPORTS')} 
               />
+              {/* TOMBOL BARU UNTUK V-CAST PIPELINE */}
               <QuickActionBtn 
                 icon={<PlayCircle className="w-5 h-5 text-indigo-500" />} 
                 label="Pipeline V-Cast" 
