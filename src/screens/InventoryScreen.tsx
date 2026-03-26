@@ -3,10 +3,11 @@ import { Screen, Role, UserAccount, Inventory } from '../types';
 import { 
   ChevronLeft, Plus, Search, Filter, Camera, Mic, 
   Lightbulb, Wrench, Trash2, Edit2, CheckCircle2, User, Loader2, X, Save,
-  QrCode, ScanLine, RefreshCw
+  QrCode, ScanLine, RefreshCw, Camera as CameraIcon
 } from 'lucide-react';
 import { db, auth, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from '../firebase';
 import { motion } from 'motion/react';
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 
 export const InventoryScreen: React.FC<{ 
   onNavigate: (s: Screen) => void, 
@@ -24,6 +25,7 @@ export const InventoryScreen: React.FC<{
 
   // State untuk Fitur Scanner
   const [isScanning, setIsScanning] = useState(false);
+  const [isCameraScanning, setIsCameraScanning] = useState(false);
   const [scanId, setScanId] = useState('');
 
   // Form state
@@ -362,9 +364,16 @@ export const InventoryScreen: React.FC<{
               />
               <QrCode className="w-20 h-20 text-gray-700 opacity-50" />
             </div>
+
+            <button 
+              onClick={() => setIsCameraScanning(true)}
+              className="w-full mb-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
+            >
+              <CameraIcon size={16} /> Gunakan Kamera HP
+            </button>
             
             <p className="text-xs text-gray-400 mb-4 text-center leading-relaxed">
-              Tekan kotak di bawah ini, lalu gunakan alat Barcode Scanner fisik, atau ketik ID Barcode secara manual.
+              Scan stiker barcode fisik, atau ketik ID Barcode secara manual di bawah ini.
             </p>
 
             <input 
@@ -405,9 +414,14 @@ export const InventoryScreen: React.FC<{
               <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl mb-2">
                 <label className="block text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-2 flex items-center justify-between">
                   <span>ID Barcode (Unik)</span>
-                  <button onClick={() => setCustomId(generateRandomId())} className="flex items-center gap-1 text-[9px] bg-emerald-500/20 px-2 py-1 rounded">
-                    <RefreshCw size={10} /> Acak
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => setIsCameraScanning(true)} className="flex items-center gap-1 text-[9px] bg-emerald-500/20 px-2 py-1 rounded">
+                      <CameraIcon size={10} /> Kamera
+                    </button>
+                    <button onClick={() => setCustomId(generateRandomId())} className="flex items-center gap-1 text-[9px] bg-emerald-500/20 px-2 py-1 rounded">
+                      <RefreshCw size={10} /> Acak
+                    </button>
+                  </div>
                 </label>
                 <input 
                   type="text" 
@@ -474,6 +488,20 @@ export const InventoryScreen: React.FC<{
             </button>
           </div>
         </div>
+      )}
+      {/* --- MODAL SCANNER KAMERA --- */}
+      {isCameraScanning && (
+        <BarcodeScannerModal 
+          onScan={(decodedText) => {
+            if (isAdding) {
+              setCustomId(decodedText.toUpperCase());
+            } else if (isScanning) {
+              setScanId(decodedText.toUpperCase());
+            }
+            setIsCameraScanning(false);
+          }}
+          onClose={() => setIsCameraScanning(false)}
+        />
       )}
     </div>
   );
