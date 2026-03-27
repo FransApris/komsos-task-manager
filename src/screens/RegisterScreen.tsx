@@ -5,8 +5,7 @@ import {
 } from 'lucide-react';
 import { 
   auth, db, createUserWithEmailAndPassword, 
-  doc, setDoc, serverTimestamp,
-  collection, query, where, getDocs // <-- IMPORT BARU UNTUK CEK DATABASE
+  doc, setDoc, serverTimestamp 
 } from '../firebase';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -39,37 +38,15 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
     setError('');
 
     try {
-      // --- 🛡️ SISTEM PENCEGAH DATA GANDA 🛡️ ---
-      const usersRef = collection(db, 'users');
-
-      // 1. Cek Nama Lengkap (Mencegah 1 orang buat 2 akun pakai email berbeda)
-      const nameQuery = query(usersRef, where('displayName', '==', name.trim()));
-      const nameSnapshot = await getDocs(nameQuery);
-      if (!nameSnapshot.empty) {
-        setIsLoading(false);
-        return setError('Nama ini sudah terdaftar di sistem. Gunakan nama yang lebih lengkap (tambah nama belakang) atau hubungi Superadmin.');
-      }
-
-      // 2. Cek Email (Pengecekan ekstra sebelum masuk ke Firebase Auth)
-      const emailQuery = query(usersRef, where('email', '==', email.trim().toLowerCase()));
-      const emailSnapshot = await getDocs(emailQuery);
-      if (!emailSnapshot.empty) {
-        setIsLoading(false);
-        return setError('Email ini sudah terdaftar. Silakan kembali ke halaman Login.');
-      }
-      // --- AKHIR SISTEM PENCEGAH ---
-
-      console.log("Attempting to create user with email:", email.trim());
+      // 1. Buat Akun di Firebase Auth (Sistem otomatis menolak jika email sudah terdaftar)
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       const user = userCredential.user;
-      console.log("Auth user created:", user.uid);
 
-      // Create pending user document
-      console.log("Creating Firestore document for user:", user.uid);
+      // 2. Simpan Data Profil ke Database
       const newUser = {
         uid: user.uid,
         displayName: name.trim(),
-        email: email.trim().toLowerCase(), // Pastikan email selalu huruf kecil
+        email: email.trim().toLowerCase(),
         role: 'USER',
         status: 'PENDING',
         img: '1',
@@ -80,34 +57,23 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
         createdAt: serverTimestamp()
       };
       
+      // Proses ini diizinkan karena pengguna baru saja berhasil melewati tahap 1 (sudah Auth)
       await setDoc(doc(db, 'users', user.uid), newUser);
-      console.log("Firestore document created successfully");
 
       setIsSuccess(true);
       toast.success("Pendaftaran berhasil! Menunggu verifikasi admin.");
     } catch (err: any) {
-      console.error("Registration error details:", {
-        code: err.code,
-        message: err.message,
-        stack: err.stack
-      });
+      console.error("Registration error details:", err);
       
       if (err.code === 'auth/network-request-failed') {
-        setError('Koneksi gagal. Periksa internet Anda atau pastikan tidak ada firewall/ad-blocker yang memblokir Google Services.');
+        setError('Koneksi gagal. Periksa internet Anda.');
       } else if (err.code === 'auth/email-already-in-use') {
-        setError('Email sudah terdaftar. Silakan gunakan email lain.');
+        setError('Email ini sudah terdaftar. Silakan kembali ke halaman Login.');
       } else if (err.code === 'auth/invalid-email') {
         setError('Format email tidak valid.');
-      } else if (err.code === 'permission-denied') {
-        setError('Gagal menyimpan data: Izin ditolak oleh server. Pastikan data valid.');
       } else {
         setError('Gagal mendaftar: ' + err.message);
       }
-      
-      const toastMsg = err.code === 'auth/network-request-failed' 
-        ? "Koneksi gagal. Periksa internet Anda."
-        : "Pendaftaran gagal: " + err.message;
-      toast.error(toastMsg);
     } finally {
       setIsLoading(false);
     }
