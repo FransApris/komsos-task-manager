@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ChevronLeft, CheckCircle2, Video, FileText, Activity, Users, Briefcase, Image as ImageIcon } from 'lucide-react';
 import { Screen, Task, UserAccount } from '../types';
 import { db, doc, updateDoc, serverTimestamp } from '../firebase';
+import { increment } from 'firebase/firestore';
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
 
@@ -15,24 +16,54 @@ export const TaskVerificationScreen: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const { taskTypes } = useData();
 
-  // Filter tugas yang statusnya WAITING_VERIFICATION
   const pendingTasks = tasksDb.filter(t => t.status === 'WAITING_VERIFICATION');
 
   const handleApproveTask = async (e: React.MouseEvent, task: Task) => {
     e.preventDefault();
-    e.stopPropagation(); // Mencegah klik tembus/bentrok dengan elemen animasi di belakangnya
+    e.stopPropagation(); 
     
     setIsLoading(true);
     try {
+      // 1. Kemas kini status tugas kepada COMPLETED
       const taskRef = doc(db, 'tasks', task.id);
       await updateDoc(taskRef, {
         status: 'COMPLETED',
         updatedAt: serverTimestamp()
       });
-      // Sukses: otomatis hilang dari daftar tanpa alert
+
+      // 2. AUTOMASI PENGAGIHAN MATA & KEMAHIRAN KEPADA PETUGAS
+      if (task.assignedUsers && task.assignedUsers.length > 0) {
+        for (const uid of task.assignedUsers) {
+          const isLeader = task.teamLeaderId === uid;
+          const earnedPoints = isLeader ? 75 : 50;
+          
+          const userRef = doc(db, 'users', uid);
+          
+          const userUpdate: any = {
+            points: increment(earnedPoints),
+            xp: increment(earnedPoints),
+            completedTasksCount: increment(1)
+          };
+
+          const typeLower = task.type?.toLowerCase() || '';
+          if (typeLower.includes('dokumentasi') || typeLower.includes('foto')) {
+            userUpdate['stats.photography'] = increment(10);
+          } else if (typeLower.includes('peliputan') || typeLower.includes('video') || typeLower.includes('obs')) {
+            userUpdate['stats.videography'] = increment(10);
+          } else if (typeLower.includes('publikasi') || typeLower.includes('nulis') || typeLower.includes('artikel')) {
+            userUpdate['stats.writing'] = increment(10);
+          } else if (typeLower.includes('desain') || typeLower.includes('design')) {
+            userUpdate['stats.design'] = increment(10);
+          }
+
+          await updateDoc(userRef, userUpdate);
+        }
+      }
+      
+      toast.success("Tugas disahkan dan mata telah diagihkan!");
     } catch (err) {
-      console.error("Error verifying task:", err);
-      toast.error("Gagal memverifikasi tugas.");
+      console.error("Ralat mengesahkan tugas:", err);
+      toast.error("Gagal mengesahkan tugas.");
     } finally {
       setIsLoading(false);
     }
