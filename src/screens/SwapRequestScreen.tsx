@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Plus, RefreshCw, X, Calendar, Clock, AlertCircle, UserCheck, UserX } from 'lucide-react';
 import { Screen, UserAccount, Task } from '../types';
 
-// Impor Firebase yang benar (arrayRemove sudah tidak dibutuhkan karena kita memfilter array secara manual)
+// Pastikan impor Firestore berasal dari library firebase asli untuk menghindari error build
 import { db, collection, addDoc, query, onSnapshot, serverTimestamp, doc, updateDoc } from '../firebase';
-import { arrayUnion, orderBy } from 'firebase/firestore'; 
+import { arrayUnion, orderBy, arrayRemove } from 'firebase/firestore'; 
 
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -21,11 +21,10 @@ export const SwapRequestScreen: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
 
-  // --- KUNCI PENYELESAIAN: Deteksi ID Pengguna Yang Tepat ---
-  // Sistem akan membaca uid atau id untuk menghindari ralat pengecaman Si A / Si B
+  // KUNCI SINKRONISASI: Gunakan ID yang konsisten untuk pengecekan tugas
   const currentUserId = user?.uid || user?.id;
 
-  // 1. Ambil Data Bursa secara Real-time
+  // 1. Ambil Data Bursa secara Real-time agar status 'ACCEPTED' langsung terdeteksi
   useEffect(() => {
     const q = query(collection(db, 'swapRequests'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snap) => {
@@ -34,32 +33,32 @@ export const SwapRequestScreen: React.FC<{
     return () => unsub();
   }, []);
 
-  // --- FILTER PERMINTAAN SAYA ---
+  // --- LOGIKA SINKRONISASI DAFTAR TUGAS ---
+  
+  // Filter Permintaan Saya
   const myRequests = requests.filter(r => r.requesterId === currentUserId);
   const myOpenRequestsTaskIds = myRequests.filter(r => r.status === 'OPEN').map(r => r.taskId);
 
-  // Hanya paparkan tugas yang BELUM dilempar ke bursa di dalam Dropdown
+  // Dropdown hanya menampilkan tugas yang benar-benar milik user DAN belum ada di bursa
   const mySwappableTasks = tasksDb.filter(t => 
     t.status === 'IN_PROGRESS' && 
     currentUserId && t.assignedUsers?.includes(currentUserId) &&
     !myOpenRequestsTaskIds.includes(t.id) 
   );
 
-  // --- FILTER BURSA TUKAR ---
+  // Filter Bursa Tukar: Jangan tampilkan tugas yang user sudah ada di dalamnya
   const bursaRequests = requests.filter(r => {
-    if (r.requesterId === currentUserId) return false; // Jangan paparkan permintaan sendiri
-    if (r.status !== 'OPEN') return false;             // Hanya yang masih OPEN
+    if (r.requesterId === currentUserId) return false; 
+    if (r.status !== 'OPEN') return false;             
     
-    // Semak jika pengguna yang login SUDAH ADA di dalam tugas tersebut
     const taskTerkait = tasksDb.find(t => t.id === r.taskId);
     if (taskTerkait && currentUserId && taskTerkait.assignedUsers?.includes(currentUserId)) {
-      return false; // Jangan paparkan jika sudah ditugaskan dalam acara yang sama
+      return false; 
     }
     
     return true;
   });
 
-  // Fungsi Membuat Permintaan Baru
   const handleCreateRequest = async () => {
     if (!selectedTaskId || !reason.trim()) {
       toast.error('Pilih tugas dan isi alasan Anda.');
@@ -97,15 +96,14 @@ export const SwapRequestScreen: React.FC<{
     }
   };
 
-  // --- SINKRONISASI SAAT MENGAMBIL ALIH TUGAS ---
   const handleAcceptSwap = async (req: any) => {
     if (!currentUserId) return;
     setIsLoading(true);
     try {
       const taskTerkait = tasksDb.find(t => t.id === req.taskId);
-      if (!taskTerkait) throw new Error("Tugas tidak ditemui dalam pangkalan data");
+      if (!taskTerkait) throw new Error("Tugas tidak ditemukan");
 
-      // A. Kemas kini Status Permintaan di Bursa menjadi ACCEPTED
+      // A. Update Permintaan di Bursa
       await updateDoc(doc(db, 'swapRequests', req.id), {
         status: 'ACCEPTED',
         acceptedById: currentUserId,
@@ -113,7 +111,8 @@ export const SwapRequestScreen: React.FC<{
         updatedAt: serverTimestamp()
       });
 
-      // B. Modifikasi Array Petugas (Hapus yang minta tolong, Masukkan pahlawan pengganti)
+      // B. Update Daftar Petugas di Koleksi Tasks (Hapus Pemohon, Tambah Pengganti)
+      // Kita memfilter manual array-nya untuk memastikan sinkronisasi ID yang akurat
       const newAssigned = (taskTerkait.assignedUsers || []).filter(id => id !== req.requesterId);
       if (!newAssigned.includes(currentUserId)) {
         newAssigned.push(currentUserId);
@@ -123,24 +122,24 @@ export const SwapRequestScreen: React.FC<{
         assignedUsers: newAssigned,
         history: arrayUnion({
           id: Date.now().toString(),
-          message: `Posisi ${req.requesterName} digantikan oleh ${user?.displayName || 'Petugas'} (Via Bursa)`,
-          userName: user?.displayName || 'Sistem',
+          message: `Pertukaran: ${req.requesterName} digantikan oleh ${user?.displayName || 'Petugas'}`,
+          userName: 'Sistem Bursa',
           createdAt: new Date().toISOString()
         })
       };
 
-      // C. SINKRONISASI KETUA PASUKAN (Jika yang diganti adalah ketua, penerima menjadi ketua baru)
+      // C. Update Ketua Tim jika pemohon adalah ketua
       if (taskTerkait.teamLeaderId === req.requesterId) {
         updateData.teamLeaderId = currentUserId;
       }
 
-      // Jalankan Kemas Kini Pangkalan Data Tugas secara serentak
       await updateDoc(doc(db, 'tasks', req.taskId), updateData);
 
-      toast.success(`Berhasil! Anda kini bertugas untuk ${req.taskTitle}`);
+      toast.success(`Berhasil menggantikan tugas ${req.taskTitle}!`);
+      setActiveTab('MINE');
     } catch (error) {
       console.error(error);
-      toast.error('Gagal mengambil alih tugas.');
+      toast.error('Gagal memproses pertukaran.');
     } finally {
       setIsLoading(false);
     }
@@ -155,18 +154,11 @@ export const SwapRequestScreen: React.FC<{
         <h1 className="text-lg font-extrabold tracking-tight">Bursa Pertukaran</h1>
       </header>
 
-      {/* TABS */}
       <div className="flex border-b border-gray-800/50 bg-[#0a0f18] sticky top-[72px] z-10">
-        <button 
-          onClick={() => setActiveTab('MINE')}
-          className={`flex-1 py-4 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'MINE' ? 'border-amber-500 text-amber-500' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
-        >
+        <button onClick={() => setActiveTab('MINE')} className={`flex-1 py-4 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'MINE' ? 'border-amber-500 text-amber-500' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>
           Permintaan Saya
         </button>
-        <button 
-          onClick={() => setActiveTab('BURSA')}
-          className={`flex-1 py-4 text-sm font-bold text-center border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'BURSA' ? 'border-amber-500 text-amber-500' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
-        >
+        <button onClick={() => setActiveTab('BURSA')} className={`flex-1 py-4 text-sm font-bold text-center border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'BURSA' ? 'border-amber-500 text-amber-500' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>
           <RefreshCw className="w-4 h-4" /> Bursa Tukar
         </button>
       </div>
@@ -178,23 +170,23 @@ export const SwapRequestScreen: React.FC<{
               {myRequests.length === 0 ? (
                 <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800">
                   <RefreshCw className="w-12 h-12 text-gray-700 mx-auto mb-4" />
-                  <p className="text-gray-500 font-medium">Anda belum memiliki permintaan pertukaran.</p>
+                  <p className="text-gray-500 font-medium">Belum ada permintaan pertukaran.</p>
                 </div>
               ) : (
                 myRequests.map(req => (
                   <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 relative overflow-hidden">
                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${req.status === 'ACCEPTED' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
-                    <div className="flex justify-between items-start mb-3">
-                      <h4 className="font-bold text-white leading-tight pr-4">{req.taskTitle}</h4>
-                      <span className={`text-[10px] font-black px-2 py-1 rounded uppercase tracking-wider shrink-0 ${req.status === 'ACCEPTED' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>
-                        {req.status === 'ACCEPTED' ? 'Sudah Diambil' : 'Menunggu'}
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-bold text-white pr-4">{req.taskTitle}</h4>
+                      <span className={`text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest ${req.status === 'ACCEPTED' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>
+                        {req.status === 'ACCEPTED' ? 'Selesai' : 'Menunggu'}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400 italic mb-4">"{req.reason}"</p>
+                    <p className="text-xs text-gray-500 mb-3">{req.taskDate} • {req.taskTime}</p>
+                    <p className="text-xs text-gray-400 italic">"{req.reason}"</p>
                     {req.status === 'ACCEPTED' && (
-                      <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20">
-                        <UserCheck className="w-4 h-4" />
-                        Tugas ini telah diambil alih oleh {req.acceptedByName}.
+                      <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-emerald-400 bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10">
+                        <UserCheck className="w-3.5 h-3.5" /> Digantikan oleh {req.acceptedByName}
                       </div>
                     )}
                   </div>
@@ -203,18 +195,10 @@ export const SwapRequestScreen: React.FC<{
             </motion.div>
           ) : (
             <motion.div key="bursa" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-              <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 mb-6">
-                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-gray-300 leading-relaxed">
-                  Daftar di bawah adalah teman-teman yang membutuhkan pengganti untuk tugas mereka. 
-                  Jika Anda memiliki waktu luang, bantu mereka dengan mengambil alih tugasnya.
-                </p>
-              </div>
-
               {bursaRequests.length === 0 ? (
                 <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800">
                   <RefreshCw className="w-12 h-12 text-gray-700 mx-auto mb-4" />
-                  <p className="text-gray-500 font-medium">Bursa pertukaran sedang kosong.</p>
+                  <p className="text-gray-500 font-medium">Bursa sedang kosong.</p>
                 </div>
               ) : (
                 bursaRequests.map(req => (
@@ -224,23 +208,15 @@ export const SwapRequestScreen: React.FC<{
                       <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{req.requesterName} Butuh Bantuan</span>
                     </div>
                     <h4 className="font-extrabold text-white text-lg leading-tight mb-2">{req.taskTitle}</h4>
-                    
-                    <div className="flex gap-4 mb-3 text-xs text-gray-400 font-medium">
-                      <div className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> {req.taskDate}</div>
-                      <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {req.taskTime}</div>
+                    <div className="flex gap-4 mb-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-1.5"><Calendar size={14} /> {req.taskDate}</div>
+                      <div className="flex items-center gap-1.5"><Clock size={14} /> {req.taskTime}</div>
                     </div>
-                    
                     <div className="bg-[#0a0f18] p-3 rounded-xl border border-gray-800 mb-4">
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Alasan / Pesan:</p>
                       <p className="text-sm text-gray-300 italic">"{req.reason}"</p>
                     </div>
-
-                    <button 
-                      onClick={() => handleAcceptSwap(req)}
-                      disabled={isLoading}
-                      className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50"
-                    >
-                      {isLoading ? 'Memproses...' : 'Saya Bersedia Menggantikan'}
+                    <button onClick={() => handleAcceptSwap(req)} disabled={isLoading} className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl shadow-lg transition-all disabled:opacity-50">
+                      {isLoading ? 'Memproses...' : 'Ambil Alih Tugas'}
                     </button>
                   </div>
                 ))
@@ -250,71 +226,28 @@ export const SwapRequestScreen: React.FC<{
         </AnimatePresence>
       </div>
 
-      {/* --- TOMBOL FLOATING UNTUK MEMBUAT PERMINTAAN --- */}
       <div className="fixed bottom-24 right-5 z-30">
-        <button 
-          onClick={() => setShowModal(true)}
-          className="w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center text-black shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95 transition-all"
-        >
+        <button onClick={() => setShowModal(true)} className="w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center text-black shadow-lg hover:scale-105 active:scale-95 transition-all">
           <Plus className="w-6 h-6" />
         </button>
       </div>
 
-      {/* --- MODAL BUAT PERMINTAAN BARU --- */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/80 backdrop-blur-sm">
-            <motion.div 
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="w-full max-w-md bg-[#151b2b] rounded-t-3xl sm:rounded-3xl border border-gray-800 p-6 pb-10 sm:pb-6 shadow-2xl"
-            >
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm">
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="w-full max-w-md bg-[#151b2b] rounded-t-3xl border border-gray-800 p-6 pb-10">
               <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-lg font-black text-white">Buat Permintaan</h3>
-                  <p className="text-xs text-gray-500 mt-1">Lempar tugas Anda ke bursa pertukaran.</p>
-                </div>
-                <button onClick={() => setShowModal(false)} className="p-2 bg-gray-800 text-gray-400 rounded-full hover:text-white transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
+                <h3 className="text-lg font-black text-white">Buat Permintaan</h3>
+                <button onClick={() => setShowModal(false)} className="p-2 text-gray-400 hover:text-white"><X size={24} /></button>
               </div>
-
               <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Pilih Tugas yang Ingin Ditukar</label>
-                  {mySwappableTasks.length === 0 ? (
-                    <div className="p-4 bg-[#0a0f18] rounded-xl border border-gray-800 text-sm text-gray-400 text-center">
-                      Semua tugas aktif Anda sudah dilempar ke bursa, atau Anda tidak memiliki tugas aktif.
-                    </div>
-                  ) : (
-                    <select 
-                      value={selectedTaskId}
-                      onChange={(e) => setSelectedTaskId(e.target.value)}
-                      className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 outline-none"
-                    >
-                      <option value="" disabled>-- Pilih Tugas --</option>
-                      {mySwappableTasks.map(t => (
-                        <option key={t.id} value={t.id}>{t.title} ({t.date})</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Alasan / Pesan untuk Pengganti</label>
-                  <textarea 
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="Contoh: Maaf saya mendadak sakit, mohon bantuannya teman-teman..."
-                    className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 outline-none h-28 resize-none"
-                  />
-                </div>
-
-                <button 
-                  onClick={handleCreateRequest}
-                  disabled={isLoading || !selectedTaskId || !reason.trim()}
-                  className="w-full py-4 mt-2 font-bold text-black bg-amber-500 rounded-xl shadow-lg shadow-amber-500/20 active:scale-[0.98] disabled:opacity-50 disabled:grayscale transition-all"
-                >
-                  {isLoading ? 'Memproses...' : 'Lempar ke Bursa Tukar'}
+                <select value={selectedTaskId} onChange={(e) => setSelectedTaskId(e.target.value)} className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 outline-none">
+                  <option value="" disabled>-- Pilih Tugas Anda --</option>
+                  {mySwappableTasks.map(t => <option key={t.id} value={t.id}>{t.title} ({t.date})</option>)}
+                </select>
+                <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Alasan (Contoh: Mendadak sakit...)" className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 outline-none h-28 resize-none" />
+                <button onClick={handleCreateRequest} disabled={isLoading || !selectedTaskId || !reason.trim()} className="w-full py-4 font-bold text-black bg-amber-500 rounded-xl disabled:opacity-50 transition-all">
+                  {isLoading ? 'Memproses...' : 'Kirim ke Bursa'}
                 </button>
               </div>
             </motion.div>
