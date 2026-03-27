@@ -611,9 +611,21 @@ export const UserDashboard: React.FC<{
           )}
         </div>
 
-        {/* --- LEADERBOARD DIPINDAH KE BAWAH --- */}
+        {/* --- LEADERBOARD DIPINDAH KE BAWAH (Hanya Tampil Jika Ada Poin > 0) --- */}
         <motion.div variants={itemVariants} className="mt-8 mb-8 pt-6 border-t border-gray-800/50">
-          <Leaderboard users={usersDb} />
+          {usersDb.filter(u => (u.points || 0) > 0).length > 0 ? (
+            <Leaderboard users={usersDb.filter(u => (u.points || 0) > 0)} />
+          ) : (
+            <div className="bg-[#151b2b] p-6 rounded-3xl border border-gray-800 text-center">
+              <div className="inline-flex p-4 bg-gray-800/50 rounded-full mb-3">
+                <Trophy className="w-8 h-8 text-gray-500" />
+              </div>
+              <h3 className="font-extrabold text-white mb-1">Klasemen Masih Kosong</h3>
+              <p className="text-xs text-gray-400 leading-relaxed max-w-[250px] mx-auto">
+                Belum ada anggota yang mengumpulkan poin. Ambil tugas dan jadilah yang pertama di puncak klasemen!
+              </p>
+            </div>
+          )}
         </motion.div>
 
       </motion.div>
