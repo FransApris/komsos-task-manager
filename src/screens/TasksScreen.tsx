@@ -1,6 +1,6 @@
 import React from 'react';
 import { Screen, Role, Task, UserAccount, TaskType } from '../types';
-import { CheckSquare, Clock, Video, Calendar, Plus, Image as ImageIcon, FileText, Loader2, ChevronRight, Activity } from 'lucide-react';
+import { CheckSquare, Clock, Video, Calendar, Plus, Image as ImageIcon, FileText, Loader2, Activity } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getAvatarUrl } from '../lib/avatar';
 
@@ -25,7 +25,6 @@ export const TasksScreen: React.FC<{
     );
   }
 
-  // --- FUNGSI BANTU MENGAMBIL JAM MULAI (Mencegah Error Rentang Waktu) ---
   const getStartTime = (timeString?: string) => {
     if (!timeString) return '00:00';
     if (timeString.includes('-')) {
@@ -34,7 +33,6 @@ export const TasksScreen: React.FC<{
     return timeString.trim();
   };
 
-  // --- FILTER & SORTING DATA ---
   const filteredTasks = tasksDb
     .filter(task => {
       if (filter === 'ALL') return true;
@@ -43,42 +41,24 @@ export const TasksScreen: React.FC<{
       return true;
     })
     .sort((a, b) => {
-      // 1. Ambil jam mulai dengan aman
       const startTimeA = getStartTime(a.time);
       const startTimeB = getStartTime(b.time);
       
-      // 2. Ubah ke format waktu (Timestamp)
       let dateA = new Date(`${a.date}T${startTimeA}`).getTime();
       if (isNaN(dateA)) dateA = new Date(`${a.date} ${startTimeA}`).getTime();
       
       let dateB = new Date(`${b.date}T${startTimeB}`).getTime();
       if (isNaN(dateB)) dateB = new Date(`${b.date} ${startTimeB}`).getTime();
 
-      // 3. Aturan Pengurutan
       if (filter === 'COMPLETED') {
-        // Tab Selesai: Urutkan dari yang terbaru selesai ke yang terlama (Descending)
         return (dateB || 0) - (dateA || 0);
       } else {
-        // Tab Aktif & Semua: Urutkan dari tanggal terdekat ke terjauh (Ascending)
-        // (Jika tanggal error/kosong, taruh di paling bawah dengan MAX_SAFE_INTEGER)
         return (dateA || Number.MAX_SAFE_INTEGER) - (dateB || Number.MAX_SAFE_INTEGER);
       }
     });
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  };
+  const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
+  const itemVariants = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
   const counts = {
     all: tasksDb.length,
@@ -95,11 +75,8 @@ export const TasksScreen: React.FC<{
     if (t === 'obs') return <Video className="w-4 h-4 text-red-500"/>;
     if (t === 'editing') return <Video className="w-4 h-4 text-indigo-500"/>;
     
-    // Check dynamic task types
     const foundType = taskTypes.find(tt => tt.name.toLowerCase() === t);
-    if (foundType) {
-      return <Activity className="w-4 h-4" style={{ color: foundType.color }} />;
-    }
+    if (foundType) return <Activity className="w-4 h-4" style={{ color: foundType.color }} />;
 
     return <CheckSquare className="w-4 h-4 text-gray-500"/>;
   };
@@ -109,14 +86,6 @@ export const TasksScreen: React.FC<{
     if (t === 'peliputan') return 'bg-blue-500/10';
     if (t === 'dokumentasi') return 'bg-emerald-500/10';
     if (t === 'publikasi') return 'bg-amber-500/10';
-    
-    // For dynamic types, we can't easily generate a tailwind bg with opacity from hex
-    // but we can use inline style for a subtle background
-    const foundType = taskTypes.find(tt => tt.name.toLowerCase() === t);
-    if (foundType) {
-      return ''; // We'll handle it with style if needed
-    }
-
     return 'bg-gray-500/10';
   };
 
@@ -134,10 +103,7 @@ export const TasksScreen: React.FC<{
       <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
         <h1 className="text-lg font-extrabold tracking-tight text-white">Daftar Tugas</h1>
         {isAdminRole && (
-          <button 
-            onClick={() => onNavigate('CREATE_TASK')}
-            className="p-2 bg-blue-600 rounded-full border border-blue-500 shadow-lg shadow-blue-500/20 active:scale-90 transition-transform"
-          >
+          <button onClick={() => onNavigate('CREATE_TASK')} className="p-2 bg-blue-600 rounded-full border border-blue-500 shadow-lg shadow-blue-500/20 active:scale-90 transition-transform">
             <Plus className="w-5 h-5 text-white" />
           </button>
         )}
@@ -145,105 +111,66 @@ export const TasksScreen: React.FC<{
 
       <div className="p-5">
         <div className="flex gap-4 border-b border-gray-800 mb-6">
-          <button 
-            onClick={() => setFilter('ALL')}
-            className={`pb-3 font-bold text-sm transition-all relative ${filter === 'ALL' ? 'text-blue-400' : 'text-gray-500'}`}
-          >
-            Semua
-            <span className="ml-1.5 text-[10px] opacity-60">({counts.all})</span>
-            {filter === 'ALL' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}
-          </button>
-          <button 
-            onClick={() => setFilter('ACTIVE')}
-            className={`pb-3 font-bold text-sm transition-all relative ${filter === 'ACTIVE' ? 'text-blue-400' : 'text-gray-500'}`}
-          >
-            Aktif
-            <span className="ml-1.5 text-[10px] opacity-60">({counts.active})</span>
-            {filter === 'ACTIVE' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}
-          </button>
-          <button 
-            onClick={() => setFilter('COMPLETED')}
-            className={`pb-3 font-bold text-sm transition-all relative ${filter === 'COMPLETED' ? 'text-blue-400' : 'text-gray-500'}`}
-          >
-            Selesai
-            <span className="ml-1.5 text-[10px] opacity-60">({counts.completed})</span>
-            {filter === 'COMPLETED' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}
-          </button>
+          <button onClick={() => setFilter('ALL')} className={`pb-3 font-bold text-sm transition-all relative ${filter === 'ALL' ? 'text-blue-400' : 'text-gray-500'}`}>Semua <span className="ml-1.5 text-[10px] opacity-60">({counts.all})</span>{filter === 'ALL' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}</button>
+          <button onClick={() => setFilter('ACTIVE')} className={`pb-3 font-bold text-sm transition-all relative ${filter === 'ACTIVE' ? 'text-blue-400' : 'text-gray-500'}`}>Aktif <span className="ml-1.5 text-[10px] opacity-60">({counts.active})</span>{filter === 'ACTIVE' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}</button>
+          <button onClick={() => setFilter('COMPLETED')} className={`pb-3 font-bold text-sm transition-all relative ${filter === 'COMPLETED' ? 'text-blue-400' : 'text-gray-500'}`}>Selesai <span className="ml-1.5 text-[10px] opacity-60">({counts.completed})</span>{filter === 'COMPLETED' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}</button>
         </div>
         
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="space-y-4"
-        >
-          {filteredTasks.length > 0 ? filteredTasks.map((task) => (
-            <motion.div 
-              variants={itemVariants}
-              key={task.id} 
-              onClick={() => {
-                setSelectedTaskId(task.id);
-                onNavigate('TASK_DETAIL');
-              }} 
-              whileTap={{ scale: 0.98 }}
-              className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 cursor-pointer transition-all relative overflow-hidden group hover:border-blue-500/50"
-            >
-              <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${getStatusColor(task.status)} group-hover:w-2 transition-all`}></div>
-              <div className="pl-3">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1 block">{task.type}</span>
-                    <h4 className="font-extrabold text-base leading-tight text-white">{task.title}</h4>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className={`p-1.5 ${getIconBg(task.type)} rounded-lg`} style={taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase()) ? { backgroundColor: `${taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase())?.color}20` } : {}}>{getIcon(task.type)}</div>
-                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${
-                      task.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-500' : 
-                      task.status === 'WAITING_VERIFICATION' ? 'bg-amber-500/20 text-amber-500' : 
-                      'bg-blue-500/20 text-blue-500'
-                    }`}>
-                      {task.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2 text-gray-400 text-xs font-medium mb-1.5">
-                  <Calendar className="w-3.5 h-3.5" /> {task.date}
-                </div>
+        <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
+          {filteredTasks.length > 0 ? filteredTasks.map((task) => {
+            // --- PENYELESAIAN BUG VERCEL ADA DI SINI ---
+            const customColor = taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase())?.color;
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
-                    <Clock className="w-3.5 h-3.5" /> {task.time}
+            return (
+              <motion.div 
+                variants={itemVariants}
+                key={task.id} 
+                onClick={() => { setSelectedTaskId(task.id); onNavigate('TASK_DETAIL'); }} 
+                whileTap={{ scale: 0.98 }}
+                className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 cursor-pointer transition-all relative overflow-hidden group hover:border-blue-500/50"
+              >
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${getStatusColor(task.status)} group-hover:w-2 transition-all`}></div>
+                <div className="pl-3">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1 block">{task.type}</span>
+                      <h4 className="font-extrabold text-base leading-tight text-white">{task.title}</h4>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <div 
+                        className={`p-1.5 rounded-lg ${!customColor ? getIconBg(task.type) : ''}`} 
+                        style={customColor ? { backgroundColor: `${customColor}20` } : undefined}
+                      >
+                        {getIcon(task.type)}
+                      </div>
+                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${task.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-500' : task.status === 'WAITING_VERIFICATION' ? 'bg-amber-500/20 text-amber-500' : 'bg-blue-500/20 text-blue-500'}`}>
+                        {task.status.replace('_', ' ')}
+                      </span>
+                    </div>
                   </div>
                   
-                  <div className="flex -space-x-1.5">
-                    {(task.assignedUsers || []).slice(0, 3).map((uid, i) => {
-                      const u = usersDb?.find(user => user.uid === uid || user.id === uid);
-
-                      return (
-                        <div key={i} className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 overflow-hidden shadow-sm">
-                          <img 
-                            src={getAvatarUrl(u)} 
-                            alt="Avatar" 
-                            className="w-full h-full object-cover" 
-                          />
-                        </div>
-                      );
-                    })}
-                    {task.assignedUsers && task.assignedUsers.length > 3 && (
-                      <div className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 flex items-center justify-center text-[8px] font-bold text-gray-400">
-                        +{task.assignedUsers.length - 3}
-                      </div>
-                    )}
+                  <div className="flex items-center gap-2 text-gray-400 text-xs font-medium mb-1.5"><Calendar className="w-3.5 h-3.5" /> {task.date}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-gray-400 text-xs font-medium"><Clock className="w-3.5 h-3.5" /> {task.time}</div>
+                    <div className="flex -space-x-1.5">
+                      {(task.assignedUsers || []).slice(0, 3).map((uid, i) => {
+                        const u = usersDb?.find(user => user.uid === uid || user.id === uid);
+                        return (
+                          <div key={i} className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 overflow-hidden shadow-sm">
+                            <img src={getAvatarUrl(u)} alt="Avatar" className="w-full h-full object-cover" />
+                          </div>
+                        );
+                      })}
+                      {task.assignedUsers && task.assignedUsers.length > 3 && (
+                        <div className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 flex items-center justify-center text-[8px] font-bold text-gray-400">+{task.assignedUsers.length - 3}</div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          )) : (
-            <motion.div 
-              variants={itemVariants}
-              className="text-center py-12 bg-[#151b2b] rounded-2xl border border-dashed border-gray-800"
-            >
+              </motion.div>
+            );
+          }) : (
+            <motion.div variants={itemVariants} className="text-center py-12 bg-[#151b2b] rounded-2xl border border-dashed border-gray-800">
               <p className="text-gray-500 text-xs italic">Belum ada tugas terjadwal.</p>
             </motion.div>
           )}
