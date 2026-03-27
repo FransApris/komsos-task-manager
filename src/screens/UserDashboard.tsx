@@ -217,6 +217,22 @@ export const UserDashboard: React.FC<{
     return '/background.jpg'; 
   };
 
+  // --- SOLUSI VERCEL BUILD ERROR: VARIABEL PERANTARA (DIEKSTRAKSI DARI HTML) ---
+  const currentStreak = user?.streak?.current || 0;
+  const hasStreak = currentStreak > 0;
+  const userLevel = user?.level || 1;
+  const userPoints = user?.points || 0;
+  const completedTasksCount = user?.completedTasksCount || 0;
+  const userRank = usersDb.sort((a, b) => (b.points || 0) - (a.points || 0)).findIndex(u => u.id === user?.id) + 1;
+  
+  const availability = user?.availability || 'AVAILABLE';
+  const availStyles = {
+    AVAILABLE: { btn: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500', dot: 'bg-emerald-500', text: 'Tersedia' },
+    BUSY: { btn: 'bg-red-500/10 border-red-500/20 text-red-500', dot: 'bg-red-500', text: 'Sibuk' },
+    AWAY: { btn: 'bg-amber-500/10 border-amber-500/20 text-amber-500', dot: 'bg-amber-500', text: 'Away' }
+  };
+  const currentAvail = availStyles[availability as keyof typeof availStyles] || availStyles.AVAILABLE;
+
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white">
       <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
@@ -268,10 +284,10 @@ export const UserDashboard: React.FC<{
             </div>
             <motion.button 
               whileTap={{ scale: 0.9 }} onClick={handleToggleAvailability} disabled={isTogglingAvailability}
-              className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-2 ${user?.availability === 'AVAILABLE' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' : user?.availability === 'BUSY' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-amber-500/10 border-amber-500/20 text-amber-500'}`}
+              className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-2 ${currentAvail.btn}`}
             >
-              <div className={`w-2 h-2 rounded-full animate-pulse ${user?.availability === 'AVAILABLE' ? 'bg-emerald-500' : user?.availability === 'BUSY' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
-              <span className="text-[10px] font-bold uppercase tracking-widest">{user?.availability === 'AVAILABLE' ? 'Tersedia' : user?.availability === 'BUSY' ? 'Sibuk' : 'Away'}</span>
+              <div className={`w-2 h-2 rounded-full animate-pulse ${currentAvail.dot}`}></div>
+              <span className="text-[10px] font-bold uppercase tracking-widest">{currentAvail.text}</span>
             </motion.button>
           </div>
           {user?.bio && <p className="text-sm text-gray-400 italic mt-2 line-clamp-2 max-w-md">"{user.bio}"</p>}
@@ -291,19 +307,19 @@ export const UserDashboard: React.FC<{
 
         <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-6">
           <div className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex items-center gap-3">
-            <div className={`p-2 rounded-xl ${user?.streak?.current && user.streak.current > 0 ? 'bg-orange-500/10' : 'bg-gray-800'}`}>
-              <Flame className={`w-5 h-5 ${user?.streak?.current && user.streak.current > 0 ? 'text-orange-500' : 'text-gray-600'}`} />
+            <div className={`p-2 rounded-xl ${hasStreak ? 'bg-orange-500/10' : 'bg-gray-800'}`}>
+              <Flame className={`w-5 h-5 ${hasStreak ? 'text-orange-500' : 'text-gray-600'}`} />
             </div>
             <div>
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Streak</p>
-              <p className="text-lg font-black text-white">{user?.streak?.current || 0} Hari</p>
+              <p className="text-lg font-black text-white">{currentStreak} Hari</p>
             </div>
           </div>
           <div className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex items-center gap-3">
             <div className="p-2 bg-blue-500/10 rounded-xl"><Trophy className="w-5 h-5 text-blue-500" /></div>
             <div>
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Peringkat</p>
-              <p className="text-lg font-black text-white">#{usersDb.sort((a, b) => (b.points || 0) - (a.points || 0)).findIndex(u => u.id === user?.id) + 1}</p>
+              <p className="text-lg font-black text-white">#{userRank}</p>
             </div>
           </div>
         </motion.div>
@@ -312,9 +328,9 @@ export const UserDashboard: React.FC<{
           <div className="flex justify-between items-end mb-2">
             <div>
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Kemajuan Level</p>
-              <p className="text-sm font-black text-white">Level {user?.level || 1}</p>
+              <p className="text-sm font-black text-white">Level {userLevel}</p>
             </div>
-            <p className="text-[10px] font-bold text-blue-500">{Math.round(levelProgress)}% Menuju Level { (user?.level || 1) + 1 }</p>
+            <p className="text-[10px] font-bold text-blue-500">{Math.round(levelProgress)}% Menuju Level { userLevel + 1 }</p>
           </div>
           <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
             <motion.div initial={{ width: 0 }} animate={{ width: `${levelProgress}%` }} className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
@@ -356,10 +372,10 @@ export const UserDashboard: React.FC<{
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
             {[
-              { title: 'Pemula', desc: 'Selesaikan 1 tugas', icon: <CheckCircle size={20} />, unlocked: (user?.completedTasksCount || 0) >= 1 },
-              { title: 'Konsisten', desc: 'Streak 3 hari', icon: <Flame size={20} />, unlocked: (user?.streak?.current || 0) >= 3 },
+              { title: 'Pemula', desc: 'Selesaikan 1 tugas', icon: <CheckCircle size={20} />, unlocked: completedTasksCount >= 1 },
+              { title: 'Konsisten', desc: 'Streak 3 hari', icon: <Flame size={20} />, unlocked: currentStreak >= 3 },
               { title: 'Spesialis', desc: 'Skill Lv. 5', icon: <Target size={20} />, unlocked: Object.values(user?.stats || {}).some(v => v >= 50) },
-              { title: 'Veteran', desc: 'Level 10', icon: <Trophy size={20} />, unlocked: (user?.level || 1) >= 10 },
+              { title: 'Veteran', desc: 'Level 10', icon: <Trophy size={20} />, unlocked: userLevel >= 10 },
             ].map((achievement, idx) => (
               <motion.div key={idx} whileHover={{ y: -5 }} className={`min-w-[140px] p-4 rounded-2xl border transition-all ${achievement.unlocked ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' : 'bg-[#151b2b] border-gray-800 opacity-50'}`}>
                 <div className={`mb-3 ${achievement.unlocked ? 'text-amber-500' : 'text-gray-600'}`}>{achievement.icon}</div>
@@ -385,9 +401,9 @@ export const UserDashboard: React.FC<{
             <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
             <div className="flex items-center gap-3 mb-2">
               <div className="p-1.5 bg-white/20 rounded-lg"><Zap className="w-4 h-4 text-white" /></div>
-              <span className="text-[10px] font-bold text-blue-100 uppercase tracking-widest">Level {user?.level || 1}</span>
+              <span className="text-[10px] font-bold text-blue-100 uppercase tracking-widest">Level {userLevel}</span>
             </div>
-            <p className="text-2xl font-black text-white">{user?.points || 0}</p>
+            <p className="text-2xl font-black text-white">{userPoints}</p>
             <p className="text-[10px] text-blue-100 font-bold uppercase tracking-widest">Total Poin</p>
           </div>
           <div className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 relative overflow-hidden group">
@@ -395,7 +411,7 @@ export const UserDashboard: React.FC<{
               <div className="p-1.5 bg-emerald-500/10 rounded-lg"><Star className="w-4 h-4 text-emerald-500" /></div>
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pencapaian</span>
             </div>
-            <p className="text-2xl font-black text-white">{user?.completedTasksCount || 0}</p>
+            <p className="text-2xl font-black text-white">{completedTasksCount}</p>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Tugas Selesai</p>
           </div>
         </motion.div>
@@ -501,7 +517,6 @@ export const UserDashboard: React.FC<{
 
         <div className="space-y-4">
           {activeTasks.length > 0 ? activeTasks.map((task) => {
-            // --- PENYELESAIAN BUG VERCEL ADA DI SINI ---
             const customColor = taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase())?.color;
 
             return (
