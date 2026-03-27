@@ -29,7 +29,7 @@ service cloud.firestore {
         (
           isSuperAdmin() ||
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN_MULTIMEDIA', 'ADMIN_PHOTO_VIDEO', 'ADMIN_PUBLICATION'])
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role.matches('^ADMIN_.*'))
         );
     }
 
@@ -79,7 +79,7 @@ service cloud.firestore {
 
     function isValidTask(data) {
       return hasRequiredFields(['title', 'type', 'date', 'time', 'status', 'createdBy', 'createdAt']) &&
-             hasOnlyAllowedFields(['title', 'description', 'type', 'date', 'time', 'status', 'assignedUsers', 'createdBy', 'createdAt', 'updatedAt', 'location', 'teamLeaderId', 'requiredEquipment', 'evidence']) &&
+             hasOnlyAllowedFields(['title', 'description', 'type', 'date', 'time', 'status', 'assignedUsers', 'createdBy', 'createdAt', 'updatedAt', 'updatedBy', 'location', 'teamLeaderId', 'requiredEquipment', 'evidence', 'history', 'progressHistory', 'missedUsers', 'proofNotes', 'linkedScheduleId', 'linkedScheduleTitle']) &&
              data.title is string && data.title.size() < 200 &&
              data.status in ['IN_PROGRESS', 'WAITING_VERIFICATION', 'COMPLETED'] &&
              data.createdAt is timestamp;
@@ -111,6 +111,17 @@ service cloud.firestore {
              data.title is string && data.title.size() < 200 &&
              data.status in ['IDEA', 'PRE_PROD', 'RECORDING', 'EDITING', 'PUBLISHED'] &&
              data.createdAt is timestamp;
+    }
+
+    function isValidSwapRequest(data) {
+      return hasRequiredFields(['taskId', 'taskTitle', 'requesterId', 'requesterName', 'reason', 'status', 'createdAt']) &&
+             data.taskId is string && data.taskTitle is string &&
+             data.requesterId is string && data.requesterName is string &&
+             data.reason is string && data.reason.size() < 1000 &&
+             data.status in ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'] &&
+             data.createdAt is timestamp &&
+             (!('suggestedReplacementId' in data) || data.suggestedReplacementId is string) &&
+             (!('suggestedReplacementName' in data) || data.suggestedReplacementName is string);
     }
 
     // ===============================================================
@@ -200,6 +211,27 @@ service cloud.firestore {
     match /vcast/{contentId} {
       allow read: if isAuthenticated();
       allow create, update, delete: if isAdmin() && isValidVCast(request.resource.data);
+    }
+
+    match /swapRequests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidSwapRequest(request.resource.data) && 
+                    request.resource.data.requesterId == request.auth.uid;
+      allow update: if isAuthenticated() && 
+                    (
+                      // Requester can cancel
+                      (isOwner(resource.data.requesterId) && request.resource.data.status == 'CANCELLED' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+                      // Other users can volunteer
+                      (!isOwner(resource.data.requesterId) && !('suggestedReplacementId' in resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suggestedReplacementId', 'suggestedReplacementName'])) ||
+                      // Admin can approve/reject
+                      (isAdmin() && request.resource.data.status in ['APPROVED', 'REJECTED'] && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'approvedBy', 'approvedAt']))
+                    );
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
   }
 }

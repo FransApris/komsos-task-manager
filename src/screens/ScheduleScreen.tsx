@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Screen, Role, UserAccount, Task } from '../types';
 import { Calendar as CalendarIcon, Clock, MapPin, Video, Users, CheckCircle2, ChevronLeft, ChevronRight, Filter, Plus, Edit2, Trash2, Image as ImageIcon, FileText, X, Save, Loader2 } from 'lucide-react';
 import { db, doc, deleteDoc, updateDoc } from '../firebase';
+import { getAvatarUrl } from '../lib/avatar';
 import { toast } from 'sonner';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 
@@ -271,11 +272,11 @@ export const ScheduleScreen: React.FC<{
                         const user = usersDb.find(u => u.uid === uid);
                         return (
                           <div key={i} className="w-7 h-7 rounded-full border-2 border-[#151b2b] bg-blue-500 flex items-center justify-center text-[8px] font-bold text-white overflow-hidden shadow-sm">
-                            {user?.img && user.img.startsWith('http') ? (
-                              <img src={user.img} alt="Avatar" className="w-full h-full object-cover" />
-                            ) : (
-                              user?.displayName.charAt(0) || 'U'
-                            )}
+                            <img 
+                              src={getAvatarUrl(user)} 
+                              alt="Avatar" 
+                              className="w-full h-full object-cover" 
+                            />
                           </div>
                         );
                       })}

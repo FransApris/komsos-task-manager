@@ -3,7 +3,7 @@ import {
   Bell, ClipboardList, Clock, CheckCircle2, LogOut, 
   MessageSquare, MapPin, Calendar, Wrench, Database, 
   FileText, UserCheck, Loader2, ChevronRight, Users, Trophy,
-  Settings, Shield, Zap, Activity, BarChart3, Sparkles, X, Gift, Medal, AlertCircle, PlayCircle, Circle, Megaphone, Edit3
+  Settings, Shield, Zap, Activity, BarChart3, Sparkles, X, Gift, Medal, AlertCircle, PlayCircle, Circle, Megaphone, Edit3, RefreshCw
 } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Notification } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
@@ -66,6 +66,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (docSnap.exists()) {
         setAnnouncement(docSnap.data().text);
       }
+    }, (error) => {
+      console.error("Announcement Snapshot Error:", error);
     });
     return () => unsub();
   }, []);
@@ -291,6 +293,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <>
                     <QuickActionBtn icon={<Database className="w-5 h-5 text-emerald-500" />} label="Database Master" color="bg-emerald-500/10" onClick={() => onNavigate('ADMIN_DATA_MANAGEMENT')} />
                     <QuickActionBtn icon={<Gift className="w-5 h-5 text-amber-500" />} label="Tutup Buku (Reward)" color="bg-amber-500/10" onClick={() => setShowRewardModal(true)} />
+                    <QuickActionBtn icon={<RefreshCw className="w-5 h-5 text-blue-500" />} label="Bursa Pertukaran" color="bg-blue-500/10" onClick={() => onNavigate('SWAP_REQUEST')} />
                   </>
                 )}
               </div>

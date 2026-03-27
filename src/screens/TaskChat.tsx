@@ -2,14 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, Loader2 } from 'lucide-react';
 import { UserAccount, Role } from '../types';
 import { useChat } from '../contexts/ChatContext';
+import { getAvatarUrl } from '../lib/avatar';
 
 interface TaskChatProps {
   taskId: string;
   currentUser: UserAccount | null;
   role?: Role;
+  usersDb?: UserAccount[];
 }
 
-export const TaskChat: React.FC<TaskChatProps> = ({ taskId, currentUser, role }) => {
+export const TaskChat: React.FC<TaskChatProps> = ({ taskId, currentUser, role, usersDb = [] }) => {
   const { messages, sendMessage, setTaskId } = useChat();
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -54,6 +56,11 @@ export const TaskChat: React.FC<TaskChatProps> = ({ taskId, currentUser, role })
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const getSenderAvatar = (senderId: string) => {
+    const user = usersDb.find(u => u.uid === senderId);
+    return getAvatarUrl(user || null);
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#0a0f18]">
       <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
@@ -67,18 +74,28 @@ export const TaskChat: React.FC<TaskChatProps> = ({ taskId, currentUser, role })
           </div>
         ) : (
           messages.map((msg) => (
-            <div key={msg.id} className={`flex flex-col ${isCurrentUser(msg.senderId) ? 'items-end' : 'items-start'}`}>
-              {!isCurrentUser(msg.senderId) && (
-                <span className="text-[10px] text-gray-500 font-bold mb-1 px-1">{msg.senderName}</span>
-              )}
-              <div className={`max-w-[85%] p-3 rounded-2xl shadow-sm ${
-                isCurrentUser(msg.senderId) 
-                  ? 'bg-blue-600 text-white rounded-tr-none' 
-                  : 'bg-[#151b2b] border border-gray-800 text-gray-200 rounded-tl-none'
-              }`}>
-                <p className="text-sm leading-relaxed">{msg.text}</p>
-                <div className="flex items-center justify-end gap-1.5 mt-1 opacity-60">
-                  <p className="text-[9px] font-medium">{formatTime(msg.createdAt)}</p>
+            <div key={msg.id} className={`flex gap-3 ${isCurrentUser(msg.senderId) ? 'flex-row-reverse' : 'flex-row'}`}>
+              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 ring-1 ring-gray-800 self-end mb-1">
+                <img 
+                  src={getSenderAvatar(msg.senderId)} 
+                  alt={msg.senderName} 
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div className={`flex flex-col max-w-[80%] ${isCurrentUser(msg.senderId) ? 'items-end' : 'items-start'}`}>
+                {!isCurrentUser(msg.senderId) && (
+                  <span className="text-[10px] text-gray-500 font-bold mb-1 px-1">{msg.senderName}</span>
+                )}
+                <div className={`p-3 rounded-2xl shadow-sm ${
+                  isCurrentUser(msg.senderId) 
+                    ? 'bg-blue-600 text-white rounded-tr-none' 
+                    : 'bg-[#151b2b] border border-gray-800 text-gray-200 rounded-tl-none'
+                }`}>
+                  <p className="text-sm leading-relaxed">{msg.text}</p>
+                  <div className="flex items-center justify-end gap-1.5 mt-1 opacity-60">
+                    <p className="text-[9px] font-medium">{formatTime(msg.createdAt)}</p>
+                  </div>
                 </div>
               </div>
             </div>

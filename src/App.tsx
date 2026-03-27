@@ -41,6 +41,8 @@ const AdminDataManagement = React.lazy(() => import('./screens/AdminDataManageme
 const ReportsScreen = React.lazy(() => import('./screens/ReportsScreen'));
 const TaskTypeManagement = React.lazy(() => import('./screens/TaskTypeManagement'));
 const PerformanceStats = React.lazy(() => import('./screens/PerformanceStats'));
+const EditTaskScreen = React.lazy(() => import('./screens/EditTaskScreen'));
+const SwapRequestScreen = React.lazy(() => import('./screens/SwapRequestScreen'));
 
 // ==========================================
 // 2. KOMPONEN UTAMA APLIKASI
@@ -247,15 +249,15 @@ export default function App() {
           displayName: data.displayName || (data as any).name || 'User Baru'
         } as UserAccount;
       }));
-    }, (error) => console.error("Users Snapshot Error:", error));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', currentUser));
 
     const unsubTasks = onSnapshot(collection(db, 'tasks'), (snap) => {
       setTasksDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task)));
-    }, (error) => console.error("Tasks Snapshot Error:", error));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'tasks', currentUser));
 
     const unsubInventory = onSnapshot(collection(db, 'inventory'), (snap) => {
       setInventoryDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Inventory)));
-    }, (error) => console.error("Inventory Snapshot Error:", error));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'inventory', currentUser));
 
     const isAdmin = currentUser.role === 'SUPERADMIN' || currentUser.role.startsWith('ADMIN_');
     const notifQuery = isAdmin 
@@ -265,15 +267,15 @@ export default function App() {
     const unsubNotifs = onSnapshot(notifQuery, (snap) => {
       const allNotifs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
       setNotificationsDb(allNotifs);
-    }, (error) => console.error("Notifications Snapshot Error:", error));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'notifications', currentUser));
 
     const unsubBadges = onSnapshot(collection(db, 'badges'), (snap) => {
       setBadgesDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Badge)));
-    }, (error) => console.error("Badges Snapshot Error:", error));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'badges', currentUser));
 
     const unsubMass = onSnapshot(collection(db, 'massSchedules'), (snap) => {
       setMassSchedulesDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MassSchedule)));
-    }, (error) => console.error("Mass Schedules Snapshot Error:", error));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'massSchedules', currentUser));
 
     return () => {
       unsubUsers();
@@ -335,6 +337,13 @@ export default function App() {
         return <TaskDetail onNavigate={handleNavigate} role={currentUser?.role} usersDb={usersDb} taskId={selectedTaskId} tasksDb={tasksDb} inventoryDb={inventoryDb} currentUser={currentUser} />;
       case 'TASK_UPDATE':
         return <TaskUpdate onNavigate={handleNavigate} taskId={selectedTaskId} tasksDb={tasksDb} />;
+      case 'EDIT_TASK':
+        const taskToEdit = tasksDb.find(t => t.id === selectedTaskId);
+        if (!taskToEdit) return <SplashScreen onFinish={() => handleNavigate('TASKS')} />;
+        return <EditTaskScreen onNavigate={handleNavigate} currentUser={currentUser} task={taskToEdit} usersDb={usersDb} inventoryDb={inventoryDb} />;
+      case 'SWAP_REQUEST':
+        const taskForSwap = tasksDb.find(t => t.id === selectedTaskId) || null;
+        return <SwapRequestScreen onNavigate={handleNavigate} currentUser={currentUser} task={taskForSwap} />;
       case 'TEAM':
         return <TeamScreen onNavigate={handleNavigate} role={currentUser?.role} usersDb={usersDb} currentUser={currentUser} />;
       case 'PROFILE':

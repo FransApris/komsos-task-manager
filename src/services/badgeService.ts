@@ -29,5 +29,7 @@ export const subscribeToUserBadges = (userId: string, callback: (badges: any[]) 
   
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  }, (error) => {
+    console.error("UserBadges Snapshot Error:", error);
   });
 };

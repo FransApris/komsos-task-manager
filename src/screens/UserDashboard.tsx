@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone } from 'lucide-react';
+import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone, RefreshCw } from 'lucide-react';
 import { Screen, UserAccount, Task, Notification, TaskType, AvailabilityStatus } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
 import { motion, AnimatePresence } from 'motion/react';
@@ -34,6 +34,8 @@ export const UserDashboard: React.FC<{
       if (docSnap.exists()) {
         setAnnouncement(docSnap.data().text);
       }
+    }, (error) => {
+      console.error("Announcement Snapshot Error:", error);
     });
     return () => unsub();
   }, []);
@@ -551,7 +553,7 @@ export const UserDashboard: React.FC<{
           </motion.div>
         )}
 
-        <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-8">
+        <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-3">
           <motion.button 
             whileTap={{ scale: 0.95 }}
             onClick={() => onNavigate('MASS_SCHEDULE')}
@@ -577,6 +579,23 @@ export const UserDashboard: React.FC<{
               <p className="text-xs font-bold text-white">Presensi</p>
               <p className="text-[10px] text-gray-500">Check In Tugas</p>
             </div>
+          </motion.button>
+        </motion.div>
+
+        <motion.div variants={itemVariants} className="grid grid-cols-1 mb-8">
+          <motion.button 
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onNavigate('SWAP_REQUEST')}
+            className="bg-gradient-to-r from-amber-600/20 to-orange-600/20 p-4 rounded-2xl border border-amber-500/30 flex items-center gap-3 hover:from-amber-600/30 hover:to-orange-600/30 transition-all group"
+          >
+            <div className="p-2 bg-amber-500/20 rounded-xl group-hover:scale-110 transition-transform">
+              <RefreshCw className="w-5 h-5 text-amber-500" />
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-extrabold text-amber-500 uppercase tracking-wider">Bursa Pertukaran</p>
+              <p className="text-[10px] text-amber-200/60">Tukar Jadwal atau Cari Pengganti</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-amber-500/50 ml-auto" />
           </motion.button>
         </motion.div>
 

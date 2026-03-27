@@ -19,6 +19,8 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const badgeList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Badge));
       setBadges(badgeList.filter(b => b.status === 'earned'));
+    }, (error) => {
+      console.error("Profile Badges Snapshot Error:", error);
     });
 
     return () => unsubscribe();
@@ -35,6 +37,8 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const taskList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
       setUserTasks(taskList);
+    }, (error) => {
+      console.error("Profile Tasks Snapshot Error:", error);
     });
 
     return () => unsubscribe();

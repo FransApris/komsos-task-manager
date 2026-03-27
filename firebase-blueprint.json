@@ -101,6 +101,29 @@
           },
           "description": "List of sub-tasks"
         },
+        "linkedScheduleId": {
+          "type": "string",
+          "description": "ID of the linked mass schedule"
+        },
+        "linkedScheduleTitle": {
+          "type": "string",
+          "description": "Title of the linked mass schedule"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["SWAP", "STATUS_CHANGE", "ASSIGNMENT", "SYSTEM"] },
+              "message": { "type": "string" },
+              "userId": { "type": "string" },
+              "userName": { "type": "string" },
+              "createdAt": { "type": "string", "format": "date-time" }
+            }
+          },
+          "description": "History of changes to the task"
+        },
         "createdBy": {
           "type": "string",
           "description": "User ID of the creator"
@@ -298,6 +321,24 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "status", "createdAt"]
+    },
+    "SwapRequest": {
+      "title": "SwapRequest",
+      "description": "A request to swap a task assignment",
+      "type": "object",
+      "properties": {
+        "taskId": { "type": "string" },
+        "taskTitle": { "type": "string" },
+        "requesterId": { "type": "string" },
+        "requesterName": { "type": "string" },
+        "reason": { "type": "string" },
+        "suggestedReplacementId": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "CANCELLED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "approvedBy": { "type": "string" },
+        "approvedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["taskId", "taskTitle", "requesterId", "requesterName", "reason", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -366,6 +407,22 @@
         "$ref": "#/entities/VCastContent"
       },
       "description": "Collection of V-Cast content cards"
+    },
+    "swapRequests": {
+      "schema": {
+        "$ref": "#/entities/SwapRequest"
+      },
+      "description": "Collection of task swap requests"
+    },
+    "settings": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "Collection of application settings and announcements"
     }
   }
 }

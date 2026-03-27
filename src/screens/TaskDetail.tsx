@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircle2, PlayCircle, Plus, Upload, Award, FileText, Send, MessageSquare, Image as ImageIcon, Crown, Briefcase, Camera, Activity, UserX, Trash2 } from 'lucide-react';
+import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircle2, PlayCircle, Plus, Upload, Award, FileText, Send, MessageSquare, Image as ImageIcon, Crown, Briefcase, Camera, Activity, UserX, Trash2, Edit2, RefreshCw } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Inventory, TaskType } from '../types';
 import { db, doc, updateDoc, serverTimestamp, collection, addDoc, auth } from '../firebase';
 import { TaskChat } from './TaskChat';
+import { getAvatarUrl } from '../lib/avatar';
 import { arrayRemove, arrayUnion } from 'firebase/firestore'; 
 import { toast } from 'sonner';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -175,9 +176,20 @@ export const TaskDetail: React.FC<{
           <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
         <h1 className="text-lg font-extrabold tracking-tight text-white">Detail Tugas</h1>
-        <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
-          <MoreHorizontal className="w-5 h-5 text-gray-300" />
-        </button>
+        <div className="flex gap-2">
+          {role === 'SUPERADMIN' && (
+            <button 
+              className="p-2 bg-blue-600/20 text-blue-400 rounded-full border border-blue-500/30 hover:bg-blue-600/30 transition-all"
+              onClick={() => onNavigate('EDIT_TASK')}
+              title="Edit Tugas"
+            >
+              <Edit2 className="w-5 h-5" />
+            </button>
+          )}
+          <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
+            <MoreHorizontal className="w-5 h-5 text-gray-300" />
+          </button>
+        </div>
       </header>
 
       <div className="h-48 bg-gray-800 relative">
@@ -252,12 +264,17 @@ export const TaskDetail: React.FC<{
           <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Tim Penugasan</h3>
           <div className="grid grid-cols-1 gap-3">
             {task.assignedUsers?.map(uid => {
-              const user = usersDb.find(u => u.uid === uid);
+              const user = usersDb.find(u => u.uid === uid || u.id === uid);
               const isLeader = task.teamLeaderId === uid;
               return (
                 <div key={uid} className={`flex items-center gap-3 p-3 rounded-xl border ${isLeader ? 'bg-blue-600/10 border-blue-500' : 'bg-[#151b2b] border-gray-800'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${isLeader ? 'bg-blue-500' : 'bg-gray-700'}`}>
-                    {user?.displayName.charAt(0) || 'U'}
+                  <div className={`w-8 h-8 rounded-full overflow-hidden shrink-0 ring-2 ${isLeader ? 'ring-blue-500/30' : 'ring-gray-700'}`}>
+                    <img 
+                      src={getAvatarUrl(user)} 
+                      alt={user?.displayName} 
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
                   </div>
                   <div className="flex flex-col min-w-0 flex-1">
                     <span className="text-xs font-bold text-gray-200 truncate">{user?.displayName}</span>
@@ -311,11 +328,51 @@ export const TaskDetail: React.FC<{
           </div>
         )}
 
+        {/* Swap Request Button */}
+        {task.assignedUsers?.includes(currentUser?.uid || '') && task.status !== 'COMPLETED' && (
+          <div className="pt-2">
+            <button 
+              onClick={() => onNavigate('SWAP_REQUEST')}
+              className="w-full flex items-center justify-center gap-2 bg-amber-600/10 text-amber-500 border border-amber-500/30 py-4 rounded-2xl font-bold hover:bg-amber-600/20 transition-all"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Ajukan Tukar Jadwal / Ijin
+            </button>
+          </div>
+        )}
+
         <div>
           <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Deskripsi</h3>
           <p className="text-sm text-gray-300 leading-relaxed bg-[#151b2b] p-4 rounded-xl border border-gray-800">
             {task.description || "Tidak ada deskripsi."}
           </p>
+        </div>
+
+        {/* --- RIWAYAT PENUGASAN --- */}
+        <div>
+          <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Riwayat Penugasan</h3>
+          {task.history && task.history.length > 0 ? (
+            <div className="space-y-3">
+              {task.history.slice().reverse().map((h, idx) => (
+                <div key={h.id || idx} className="bg-[#151b2b] p-4 rounded-xl border border-gray-800 flex gap-3 items-start">
+                  <div className="p-2 bg-amber-500/10 rounded-lg">
+                    <RefreshCw className="w-4 h-4 text-amber-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-200 font-medium">{h.message}</p>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Oleh: {h.userName}</span>
+                      <span className="text-[10px] text-gray-500">{new Date(h.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-[#151b2b] p-4 rounded-xl border border-gray-800 border-dashed text-center">
+              <p className="text-xs text-gray-500 italic">Belum ada riwayat perubahan penugasan.</p>
+            </div>
+          )}
         </div>
 
         {/* --- MULAI KODE RIWAYAT PROGRESS --- */}
@@ -441,6 +498,7 @@ export const TaskDetail: React.FC<{
             taskId={task.id} 
             currentUser={currentUser} 
             role={role} 
+            usersDb={usersDb}
           />
         </div>
       )}

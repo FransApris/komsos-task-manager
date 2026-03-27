@@ -2,6 +2,7 @@ import React from 'react';
 import { Screen, Role, Task, UserAccount, TaskType } from '../types';
 import { CheckSquare, Clock, Video, Calendar, Plus, Image as ImageIcon, FileText, Loader2, ChevronRight, Activity } from 'lucide-react';
 import { motion } from 'motion/react';
+import { getAvatarUrl } from '../lib/avatar';
 
 export const TasksScreen: React.FC<{ 
   onNavigate: (s: Screen) => void, 
@@ -184,13 +185,12 @@ export const TasksScreen: React.FC<{
                   
                   <div className="flex -space-x-1.5">
                     {(task.assignedUsers || []).slice(0, 3).map((uid, i) => {
-                      const u = usersDb?.find(user => user.uid === uid);
-                      const img = u?.img || '1';
+                      const u = usersDb?.find(user => user.uid === uid || user.id === uid);
 
                       return (
                         <div key={i} className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 overflow-hidden shadow-sm">
                           <img 
-                            src={img.startsWith('http') ? img : `https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80&v=${img}`} 
+                            src={getAvatarUrl(u)} 
                             alt="Avatar" 
                             className="w-full h-full object-cover" 
                           />

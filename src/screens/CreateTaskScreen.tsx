@@ -98,6 +98,15 @@ export const CreateTaskScreen: React.FC<{
       : '';
 
     try {
+      const historyEntry = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: 'ASSIGNMENT',
+        message: `Tugas dibuat dan ditugaskan kepada ${assignedUsers.length} petugas.`,
+        userId: currentUser.uid,
+        userName: currentUser.displayName,
+        createdAt: new Date().toISOString()
+      };
+
       await addDoc(collection(db, 'tasks'), {
         title,
         type: taskType,
@@ -113,7 +122,8 @@ export const CreateTaskScreen: React.FC<{
         linkedScheduleTitle,  // DISIMPAN KE FIREBASE
         createdBy: currentUser.uid,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        history: [historyEntry]
       });
 
       await addDoc(collection(db, 'notifications'), {
@@ -314,7 +324,7 @@ export const CreateTaskScreen: React.FC<{
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">
                   {assignedUsers.map(uid => {
-                    const user = usersDb.find(u => u.uid === uid);
+                    const user = usersDb.find(u => u.uid === uid || u.id === uid);
                     const isLeader = teamLeaderId === uid;
                     return (
                       <div 
