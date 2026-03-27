@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Screen, Role, UserAccount } from '../types';
 import { Users, Mail, Phone, ShieldAlert, CheckCircle2, ChevronDown, Plus, Trash2, Edit2, Save, X, Loader2, Award, Tag } from 'lucide-react';
 import { db, doc, updateDoc, deleteDoc, setDoc, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
@@ -136,6 +136,38 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
     }
   };
 
+  // --- FUNGSI SORTING BARU ---
+  // Gunakan useMemo agar sorting hanya dijalankan saat data usersDb berubah
+  const sortedUsers = useMemo(() => {
+    // 1. Definisikan bobot untuk masing-masing Role (angka lebih kecil = urutan lebih atas)
+    const roleWeights: Record<string, number> = {
+      'SUPERADMIN': 1,
+      'ADMIN_MULTIMEDIA': 2,
+      'ADMIN_PHOTO_VIDEO': 3,
+      'ADMIN_PUBLICATION': 4,
+      'USER': 5
+    };
+
+    // 2. Lakukan duplikasi array sebelum disortir agar tidak mengubah data asli
+    return [...usersDb].sort((a, b) => {
+      const weightA = roleWeights[a.role || 'USER'] || 99;
+      const weightB = roleWeights[b.role || 'USER'] || 99;
+
+      // Jika role-nya berbeda, urutkan berdasarkan bobot role
+      if (weightA !== weightB) {
+        return weightA - weightB;
+      }
+
+      // Jika role-nya sama, urutkan berdasarkan nama secara alfabet (A-Z)
+      const nameA = (a.displayName || '').toLowerCase();
+      const nameB = (b.displayName || '').toLowerCase();
+      
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return 0;
+    });
+  }, [usersDb]);
+
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white">
       <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
@@ -203,7 +235,8 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
             </div>
           )}
 
-          {usersDb.map((member) => (
+          {/* MENGGUNAKAN sortedUsers ALIH-ALIH usersDb */}
+          {sortedUsers.map((member) => (
             <div key={member.id} className="flex flex-col p-4 bg-[#151b2b] rounded-2xl border border-gray-800 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 flex-1 overflow-hidden">
@@ -300,7 +333,7 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
                     </div>
                   </div>
 
-                  {/* Pilihan Divisi Baru -> SIMBOL '>' SUDAH DIHAPUS DI SINI */}
+                  {/* Pilihan Divisi Baru */}
                   <div>
                     <p className="text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-wider flex items-center gap-1.5"><Tag size={12}/> Pilih Divisi (Bisa Lebih dari 1):</p>
                     <div className="flex flex-wrap gap-2">

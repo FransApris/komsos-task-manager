@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, CheckCircle2, XCircle, User as UserIcon, 
-  Mail, Shield, UserCheck, Loader2, Search, Filter 
+  Mail, Shield, UserCheck, Loader2, Search 
 } from 'lucide-react';
 import { 
   db, collection, query, where, getDocs, 
@@ -14,13 +14,17 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 
 interface UserVerificationScreenProps {
   onNavigate: (screen: Screen) => void;
+  role?: Role; // TAMBAHAN: Agar halaman tahu ini Superadmin atau Koordinator
 }
 
-export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ onNavigate }) => {
+export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ onNavigate, role }) => {
   const [pendingUsers, setPendingUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Identifikasi akses
+  const isSuperAdmin = role === 'SUPERADMIN';
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
@@ -60,19 +64,24 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
     fetchPendingUsers();
   }, []);
 
-  const handleVerify = async (userId: string, role: Role) => {
+  const handleVerify = async (userId: string, newRole: Role) => {
     setIsProcessing(userId);
     try {
       await updateDoc(doc(db, 'users', userId), {
         status: 'ACTIVE',
-        role: role,
+        role: newRole,
         updatedAt: serverTimestamp()
       });
-      toast.success(`Pengguna berhasil diverifikasi sebagai ${role === 'USER' ? 'Petugas' : 'Koordinator'}`);
+      toast.success(`Pengguna berhasil diverifikasi sebagai ${newRole === 'USER' ? 'Petugas' : 'Koordinator'}`);
       setPendingUsers(prev => prev.filter(u => u.id !== userId));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error verifying user:", error);
-      toast.error("Gagal memverifikasi pengguna");
+      // Pesan error khusus jika Firebase menolak (Permission Denied)
+      if (error.code === 'permission-denied') {
+        toast.error("Akses Ditolak: Pastikan Aturan Firebase (Rules) mengizinkan Anda mengubah data.");
+      } else {
+        toast.error("Gagal memverifikasi pengguna");
+      }
     } finally {
       setIsProcessing(null);
     }
@@ -172,19 +181,24 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
                     <button 
                       onClick={() => handleVerify(u.id, 'USER')}
                       disabled={isProcessing === u.id}
-                      className="flex items-center justify-center gap-2 bg-blue-600 text-white text-xs font-bold py-3 rounded-xl hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50"
+                      className={`${isSuperAdmin ? '' : 'col-span-2'} flex items-center justify-center gap-2 bg-blue-600 text-white text-xs font-bold py-3 rounded-xl hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50`}
                     >
                       {isProcessing === u.id ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
                       SETUJU PETUGAS
                     </button>
-                    <button 
-                      onClick={() => handleVerify(u.id, 'ADMIN_MULTIMEDIA')}
-                      disabled={isProcessing === u.id}
-                      className="flex items-center justify-center gap-2 bg-purple-600 text-white text-xs font-bold py-3 rounded-xl hover:bg-purple-700 transition-all active:scale-95 disabled:opacity-50"
-                    >
-                      {isProcessing === u.id ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
-                      SETUJU KOORD.
-                    </button>
+                    
+                    {/* HANYA SUPERADMIN YANG BISA MELIHAT TOMBOL INI */}
+                    {isSuperAdmin && (
+                      <button 
+                        onClick={() => handleVerify(u.id, 'ADMIN_MULTIMEDIA')}
+                        disabled={isProcessing === u.id}
+                        className="flex items-center justify-center gap-2 bg-purple-600 text-white text-xs font-bold py-3 rounded-xl hover:bg-purple-700 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {isProcessing === u.id ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
+                        SETUJU KOORD.
+                      </button>
+                    )}
+
                     <button 
                       onClick={() => handleReject(u.id)}
                       disabled={isProcessing === u.id}

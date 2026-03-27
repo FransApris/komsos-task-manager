@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import { 
   auth, db, createUserWithEmailAndPassword, 
-  doc, setDoc, serverTimestamp 
+  doc, setDoc, serverTimestamp,
+  collection, query, where, getDocs // <-- IMPORT BARU UNTUK CEK DATABASE
 } from '../firebase';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
@@ -37,8 +38,28 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
     setError('');
 
     try {
+      // --- 🛡️ SISTEM PENCEGAH DATA GANDA 🛡️ ---
+      const usersRef = collection(db, 'users');
+
+      // 1. Cek Nama Lengkap (Mencegah 1 orang buat 2 akun pakai email berbeda)
+      const nameQuery = query(usersRef, where('displayName', '==', name.trim()));
+      const nameSnapshot = await getDocs(nameQuery);
+      if (!nameSnapshot.empty) {
+        setIsLoading(false);
+        return setError('Nama ini sudah terdaftar di sistem. Gunakan nama yang lebih lengkap (tambah nama belakang) atau hubungi Superadmin.');
+      }
+
+      // 2. Cek Email (Pengecekan ekstra sebelum masuk ke Firebase Auth)
+      const emailQuery = query(usersRef, where('email', '==', email.trim().toLowerCase()));
+      const emailSnapshot = await getDocs(emailQuery);
+      if (!emailSnapshot.empty) {
+        setIsLoading(false);
+        return setError('Email ini sudah terdaftar. Silakan kembali ke halaman Login.');
+      }
+      // --- AKHIR SISTEM PENCEGAH ---
+
       console.log("Attempting to create user with email:", email.trim());
-      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       const user = userCredential.user;
       console.log("Auth user created:", user.uid);
 
@@ -47,7 +68,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
       const newUser = {
         uid: user.uid,
         displayName: name.trim(),
-        email: email.trim(),
+        email: email.trim().toLowerCase(), // Pastikan email selalu huruf kecil
         role: 'USER',
         status: 'PENDING',
         img: '1',
