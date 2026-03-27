@@ -63,20 +63,46 @@ export const UserDashboard: React.FC<{
     return ((val - currentLevelThreshold) / (nextLevelThreshold - currentLevelThreshold)) * 100;
   };
 
-  // Upcoming Task Countdown
+  // Upcoming Task Countdown (PERBAIKAN ANTI NaN)
   useEffect(() => {
-    const nextTask = [...tasksDb]
-      .filter(t => t.status === 'IN_PROGRESS')
-      .sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime())[0];
+    // 1. Filter hanya tugas yang statusnya IN_PROGRESS DAN memiliki date & time
+    const validTasks = (tasksDb || []).filter(t => t.status === 'IN_PROGRESS' && t.date && t.time);
+
+    if (validTasks.length === 0) {
+      setCountdown('Tidak ada tugas terdekat');
+      return;
+    }
+
+    // 2. Urutkan untuk mencari tugas yang paling dekat
+    const nextTask = validTasks.sort((a, b) => {
+      // Gunakan format ISO "YYYY-MM-DDTHH:mm" sebagai standar, atau fallback ke spasi
+      const timeA = new Date(`${a.date}T${a.time}`).getTime() || new Date(`${a.date} ${a.time}`).getTime();
+      const timeB = new Date(`${b.date}T${b.time}`).getTime() || new Date(`${b.date} ${b.time}`).getTime();
+      return timeA - timeB;
+    })[0];
 
     if (!nextTask) {
       setCountdown('Tidak ada tugas terdekat');
       return;
     }
 
+    // 3. Mulai hitung mundur
     const timer = setInterval(() => {
       const now = new Date().getTime();
-      const taskTime = new Date(`${nextTask.date} ${nextTask.time}`).getTime();
+      
+      // Parsing waktu dengan aman
+      let taskTime = new Date(`${nextTask.date}T${nextTask.time}`).getTime();
+      if (isNaN(taskTime)) {
+        taskTime = new Date(`${nextTask.date} ${nextTask.time}`).getTime();
+      }
+
+      // Jika format tanggal di database benar-benar tidak bisa dibaca, cegah munculnya NaN
+      if (isNaN(taskTime)) {
+        setCountdown('Waktu Tidak Valid');
+        clearInterval(timer);
+        return;
+      }
+
       const diff = taskTime - now;
 
       if (diff <= 0) {
