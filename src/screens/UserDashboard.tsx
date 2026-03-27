@@ -63,21 +63,35 @@ export const UserDashboard: React.FC<{
     return ((val - currentLevelThreshold) / (nextLevelThreshold - currentLevelThreshold)) * 100;
   };
 
-  // Upcoming Task Countdown (PERBAIKAN ANTI NaN)
+  // --- UPCOMING TASK COUNTDOWN (SUDAH DIPERBAIKI: RENTANG WAKTU & SPESIFIK USER) ---
   useEffect(() => {
-    // 1. Filter hanya tugas yang statusnya IN_PROGRESS DAN memiliki date & time
-    const validTasks = (tasksDb || []).filter(t => t.status === 'IN_PROGRESS' && t.date && t.time);
+    // 1. Filter hanya tugas yang statusnya IN_PROGRESS DAN menugaskan user ini DAN memiliki date & time
+    const validTasks = (tasksDb || []).filter(t => 
+      t.status === 'IN_PROGRESS' && 
+      t.date && 
+      t.time &&
+      user?.uid && t.assignedUsers?.includes(user.uid)
+    );
 
     if (validTasks.length === 0) {
       setCountdown('Tidak ada tugas terdekat');
       return;
     }
 
+    // Fungsi canggih untuk memisahkan rentang waktu (misal: "06:00 - 08:00" -> ambil "06:00")
+    const getStartTime = (timeString: string) => {
+      if (timeString.includes('-')) {
+        return timeString.split('-')[0].trim();
+      }
+      return timeString;
+    };
+
     // 2. Urutkan untuk mencari tugas yang paling dekat
     const nextTask = validTasks.sort((a, b) => {
-      // Gunakan format ISO "YYYY-MM-DDTHH:mm" sebagai standar, atau fallback ke spasi
-      const timeA = new Date(`${a.date}T${a.time}`).getTime() || new Date(`${a.date} ${a.time}`).getTime();
-      const timeB = new Date(`${b.date}T${b.time}`).getTime() || new Date(`${b.date} ${b.time}`).getTime();
+      const startTimeA = getStartTime(a.time);
+      const startTimeB = getStartTime(b.time);
+      const timeA = new Date(`${a.date}T${startTimeA}`).getTime() || new Date(`${a.date} ${startTimeA}`).getTime();
+      const timeB = new Date(`${b.date}T${startTimeB}`).getTime() || new Date(`${b.date} ${startTimeB}`).getTime();
       return timeA - timeB;
     })[0];
 
@@ -89,22 +103,23 @@ export const UserDashboard: React.FC<{
     // 3. Mulai hitung mundur
     const timer = setInterval(() => {
       const now = new Date().getTime();
+      const taskStartTime = getStartTime(nextTask.time);
       
       // Parsing waktu dengan aman
-      let taskTime = new Date(`${nextTask.date}T${nextTask.time}`).getTime();
+      let taskTime = new Date(`${nextTask.date}T${taskStartTime}`).getTime();
       if (isNaN(taskTime)) {
-        taskTime = new Date(`${nextTask.date} ${nextTask.time}`).getTime();
+        taskTime = new Date(`${nextTask.date} ${taskStartTime}`).getTime();
       }
 
-      // Jika format tanggal di database benar-benar tidak bisa dibaca, cegah munculnya NaN
       if (isNaN(taskTime)) {
-        setCountdown('Waktu Tidak Valid');
+        setCountdown('Format Waktu Salah');
         clearInterval(timer);
         return;
       }
 
       const diff = taskTime - now;
 
+      // Jika waktu sudah lewat atau sedang berlangsung
       if (diff <= 0) {
         setCountdown('Tugas Sedang Berlangsung');
         clearInterval(timer);
@@ -117,7 +132,7 @@ export const UserDashboard: React.FC<{
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [tasksDb]);
+  }, [tasksDb, user?.uid]); 
 
   const handleSaveNotes = async () => {
     if (!user?.id) return;
@@ -343,341 +358,4 @@ export const UserDashboard: React.FC<{
         {/* Streak & Level Summary */}
         <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-6">
           <div className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex items-center gap-3">
-            <div className={`p-2 rounded-xl ${user?.streak?.current && user.streak.current > 0 ? 'bg-orange-500/10' : 'bg-gray-800'}`}>
-              <Flame className={`w-5 h-5 ${user?.streak?.current && user.streak.current > 0 ? 'text-orange-500' : 'text-gray-600'}`} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Streak</p>
-              <p className="text-lg font-black text-white">{user?.streak?.current || 0} Hari</p>
-            </div>
-          </div>
-          <div className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex items-center gap-3">
-            <div className="p-2 bg-blue-500/10 rounded-xl">
-              <Trophy className="w-5 h-5 text-blue-500" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Peringkat</p>
-              <p className="text-lg font-black text-white">#{usersDb.sort((a, b) => (b.points || 0) - (a.points || 0)).findIndex(u => u.id === user?.id) + 1}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Level Progress Bar */}
-        <div className="mb-6 bg-[#151b2b] p-4 rounded-2xl border border-gray-800">
-          <div className="flex justify-between items-end mb-2">
-            <div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Kemajuan Level</p>
-              <p className="text-sm font-black text-white">Level {user?.level || 1}</p>
-            </div>
-            <p className="text-[10px] font-bold text-blue-500">{Math.round(levelProgress)}% Menuju Level { (user?.level || 1) + 1 }</p>
-          </div>
-          <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${levelProgress}%` }}
-              className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]"
-            />
-          </div>
-        </div>
-
-        {/* Skill Mastery */}
-        <motion.div variants={itemVariants} className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-blue-500/10 rounded-xl">
-              <Target className="w-5 h-5 text-blue-500" />
-            </div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Penguasaan Bidang</p>
-          </div>
-          <div className="grid grid-cols-1 gap-4">
-            {[
-              { label: 'Fotografi', key: 'photography' as const, color: 'bg-emerald-500', icon: <ImageIcon size={14} /> },
-              { label: 'Videografi', key: 'videography' as const, color: 'bg-blue-500', icon: <Video size={14} /> },
-              { label: 'Penulisan', key: 'writing' as const, color: 'bg-amber-500', icon: <FileText size={14} /> },
-              { label: 'Desain', key: 'design' as const, color: 'bg-purple-500', icon: <Activity size={14} /> },
-            ].map((skill) => (
-              <div key={skill.key} className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800">
-                <div className="flex justify-between items-center mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-lg ${skill.color}/10 text-white`}>
-                      {skill.icon}
-                    </div>
-                    <span className="text-xs font-bold text-white">{skill.label}</span>
-                  </div>
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Lv. {Math.floor((user?.stats?.[skill.key] || 0) / 10) + 1}</span>
-                </div>
-                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${getSkillProgress(skill.key)}%` }}
-                    className={`h-full ${skill.color}`}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Milestones & Achievements */}
-        <motion.div variants={itemVariants} className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-amber-500/10 rounded-xl">
-              <Award className="w-5 h-5 text-amber-500" />
-            </div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pencapaian Terbaru</p>
-          </div>
-          <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-            {[
-              { title: 'Pemula', desc: 'Selesaikan 1 tugas', icon: <CheckCircle size={20} />, unlocked: (user?.completedTasksCount || 0) >= 1 },
-              { title: 'Konsisten', desc: 'Streak 3 hari', icon: <Flame size={20} />, unlocked: (user?.streak?.current || 0) >= 3 },
-              { title: 'Spesialis', desc: 'Skill Lv. 5', icon: <Target size={20} />, unlocked: Object.values(user?.stats || {}).some(v => v >= 50) },
-              { title: 'Veteran', desc: 'Level 10', icon: <Trophy size={20} />, unlocked: (user?.level || 1) >= 10 },
-            ].map((achievement, idx) => (
-              <motion.div 
-                key={idx}
-                whileHover={{ y: -5 }}
-                className={`min-w-[140px] p-4 rounded-2xl border transition-all ${
-                  achievement.unlocked ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' : 'bg-[#151b2b] border-gray-800 opacity-50'
-                }`}
-              >
-                <div className={`mb-3 ${achievement.unlocked ? 'text-amber-500' : 'text-gray-600'}`}>
-                  {achievement.icon}
-                </div>
-                <p className="text-xs font-bold text-white mb-1">{achievement.title}</p>
-                <p className="text-[9px] text-gray-500 uppercase tracking-wider leading-tight">{achievement.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Upcoming Task Countdown */}
-        <motion.div variants={itemVariants} className="mb-6 bg-gradient-to-br from-indigo-600 to-purple-700 p-5 rounded-3xl shadow-xl shadow-indigo-500/20 relative overflow-hidden">
-          <div className="absolute -right-4 -bottom-4 opacity-10">
-            <Timer size={120} />
-          </div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 bg-white/20 rounded-xl">
-              <Clock className="w-5 h-5 text-white" />
-            </div>
-            <p className="text-[10px] font-bold text-indigo-100 uppercase tracking-widest">Tugas Terdekat</p>
-          </div>
-          <p className="text-3xl font-black text-white mb-1">{countdown}</p>
-          <p className="text-[10px] text-indigo-100 font-medium uppercase tracking-widest opacity-80">Waktu Tersisa</p>
-        </motion.div>
-
-        {/* Gamification Stats */}
-        <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-6">
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-4 rounded-2xl shadow-lg shadow-blue-500/20 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-1.5 bg-white/20 rounded-lg"><Zap className="w-4 h-4 text-white" /></div>
-              <span className="text-[10px] font-bold text-blue-100 uppercase tracking-widest">Level {user?.level || 1}</span>
-            </div>
-            <p className="text-2xl font-black text-white">{user?.points || 0}</p>
-            <p className="text-[10px] text-blue-100 font-bold uppercase tracking-widest">Total Poin</p>
-          </div>
-          <div className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 relative overflow-hidden group">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-1.5 bg-emerald-500/10 rounded-lg"><Star className="w-4 h-4 text-emerald-500" /></div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Pencapaian</span>
-            </div>
-            <p className="text-2xl font-black text-white">{user?.completedTasksCount || 0}</p>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Tugas Selesai</p>
-          </div>
-        </motion.div>
-
-        {/* Personal Stats Chart */}
-        <motion.div variants={itemVariants} className="mb-6 bg-[#151b2b] p-5 rounded-3xl border border-gray-800">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/10 rounded-xl">
-                <TrendingUp className="w-5 h-5 text-amber-500" />
-              </div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Statistik Tugas</p>
-            </div>
-            <span className="text-[10px] font-bold text-gray-500">7 Hari Terakhir</span>
-          </div>
-          
-          <div className="h-40 w-full" style={{ minHeight: 0, minWidth: 0 }}>
-            <ResponsiveContainer width="99%" height="100%">
-              <AreaChart data={statsData}>
-                <defs>
-                  <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
-                <XAxis dataKey="name" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#151b2b', border: '1px solid #374151', borderRadius: '12px' }}
-                  itemStyle={{ color: '#fff', fontSize: '12px' }}
-                />
-                <Area type="monotone" dataKey="tasks" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorTasks)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </motion.div>
-
-        {/* Quick Notes */}
-        <motion.div variants={itemVariants} className="mb-6 bg-[#151b2b] p-5 rounded-3xl border border-gray-800">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/10 rounded-xl">
-                <Edit3 className="w-5 h-5 text-emerald-500" />
-              </div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Catatan Cepat</p>
-            </div>
-            <button 
-              onClick={handleSaveNotes}
-              disabled={isSavingNotes}
-              className="p-2 bg-blue-600/10 text-blue-500 rounded-xl hover:bg-blue-600/20 transition-colors disabled:opacity-50"
-            >
-              {isSavingNotes ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            </button>
-          </div>
-          <textarea 
-            value={quickNotes}
-            onChange={(e) => setQuickNotes(e.target.value)}
-            placeholder="Tulis catatan penting di sini..."
-            className="w-full bg-[#0a0f18] border border-gray-800 rounded-2xl p-4 text-sm text-gray-300 focus:border-blue-500 transition-all resize-none h-24"
-          />
-        </motion.div>
-
-        {/* Recommended Tasks */}
-        {recommendedTasks.length > 0 && (
-          <motion.div variants={itemVariants} className="mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-purple-500/10 rounded-xl">
-                <Sparkles className="w-5 h-5 text-purple-500" />
-              </div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rekomendasi Untukmu</p>
-            </div>
-            <div className="space-y-3">
-              {recommendedTasks.map((task) => (
-                <motion.div 
-                  key={task.id}
-                  whileHover={{ x: 5 }}
-                  onClick={() => {
-                    setSelectedTaskId(task.id);
-                    onNavigate('TASK_DETAIL');
-                  }}
-                  className="p-4 bg-[#151b2b] rounded-2xl border border-gray-800 flex items-center justify-between cursor-pointer group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-xl ${getIconBg(task.type)}`}>
-                      {getIcon(task.type)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">{task.title}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">{task.type}</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-blue-500" />
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-3">
-          <motion.button 
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onNavigate('MASS_SCHEDULE')}
-            className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex items-center gap-3 hover:bg-gray-800 transition-colors"
-          >
-            <div className="p-2 bg-purple-500/10 rounded-xl">
-              <Calendar className="w-5 h-5 text-purple-500" />
-            </div>
-            <div className="text-left">
-              <p className="text-xs font-bold text-white">Agenda</p>
-              <p className="text-[10px] text-gray-500">Daftar Petugas</p>
-            </div>
-          </motion.button>
-          <motion.button 
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onNavigate('ATTENDANCE')}
-            className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex items-center gap-3 hover:bg-gray-800 transition-colors"
-          >
-            <div className="p-2 bg-emerald-500/10 rounded-xl">
-              <UserCheck className="w-5 h-5 text-emerald-500" />
-            </div>
-            <div className="text-left">
-              <p className="text-xs font-bold text-white">Presensi</p>
-              <p className="text-[10px] text-gray-500">Check In Tugas</p>
-            </div>
-          </motion.button>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="grid grid-cols-1 mb-8">
-          <motion.button 
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onNavigate('SWAP_REQUEST')}
-            className="bg-gradient-to-r from-amber-600/20 to-orange-600/20 p-4 rounded-2xl border border-amber-500/30 flex items-center gap-3 hover:from-amber-600/30 hover:to-orange-600/30 transition-all group"
-          >
-            <div className="p-2 bg-amber-500/20 rounded-xl group-hover:scale-110 transition-transform">
-              <RefreshCw className="w-5 h-5 text-amber-500" />
-            </div>
-            <div className="text-left">
-              <p className="text-xs font-extrabold text-amber-500 uppercase tracking-wider">Bursa Pertukaran</p>
-              <p className="text-[10px] text-amber-200/60">Tukar Jadwal atau Cari Pengganti</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-amber-500/50 ml-auto" />
-          </motion.button>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="flex justify-between items-center mb-4">
-          <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Tugas Hari Ini</h3>
-          <span className="text-blue-500 text-[10px] font-bold bg-blue-500/10 px-2 py-1 rounded-md uppercase tracking-wider">{activeTasks.length} Tugas</span>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="mb-8">
-          <Leaderboard users={usersDb} />
-        </motion.div>
-
-        <div className="space-y-4">
-          {activeTasks.length > 0 ? activeTasks.map((task) => (
-            <motion.div 
-              variants={itemVariants}
-              key={task.id}
-              className="bg-[#151b2b] rounded-2xl overflow-hidden border border-gray-800 shadow-lg cursor-pointer transition-all hover:border-blue-500/50" 
-              onClick={() => {
-                setSelectedTaskId(task.id);
-                onNavigate('TASK_DETAIL');
-              }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="h-32 bg-gray-800 relative">
-                <img src={getTaskImage(task.type)} className="w-full h-full object-cover opacity-60 mix-blend-overlay" alt={task.title} />
-                <div className="absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5 shadow-md">
-                  <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
-                  Sedang Berlangsung
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex justify-between items-start mb-3">
-                  <h4 className="font-extrabold text-lg leading-tight text-white">{task.title}</h4>
-                  <div className={`p-1.5 ${getIconBg(task.type)} rounded-lg`} style={taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase()) ? { backgroundColor: `${taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase())?.color}20` } : {}}>{getIcon(task.type)}</div>
-                </div>
-                <div className="flex items-center gap-2 text-gray-400 text-xs font-medium mb-1.5">
-                  <Calendar className="w-3.5 h-3.5" /> {task.type}
-                </div>
-                <div className="flex items-center gap-2 text-gray-400 text-xs font-medium mb-4">
-                  <Clock className="w-3.5 h-3.5" /> {task.time}
-                </div>
-              </div>
-            </motion.div>
-          )) : (
-            <motion.div 
-              variants={itemVariants}
-              className="text-center py-10 bg-[#151b2b] rounded-2xl border border-gray-800 border-dashed"
-            >
-              <p className="text-gray-500 text-sm">Tidak ada tugas aktif hari ini.</p>
-            </motion.div>
-          )}
-        </div>
-      </motion.div>
-    </div>
-  );
-};
-
-export default UserDashboard;
+            <div className={`p-2 rounded-xl ${user?.

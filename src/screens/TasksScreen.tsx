@@ -25,12 +25,45 @@ export const TasksScreen: React.FC<{
     );
   }
 
-  const filteredTasks = tasksDb.filter(task => {
-    if (filter === 'ALL') return true;
-    if (filter === 'ACTIVE') return task.status === 'IN_PROGRESS' || task.status === 'WAITING_VERIFICATION';
-    if (filter === 'COMPLETED') return task.status === 'COMPLETED';
-    return true;
-  });
+  // --- FUNGSI BANTU MENGAMBIL JAM MULAI (Mencegah Error Rentang Waktu) ---
+  const getStartTime = (timeString?: string) => {
+    if (!timeString) return '00:00';
+    if (timeString.includes('-')) {
+      return timeString.split('-')[0].trim();
+    }
+    return timeString.trim();
+  };
+
+  // --- FILTER & SORTING DATA ---
+  const filteredTasks = tasksDb
+    .filter(task => {
+      if (filter === 'ALL') return true;
+      if (filter === 'ACTIVE') return task.status === 'IN_PROGRESS' || task.status === 'WAITING_VERIFICATION';
+      if (filter === 'COMPLETED') return task.status === 'COMPLETED';
+      return true;
+    })
+    .sort((a, b) => {
+      // 1. Ambil jam mulai dengan aman
+      const startTimeA = getStartTime(a.time);
+      const startTimeB = getStartTime(b.time);
+      
+      // 2. Ubah ke format waktu (Timestamp)
+      let dateA = new Date(`${a.date}T${startTimeA}`).getTime();
+      if (isNaN(dateA)) dateA = new Date(`${a.date} ${startTimeA}`).getTime();
+      
+      let dateB = new Date(`${b.date}T${startTimeB}`).getTime();
+      if (isNaN(dateB)) dateB = new Date(`${b.date} ${startTimeB}`).getTime();
+
+      // 3. Aturan Pengurutan
+      if (filter === 'COMPLETED') {
+        // Tab Selesai: Urutkan dari yang terbaru selesai ke yang terlama (Descending)
+        return (dateB || 0) - (dateA || 0);
+      } else {
+        // Tab Aktif & Semua: Urutkan dari tanggal terdekat ke terjauh (Ascending)
+        // (Jika tanggal error/kosong, taruh di paling bawah dengan MAX_SAFE_INTEGER)
+        return (dateA || Number.MAX_SAFE_INTEGER) - (dateB || Number.MAX_SAFE_INTEGER);
+      }
+    });
 
   const containerVariants = {
     hidden: { opacity: 0 },
