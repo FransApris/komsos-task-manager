@@ -25,6 +25,9 @@ export const UserDashboard: React.FC<{
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
   const [countdown, setCountdown] = useState<string>('');
   
+  // --- STATE BARU UNTUK TAB TUGAS ---
+  const [taskTab, setTaskTab] = useState<'MINE' | 'ALL'>('MINE');
+  
   const [announcement, setAnnouncement] = useState('Selamat datang di Sistem Manajemen Tugas Komsos St. Paulus Juanda!');
 
   useEffect(() => {
@@ -46,7 +49,11 @@ export const UserDashboard: React.FC<{
     return 'Petugas';
   };
 
-  const activeTasks = (tasksDb || []).filter(t => t.status === 'IN_PROGRESS');
+  // --- LOGIKA PEMISAHAN TUGAS (SAYA VS SEMUA) ---
+  const allActiveTasks = (tasksDb || []).filter(t => t.status === 'IN_PROGRESS');
+  const myActiveTasks = allActiveTasks.filter(t => user && user.uid && t.assignedUsers && t.assignedUsers.includes(user.uid));
+  const displayedTasks = taskTab === 'MINE' ? myActiveTasks : allActiveTasks;
+
   const unreadCount = (notificationsDb || []).filter(n => !n.read).length;
 
   const currentXp = (user && user.xp) ? user.xp : 0;
@@ -60,6 +67,7 @@ export const UserDashboard: React.FC<{
     return ((val - currentLevelThreshold) / (nextLevelThreshold - currentLevelThreshold)) * 100;
   };
 
+  // COUNTDOWN TETAP FOKUS PADA TUGAS MILIK USER SENDIRI
   useEffect(() => {
     const validTasks = (tasksDb || []).filter(t => 
       t.status === 'IN_PROGRESS' && 
@@ -515,9 +523,25 @@ export const UserDashboard: React.FC<{
           </motion.button>
         </motion.div>
 
+        {/* --- KOMPONEN TAB TUGAS SAYA VS SEMUA --- */}
         <motion.div variants={itemVariants} className="flex justify-between items-center mb-4">
-          <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Semua Tugas</h3>
-          <span className="text-blue-500 text-[10px] font-bold bg-blue-500/10 px-2 py-1 rounded-md uppercase tracking-wider">{activeTasks.length} Tugas</span>
+          <div className="flex gap-2 bg-[#151b2b] p-1.5 rounded-xl border border-gray-800">
+            <button 
+              onClick={() => setTaskTab('MINE')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${taskTab === 'MINE' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              Tugas Saya
+            </button>
+            <button 
+              onClick={() => setTaskTab('ALL')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${taskTab === 'ALL' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              Semua Tugas
+            </button>
+          </div>
+          <span className="text-blue-500 text-[10px] font-bold bg-blue-500/10 px-2 py-1 rounded-md uppercase tracking-wider">
+            {displayedTasks.length} Tugas
+          </span>
         </motion.div>
 
         <motion.div variants={itemVariants} className="mb-8">
@@ -525,7 +549,7 @@ export const UserDashboard: React.FC<{
         </motion.div>
 
         <div className="space-y-4">
-          {activeTasks.length > 0 ? activeTasks.map((task) => {
+          {displayedTasks.length > 0 ? displayedTasks.map((task) => {
             const customTypeObj = taskTypes.find(tt => tt.name.toLowerCase() === (task.type ? task.type.toLowerCase() : ''));
             const customColor = customTypeObj ? customTypeObj.color : null;
             const customStyle = customColor ? { backgroundColor: `${customColor}20` } : {};
@@ -534,10 +558,15 @@ export const UserDashboard: React.FC<{
               <motion.div 
                 variants={itemVariants}
                 key={task.id}
-                className="bg-[#151b2b] rounded-2xl overflow-hidden border border-gray-800 shadow-lg cursor-pointer transition-all hover:border-blue-500/50" 
+                className="bg-[#151b2b] rounded-2xl overflow-hidden border border-gray-800 shadow-lg cursor-pointer transition-all hover:border-blue-500/50 relative" 
                 onClick={() => { setSelectedTaskId(task.id); onNavigate('TASK_DETAIL'); }}
                 whileTap={{ scale: 0.98 }}
               >
+                {/* Penanda khusus jika ini tugas miliknya (hanya muncul saat di tab "Semua Tugas") */}
+                {taskTab === 'ALL' && user && task.assignedUsers && task.assignedUsers.includes(user.uid) && (
+                  <div className="absolute top-0 right-0 w-2 h-full bg-blue-500 z-10 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
+                )}
+
                 <div className="h-32 bg-gray-800 relative">
                   <img src={getTaskImage(task.type)} className="w-full h-full object-cover opacity-60 mix-blend-overlay" alt={task.title} />
                   <div className="absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5 shadow-md">
@@ -546,22 +575,44 @@ export const UserDashboard: React.FC<{
                 </div>
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-3">
-                    <h4 className="font-extrabold text-lg leading-tight text-white">{task.title}</h4>
+                    <h4 className="font-extrabold text-lg leading-tight text-white pr-4">{task.title}</h4>
                     <div 
-                      className={`p-1.5 rounded-lg ${!customColor ? getIconBg(task.type) : ''}`} 
+                      className={`p-1.5 rounded-lg shrink-0 ${!customColor ? getIconBg(task.type) : ''}`} 
                       style={customStyle}
                     >
                       {getIcon(task.type)}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-gray-400 text-xs font-medium mb-1.5"><Calendar className="w-3.5 h-3.5" /> {task.type}</div>
-                  <div className="flex items-center gap-2 text-gray-400 text-xs font-medium mb-4"><Clock className="w-3.5 h-3.5" /> {task.time}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-gray-400 text-xs font-medium"><Clock className="w-3.5 h-3.5" /> {task.time}</div>
+                    
+                    <div className="flex -space-x-1.5">
+                      {(task.assignedUsers || []).slice(0, 3).map((uid, i) => {
+                        const u = usersDb?.find(usr => usr.uid === uid || usr.id === uid);
+                        return (
+                          <div key={i} className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 overflow-hidden shadow-sm relative">
+                            {/* Beri penanda garis hijau pada foto miliknya sendiri */}
+                            {user && uid === user.uid && <div className="absolute inset-0 border-2 border-emerald-500 rounded-full z-10 pointer-events-none"></div>}
+                            <img src={getAvatarUrl(u)} alt="Avatar" className="w-full h-full object-cover" />
+                          </div>
+                        );
+                      })}
+                      {task.assignedUsers && task.assignedUsers.length > 3 && (
+                        <div className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 flex items-center justify-center text-[8px] font-bold text-gray-400">
+                          +{task.assignedUsers.length - 3}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             );
           }) : (
             <motion.div variants={itemVariants} className="text-center py-10 bg-[#151b2b] rounded-2xl border border-gray-800 border-dashed">
-              <p className="text-gray-500 text-sm">Tidak ada tugas aktif hari ini.</p>
+              <p className="text-gray-500 text-sm">
+                {taskTab === 'MINE' ? 'Anda tidak memiliki tugas aktif hari ini.' : 'Tidak ada tugas yang sedang berlangsung.'}
+              </p>
             </motion.div>
           )}
         </div>
