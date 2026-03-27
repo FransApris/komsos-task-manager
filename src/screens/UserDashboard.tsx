@@ -20,7 +20,7 @@ export const UserDashboard: React.FC<{
   setSelectedTaskId?: (id: string) => void,
   isOnline?: boolean
 }> = ({ onNavigate, onLogout, user, tasksDb = [], notificationsDb = [], taskTypes = [], usersDb = [], setSelectedTaskId = (_id: string) => {}, isOnline = true }) => {
-  const [quickNotes, setQuickNotes] = useState(user?.quickNotes || '');
+  const [quickNotes, setQuickNotes] = useState(user && user.quickNotes ? user.quickNotes : '');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
   const [countdown, setCountdown] = useState<string>('');
@@ -39,22 +39,22 @@ export const UserDashboard: React.FC<{
   }, []);
 
   const getRoleName = () => {
-    if (user?.role === 'SUPERADMIN') return 'Superadmin';
-    if (user?.role === 'ADMIN_MULTIMEDIA') return 'Multimedia';
-    if (user?.role === 'ADMIN_PHOTO_VIDEO') return 'Photo & Video';
-    if (user?.role === 'ADMIN_PUBLICATION') return 'Publikasi';
+    if (user && user.role === 'SUPERADMIN') return 'Superadmin';
+    if (user && user.role && user.role.startsWith('ADMIN_MULTIMEDIA')) return 'Multimedia';
+    if (user && user.role && user.role.startsWith('ADMIN_PHOTO_VIDEO')) return 'Photo & Video';
+    if (user && user.role && user.role.startsWith('ADMIN_PUBLICATION')) return 'Publikasi';
     return 'Petugas';
   };
 
   const activeTasks = (tasksDb || []).filter(t => t.status === 'IN_PROGRESS');
   const unreadCount = (notificationsDb || []).filter(n => !n.read).length;
 
-  const currentXp = user?.xp || 0;
+  const currentXp = (user && user.xp) ? user.xp : 0;
   const xpPerLevel = 1000;
   const levelProgress = (currentXp % xpPerLevel) / xpPerLevel * 100;
 
   const getSkillProgress = (category: keyof NonNullable<UserAccount['stats']>) => {
-    const val = user?.stats?.[category] || 0;
+    const val = (user && user.stats && user.stats[category]) ? user.stats[category] : 0;
     const nextLevelThreshold = (Math.floor(val / 10) + 1) * 10;
     const currentLevelThreshold = Math.floor(val / 10) * 10;
     return ((val - currentLevelThreshold) / (nextLevelThreshold - currentLevelThreshold)) * 100;
@@ -65,7 +65,7 @@ export const UserDashboard: React.FC<{
       t.status === 'IN_PROGRESS' && 
       t.date && 
       t.time &&
-      user?.uid && t.assignedUsers?.includes(user.uid)
+      user && user.uid && t.assignedUsers && t.assignedUsers.includes(user.uid)
     );
 
     if (validTasks.length === 0) {
@@ -122,10 +122,10 @@ export const UserDashboard: React.FC<{
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [tasksDb, user?.uid]); 
+  }, [tasksDb, user]); 
 
   const handleSaveNotes = async () => {
-    if (!user?.id) return;
+    if (!user || !user.id) return;
     setIsSavingNotes(true);
     try {
       await updateDoc(doc(db, 'users', user.id), {
@@ -140,7 +140,7 @@ export const UserDashboard: React.FC<{
   };
 
   const handleToggleAvailability = async () => {
-    if (!user?.id) return;
+    if (!user || !user.id) return;
     setIsTogglingAvailability(true);
     try {
       const nextStatus: AvailabilityStatus = user.availability === 'AVAILABLE' ? 'BUSY' : 
@@ -158,10 +158,10 @@ export const UserDashboard: React.FC<{
 
   const recommendedTasks = (tasksDb || []).filter(t => {
     if (t.status !== 'IN_PROGRESS') return false;
-    if (!user?.skills || user.skills.length === 0) return false;
+    if (!user || !user.skills || user.skills.length === 0) return false;
     return user.skills.some(skill => 
       t.title.toLowerCase().includes(skill.toLowerCase()) || 
-      t.description?.toLowerCase().includes(skill.toLowerCase()) ||
+      (t.description && t.description.toLowerCase().includes(skill.toLowerCase())) ||
       t.type.toLowerCase().includes(skill.toLowerCase())
     );
   }).slice(0, 3);
@@ -187,7 +187,7 @@ export const UserDashboard: React.FC<{
   };
 
   const getIcon = (type: string) => {
-    const t = type?.toLowerCase();
+    const t = type ? type.toLowerCase() : '';
     switch(t) {
       case 'peliputan': return <Video className="w-4 h-4 text-blue-500"/>;
       case 'dokumentasi': return <ImageIcon className="w-4 h-4 text-emerald-500"/>;
@@ -200,7 +200,7 @@ export const UserDashboard: React.FC<{
   };
 
   const getIconBg = (type: string) => {
-    const t = type?.toLowerCase();
+    const t = type ? type.toLowerCase() : '';
     switch(t) {
       case 'peliputan': return 'bg-blue-500/10';
       case 'dokumentasi': return 'bg-emerald-500/10';
@@ -210,28 +210,37 @@ export const UserDashboard: React.FC<{
   };
 
   const getTaskImage = (type: string) => {
-    const t = type?.toLowerCase();
+    const t = type ? type.toLowerCase() : '';
     if (t === 'publikasi' || t === 'publication') return '/publication.jpg';
     if (t === 'peliputan' || t === 'video') return '/video.jpg';
     if (t === 'dokumentasi' || t === 'photo') return '/kamera.jpg';
     return '/background.jpg'; 
   };
 
-  // --- SOLUSI VERCEL BUILD ERROR: VARIABEL PERANTARA (DIEKSTRAKSI DARI HTML) ---
-  const currentStreak = user?.streak?.current || 0;
-  const hasStreak = currentStreak > 0;
-  const userLevel = user?.level || 1;
-  const userPoints = user?.points || 0;
-  const completedTasksCount = user?.completedTasksCount || 0;
-  const userRank = usersDb.sort((a, b) => (b.points || 0) - (a.points || 0)).findIndex(u => u.id === user?.id) + 1;
+  // --- VARIABEL EKSTRAKSI AMAN (Bebas Error Vercel) ---
+  const isDemoUser = user && user.id && user.id.startsWith('demo_');
+  const userName = user && user.displayName ? user.displayName.split(' ')[0] : 'User';
+  const isSuperAdmin = user && user.role === 'SUPERADMIN';
+  const userBio = user && user.bio ? user.bio : '';
   
-  const availability = user?.availability || 'AVAILABLE';
+  const currentStreak = (user && user.streak && user.streak.current) ? user.streak.current : 0;
+  const hasStreak = currentStreak > 0;
+  
+  const userLevel = (user && user.level) ? user.level : 1;
+  const userPoints = (user && user.points) ? user.points : 0;
+  const completedTasksCount = (user && user.completedTasksCount) ? user.completedTasksCount : 0;
+  
+  const sortedUsers = [...usersDb].sort((a, b) => (b.points || 0) - (a.points || 0));
+  const userRank = user ? sortedUsers.findIndex(u => u.id === user.id) + 1 : 0;
+  
+  const availability = (user && user.availability) ? user.availability : 'AVAILABLE';
   const availStyles = {
     AVAILABLE: { btn: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500', dot: 'bg-emerald-500', text: 'Tersedia' },
     BUSY: { btn: 'bg-red-500/10 border-red-500/20 text-red-500', dot: 'bg-red-500', text: 'Sibuk' },
     AWAY: { btn: 'bg-amber-500/10 border-amber-500/20 text-amber-500', dot: 'bg-amber-500', text: 'Away' }
   };
   const currentAvail = availStyles[availability as keyof typeof availStyles] || availStyles.AVAILABLE;
+  const isOnlineStatus = isOnline;
 
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white">
@@ -254,7 +263,7 @@ export const UserDashboard: React.FC<{
       </header>
 
       <motion.div variants={containerVariants} initial="hidden" animate="show" className="p-5">
-        {user?.id?.startsWith('demo_') && (
+        {isDemoUser && (
           <motion.div variants={itemVariants} className="mb-6 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
@@ -268,16 +277,16 @@ export const UserDashboard: React.FC<{
           <div className="flex justify-between items-start mb-2">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-extrabold tracking-tight text-white">Halo, {user?.displayName?.split(' ')[0] || 'User'} 👋</h2>
-                {user?.role === 'SUPERADMIN' && <ShieldCheck className="w-5 h-5 text-blue-500" />}
+                <h2 className="text-2xl font-extrabold tracking-tight text-white">Halo, {userName} 👋</h2>
+                {isSuperAdmin && <ShieldCheck className="w-5 h-5 text-blue-500" />}
               </div>
               <div className="flex items-center gap-2 mt-1">
                 <span className="bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">{getRoleName()}</span>
                 <span className="text-gray-400 text-xs font-medium">Paroki Pusat</span>
                 <div className="flex items-center gap-1.5 ml-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.4)]' : 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.4)] animate-pulse'}`} />
-                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isOnline ? 'text-emerald-500/80' : 'text-red-500/80'}`}>
-                    {isOnline ? 'Online' : 'Offline'}
+                  <div className={`w-1.5 h-1.5 rounded-full ${isOnlineStatus ? 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.4)]' : 'bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.4)] animate-pulse'}`} />
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isOnlineStatus ? 'text-emerald-500/80' : 'text-red-500/80'}`}>
+                    {isOnlineStatus ? 'Online' : 'Offline'}
                   </span>
                 </div>
               </div>
@@ -290,7 +299,7 @@ export const UserDashboard: React.FC<{
               <span className="text-[10px] font-bold uppercase tracking-widest">{currentAvail.text}</span>
             </motion.button>
           </div>
-          {user?.bio && <p className="text-sm text-gray-400 italic mt-2 line-clamp-2 max-w-md">"{user.bio}"</p>}
+          {userBio !== '' && <p className="text-sm text-gray-400 italic mt-2 line-clamp-2 max-w-md">"{userBio}"</p>}
         </motion.div>
 
         <motion.div variants={itemVariants} className="mb-6">
@@ -352,10 +361,10 @@ export const UserDashboard: React.FC<{
               <div key={skill.key} className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800">
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-lg ${skill.color}/10 text-white`}>{skill.icon}</div>
+                    <div className={`p-1.5 rounded-lg ${skill.color}/10`}>{skill.icon}</div>
                     <span className="text-xs font-bold text-white">{skill.label}</span>
                   </div>
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Lv. {Math.floor((user?.stats?.[skill.key] || 0) / 10) + 1}</span>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Lv. {Math.floor(((user && user.stats && user.stats[skill.key]) ? user.stats[skill.key] : 0) / 10) + 1}</span>
                 </div>
                 <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                   <motion.div initial={{ width: 0 }} animate={{ width: `${getSkillProgress(skill.key)}%` }} className={`h-full ${skill.color}`} />
@@ -372,13 +381,13 @@ export const UserDashboard: React.FC<{
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
             {[
-              { title: 'Pemula', desc: 'Selesaikan 1 tugas', icon: <CheckCircle size={20} />, unlocked: completedTasksCount >= 1 },
-              { title: 'Konsisten', desc: 'Streak 3 hari', icon: <Flame size={20} />, unlocked: currentStreak >= 3 },
-              { title: 'Spesialis', desc: 'Skill Lv. 5', icon: <Target size={20} />, unlocked: Object.values(user?.stats || {}).some(v => v >= 50) },
-              { title: 'Veteran', desc: 'Level 10', icon: <Trophy size={20} />, unlocked: userLevel >= 10 },
+              { title: 'Pemula', desc: 'Selesaikan 1 tugas', icon: <CheckCircle size={20} />, unlocked: completedTasksCount >= 1, colorUncloked: 'text-amber-500', bgUnlocked: 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' },
+              { title: 'Konsisten', desc: 'Streak 3 hari', icon: <Flame size={20} />, unlocked: currentStreak >= 3, colorUncloked: 'text-amber-500', bgUnlocked: 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' },
+              { title: 'Spesialis', desc: 'Skill Lv. 5', icon: <Target size={20} />, unlocked: user && user.stats && Object.values(user.stats).some(v => v >= 50), colorUncloked: 'text-amber-500', bgUnlocked: 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' },
+              { title: 'Veteran', desc: 'Level 10', icon: <Trophy size={20} />, unlocked: userLevel >= 10, colorUncloked: 'text-amber-500', bgUnlocked: 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' },
             ].map((achievement, idx) => (
-              <motion.div key={idx} whileHover={{ y: -5 }} className={`min-w-[140px] p-4 rounded-2xl border transition-all ${achievement.unlocked ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' : 'bg-[#151b2b] border-gray-800 opacity-50'}`}>
-                <div className={`mb-3 ${achievement.unlocked ? 'text-amber-500' : 'text-gray-600'}`}>{achievement.icon}</div>
+              <motion.div key={idx} whileHover={{ y: -5 }} className={`min-w-[140px] p-4 rounded-2xl border transition-all ${achievement.unlocked ? achievement.bgUnlocked : 'bg-[#151b2b] border-gray-800 opacity-50'}`}>
+                <div className={`mb-3 ${achievement.unlocked ? achievement.colorUncloked : 'text-gray-600'}`}>{achievement.icon}</div>
                 <p className="text-xs font-bold text-white mb-1">{achievement.title}</p>
                 <p className="text-[9px] text-gray-500 uppercase tracking-wider leading-tight">{achievement.desc}</p>
               </motion.div>
@@ -517,7 +526,9 @@ export const UserDashboard: React.FC<{
 
         <div className="space-y-4">
           {activeTasks.length > 0 ? activeTasks.map((task) => {
-            const customColor = taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase())?.color;
+            const customTypeObj = taskTypes.find(tt => tt.name.toLowerCase() === (task.type ? task.type.toLowerCase() : ''));
+            const customColor = customTypeObj ? customTypeObj.color : null;
+            const customStyle = customColor ? { backgroundColor: `${customColor}20` } : {};
 
             return (
               <motion.div 
@@ -538,7 +549,7 @@ export const UserDashboard: React.FC<{
                     <h4 className="font-extrabold text-lg leading-tight text-white">{task.title}</h4>
                     <div 
                       className={`p-1.5 rounded-lg ${!customColor ? getIconBg(task.type) : ''}`} 
-                      style={customColor ? { backgroundColor: `${customColor}20` } : undefined}
+                      style={customStyle}
                     >
                       {getIcon(task.type)}
                     </div>
