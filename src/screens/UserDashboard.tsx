@@ -25,9 +25,7 @@ export const UserDashboard: React.FC<{
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
   const [countdown, setCountdown] = useState<string>('');
   
-  // --- STATE BARU UNTUK TAB TUGAS ---
   const [taskTab, setTaskTab] = useState<'MINE' | 'ALL'>('MINE');
-  
   const [announcement, setAnnouncement] = useState('Selamat datang di Sistem Manajemen Tugas Komsos St. Paulus Juanda!');
 
   useEffect(() => {
@@ -49,7 +47,6 @@ export const UserDashboard: React.FC<{
     return 'Petugas';
   };
 
-  // --- LOGIKA PEMISAHAN TUGAS (SAYA VS SEMUA) ---
   const allActiveTasks = (tasksDb || []).filter(t => t.status === 'IN_PROGRESS');
   const myActiveTasks = allActiveTasks.filter(t => user && user.uid && t.assignedUsers && t.assignedUsers.includes(user.uid));
   const displayedTasks = taskTab === 'MINE' ? myActiveTasks : allActiveTasks;
@@ -67,7 +64,6 @@ export const UserDashboard: React.FC<{
     return ((val - currentLevelThreshold) / (nextLevelThreshold - currentLevelThreshold)) * 100;
   };
 
-  // COUNTDOWN TETAP FOKUS PADA TUGAS MILIK USER SENDIRI
   useEffect(() => {
     const validTasks = (tasksDb || []).filter(t => 
       t.status === 'IN_PROGRESS' && 
@@ -225,7 +221,6 @@ export const UserDashboard: React.FC<{
     return '/background.jpg'; 
   };
 
-  // --- VARIABEL EKSTRAKSI AMAN (Bebas Error Vercel) ---
   const isDemoUser = user && user.id && user.id.startsWith('demo_');
   const userName = user && user.displayName ? user.displayName.split(' ')[0] : 'User';
   const isSuperAdmin = user && user.role === 'SUPERADMIN';
@@ -523,7 +518,6 @@ export const UserDashboard: React.FC<{
           </motion.button>
         </motion.div>
 
-        {/* --- KOMPONEN TAB TUGAS SAYA VS SEMUA --- */}
         <motion.div variants={itemVariants} className="flex justify-between items-center mb-4">
           <div className="flex gap-2 bg-[#151b2b] p-1.5 rounded-xl border border-gray-800">
             <button 
@@ -544,11 +538,7 @@ export const UserDashboard: React.FC<{
           </span>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="mb-8">
-          <Leaderboard users={usersDb} />
-        </motion.div>
-
-        <div className="space-y-4">
+        <div className="space-y-4 mb-8">
           {displayedTasks.length > 0 ? displayedTasks.map((task) => {
             const customTypeObj = taskTypes.find(tt => tt.name.toLowerCase() === (task.type ? task.type.toLowerCase() : ''));
             const customColor = customTypeObj ? customTypeObj.color : null;
@@ -562,7 +552,6 @@ export const UserDashboard: React.FC<{
                 onClick={() => { setSelectedTaskId(task.id); onNavigate('TASK_DETAIL'); }}
                 whileTap={{ scale: 0.98 }}
               >
-                {/* Penanda khusus jika ini tugas miliknya (hanya muncul saat di tab "Semua Tugas") */}
                 {taskTab === 'ALL' && user && task.assignedUsers && task.assignedUsers.includes(user.uid) && (
                   <div className="absolute top-0 right-0 w-2 h-full bg-blue-500 z-10 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
                 )}
@@ -592,7 +581,6 @@ export const UserDashboard: React.FC<{
                         const u = usersDb?.find(usr => usr.uid === uid || usr.id === uid);
                         return (
                           <div key={i} className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 overflow-hidden shadow-sm relative">
-                            {/* Beri penanda garis hijau pada foto miliknya sendiri */}
                             {user && uid === user.uid && <div className="absolute inset-0 border-2 border-emerald-500 rounded-full z-10 pointer-events-none"></div>}
                             <img src={getAvatarUrl(u)} alt="Avatar" className="w-full h-full object-cover" />
                           </div>
@@ -616,6 +604,12 @@ export const UserDashboard: React.FC<{
             </motion.div>
           )}
         </div>
+
+        {/* --- LEADERBOARD DIPINDAH KE BAWAH --- */}
+        <motion.div variants={itemVariants} className="mt-8 mb-8 pt-6 border-t border-gray-800/50">
+          <Leaderboard users={usersDb} />
+        </motion.div>
+
       </motion.div>
     </div>
   );
