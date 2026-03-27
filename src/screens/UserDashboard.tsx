@@ -64,6 +64,7 @@ export const UserDashboard: React.FC<{
     return ((val - currentLevelThreshold) / (nextLevelThreshold - currentLevelThreshold)) * 100;
   };
 
+  // --- HITUNG MUNDUR (TANPA DETIK) ---
   useEffect(() => {
     const validTasks = (tasksDb || []).filter(t => 
       t.status === 'IN_PROGRESS' && 
@@ -118,10 +119,15 @@ export const UserDashboard: React.FC<{
         setCountdown('Tugas Sedang Berlangsung');
         clearInterval(timer);
       } else {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        setCountdown(`${hours}j ${minutes}m ${seconds}s`);
+        
+        if (days > 0) {
+          setCountdown(`${days} Hari ${hours}j ${minutes}m`);
+        } else {
+          setCountdown(`${hours}j ${minutes}m`);
+        }
       }
     }, 1000);
 
