@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Plus, RefreshCw, X, Calendar, Clock, AlertCircle, UserCheck, UserX } from 'lucide-react';
 import { Screen, UserAccount, Task } from '../types';
-import { db, collection, addDoc, query, onSnapshot, serverTimestamp, doc, updateDoc, arrayRemove, arrayUnion, orderBy } from '../firebase';
+
+// --- PERBAIKAN IMPOR ADA DI SINI ---
+import { db, collection, addDoc, query, onSnapshot, serverTimestamp, doc, updateDoc } from '../firebase';
+import { arrayRemove, arrayUnion, orderBy } from 'firebase/firestore'; 
+
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -94,7 +98,7 @@ export const SwapRequestScreen: React.FC<{
         assignedUsers: arrayUnion(user.uid),         // Masukkan sang pahlawan penolong
       });
 
-      // C. Tambah Riwayat Perubahan (Opsional agar tercatat)
+      // C. Tambah Riwayat Perubahan
       const taskRef = doc(db, 'tasks', req.taskId);
       await updateDoc(taskRef, {
         history: arrayUnion({
@@ -218,7 +222,7 @@ export const SwapRequestScreen: React.FC<{
         </AnimatePresence>
       </div>
 
-      {/* --- TOMBOL FLOATING UNTUK MEMBUAT PERMINTAAN (TOMBOL YANG HILANG) --- */}
+      {/* --- TOMBOL FLOATING UNTUK MEMBUAT PERMINTAAN --- */}
       <div className="fixed bottom-24 right-5 z-30">
         <button 
           onClick={() => setShowModal(true)}
