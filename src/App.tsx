@@ -332,7 +332,7 @@ export default function App() {
       case 'TASKS':
         return <TasksScreen onNavigate={handleNavigate} role={currentUser?.role} tasksDb={tasksDb} usersDb={usersDb} setSelectedTaskId={setSelectedTaskId} />;
       case 'TASK_DETAIL':
-        return <TaskDetail onNavigate={handleNavigate} role={currentUser?.role} usersDb={usersDb} taskId={selectedTaskId} tasksDb={tasksDb} inventoryDb={inventoryDb} />;
+        return <TaskDetail onNavigate={handleNavigate} role={currentUser?.role} usersDb={usersDb} taskId={selectedTaskId} tasksDb={tasksDb} inventoryDb={inventoryDb} currentUser={currentUser} />;
       case 'TASK_UPDATE':
         return <TaskUpdate onNavigate={handleNavigate} taskId={selectedTaskId} tasksDb={tasksDb} />;
       case 'TEAM':

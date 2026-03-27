@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Bell, ClipboardList, Clock, CheckCircle2, LogOut, 
   MessageSquare, MapPin, Calendar, Wrench, Database, 
   FileText, UserCheck, Loader2, ChevronRight, Users, Trophy,
-  Settings, Shield, Zap, Activity, BarChart3, Sparkles, X, Gift, Medal, AlertCircle, PlayCircle, Circle
+  Settings, Shield, Zap, Activity, BarChart3, Sparkles, X, Gift, Medal, AlertCircle, PlayCircle, Circle, Megaphone, Edit3
 } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Notification } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
 import { motion, AnimatePresence } from 'motion/react';
-import { db, collection, addDoc, serverTimestamp, doc, updateDoc } from '../firebase';
+import { db, collection, addDoc, serverTimestamp, doc, updateDoc, setDoc, onSnapshot } from '../firebase';
 import { toast } from 'sonner';
+
+import { getAvatarUrl } from '../lib/avatar';
 
 interface AdminDashboardProps {
   onNavigate: (s: Screen) => void;
@@ -52,8 +54,56 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isRewarding, setIsRewarding] = useState(false);
   const [resetPoints, setResetPoints] = useState(true);
 
-  // Filter user yang sedang online
-  const onlineUsers = usersDb.filter(u => u.isOnline === true && u.uid !== user?.uid);
+  // --- STATE UNTUK PENGUMUMAN ---
+  const [announcement, setAnnouncement] = useState('Selamat datang di Sistem Manajemen Tugas Komsos St. Paulus Juanda!');
+  const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
+  const [editAnnouncementText, setEditAnnouncementText] = useState('');
+  const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
+
+  // --- MENGAMBIL DATA PENGUMUMAN DARI DATABASE SECARA REAL-TIME ---
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'announcement'), (docSnap) => {
+      if (docSnap.exists()) {
+        setAnnouncement(docSnap.data().text);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const handleSaveAnnouncement = async () => {
+    if (!editAnnouncementText.trim()) return;
+    setIsSavingAnnouncement(true);
+    try {
+      await setDoc(doc(db, 'settings', 'announcement'), {
+        text: editAnnouncementText.trim(),
+        updatedAt: serverTimestamp(),
+        updatedBy: user?.displayName || 'Admin'
+      });
+      toast.success("Pengumuman berhasil diperbarui!");
+      setIsEditingAnnouncement(false);
+    } catch (error) {
+      console.error("Gagal menyimpan pengumuman:", error);
+      toast.error("Gagal memperbarui pengumuman.");
+    } finally {
+      setIsSavingAnnouncement(false);
+    }
+  };
+
+  const onlineUsers = usersDb
+    .filter(u => u.isOnline === true && u.uid !== user?.uid)
+    .sort((a, b) => {
+      const roleWeights: Record<string, number> = {
+        'SUPERADMIN': 1, 'ADMIN_MULTIMEDIA': 2, 'ADMIN_PHOTO_VIDEO': 3, 'ADMIN_PUBLICATION': 4, 'USER': 5
+      };
+      const weightA = roleWeights[a.role || 'USER'] || 99;
+      const weightB = roleWeights[b.role || 'USER'] || 99;
+      if (weightA !== weightB) return weightA - weightB;
+      const nameA = (a.displayName || '').toLowerCase();
+      const nameB = (b.displayName || '').toLowerCase();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return 0;
+    });
 
   const getRoleName = () => {
     if (role === 'SUPERADMIN') return 'Superadmin';
@@ -129,7 +179,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden ring-2 ring-blue-500/30">
-            <img src={user?.img?.startsWith('http') ? user.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${user?.img || '1'}`} alt="Profile" className="w-full h-full object-cover" />
+            <img src={getAvatarUrl(user)} alt="Profile" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-sm font-extrabold tracking-tight text-white leading-tight">Halo, {user?.displayName?.split(' ')[0] || 'Admin'}</h1>
@@ -162,6 +212,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       <div className="p-5 space-y-6">
         
+        {/* --- PAPAN PENGUMUMAN BARU --- */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 rounded-3xl shadow-lg shadow-blue-500/20 relative overflow-hidden group">
+          <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500"><Megaphone size={100} /></div>
+          <div className="relative z-10">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="text-[10px] font-black text-blue-200 uppercase tracking-widest flex items-center gap-1.5">
+                <Megaphone className="w-3.5 h-3.5" /> Papan Pengumuman
+              </h3>
+              {isAdminRole && (
+                <button 
+                  onClick={() => { setEditAnnouncementText(announcement); setIsEditingAnnouncement(true); }} 
+                  className="p-1.5 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                  title="Edit Pengumuman"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-white" />
+                </button>
+              )}
+            </div>
+            <p className="text-sm font-medium text-white leading-relaxed whitespace-pre-wrap">{announcement}</p>
+          </div>
+        </div>
+
         {/* SIAPA YANG ONLINE */}
         <div className="bg-[#151b2b]/50 border border-gray-800 p-4 rounded-3xl">
           <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -171,7 +243,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {onlineUsers.length > 0 ? onlineUsers.map((u) => (
               <div key={u.uid} className="flex items-center gap-2 bg-[#0a0f18] border border-gray-800 pl-1 pr-3 py-1 rounded-full ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/5">
                 <div className="w-6 h-6 rounded-full overflow-hidden border border-emerald-500/30">
-                  <img src={u.img?.startsWith('http') ? u.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${u.img || '1'}`} className="w-full h-full object-cover" />
+                  <img src={getAvatarUrl(u)} className="w-full h-full object-cover" />
                 </div>
                 <span className="text-[10px] font-bold text-gray-300 truncate max-w-[80px]">{u.displayName?.split(' ')[0]}</span>
               </div>
@@ -270,6 +342,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       </div>
 
+      {/* --- MODAL EDIT PENGUMUMAN --- */}
+      {isEditingAnnouncement && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151b2b] w-full max-w-md rounded-3xl border border-gray-800 p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                <Megaphone className="text-blue-500" /> Edit Pengumuman
+              </h3>
+              <button onClick={() => setIsEditingAnnouncement(false)} className="p-2 bg-gray-800 rounded-full hover:bg-gray-700 transition-colors">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Teks Pengumuman</label>
+                <textarea 
+                  rows={5}
+                  value={editAnnouncementText}
+                  onChange={(e) => setEditAnnouncementText(e.target.value)}
+                  placeholder="Ketikkan pengumuman penting di sini..."
+                  className="w-full bg-[#0a0f18] border border-gray-800 rounded-2xl p-4 text-sm text-white focus:outline-none focus:border-blue-500 transition-all resize-none"
+                ></textarea>
+              </div>
+            </div>
+
+            <button 
+              onClick={handleSaveAnnouncement} 
+              disabled={isSavingAnnouncement || !editAnnouncementText.trim()} 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSavingAnnouncement ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+              {isSavingAnnouncement ? 'Menyimpan...' : 'Simpan Pengumuman'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {showRewardModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151b2b] w-full max-w-md rounded-3xl border border-gray-800 p-6 shadow-2xl animate-in zoom-in-95">
@@ -286,7 +396,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {topUsers.map((u, i) => (
                 <div key={u.uid} className={`flex items-center gap-3 p-3 rounded-2xl border ${i === 0 ? 'bg-amber-500/10 border-amber-500/30' : 'bg-[#0a0f18] border-gray-800'}`}>
                   <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden ring-2 ring-gray-700">
-                    <img src={u.img?.startsWith('http') ? u.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${u.img || '1'}`} alt="Avatar" className="w-full h-full object-cover" />
+                    <img src={getAvatarUrl(u)} alt="Avatar" className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-bold text-white">{u.displayName}</p>

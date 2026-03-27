@@ -8,6 +8,7 @@ import {
   doc, updateDoc, serverTimestamp 
 } from '../firebase';
 import { UserAccount, Role, Screen } from '../types';
+import { getAvatarUrl } from '../lib/avatar';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -72,6 +73,26 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
         role: newRole,
         updatedAt: serverTimestamp()
       });
+
+      // Send verification email
+      const userToVerify = pendingUsers.find(u => u.id === userId);
+      if (userToVerify) {
+        try {
+          await fetch('/api/send-verification-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: userToVerify.email,
+              displayName: userToVerify.displayName,
+              role: newRole
+            }),
+          });
+        } catch (emailError) {
+          console.error("Failed to send verification email:", emailError);
+          // We don't want to fail the whole verification if email fails, but we log it
+        }
+      }
+
       toast.success(`Pengguna berhasil diverifikasi sebagai ${newRole === 'USER' ? 'Petugas' : 'Koordinator'}`);
       setPendingUsers(prev => prev.filter(u => u.id !== userId));
     } catch (error: any) {
@@ -164,7 +185,7 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
                   <div className="flex items-start gap-4 mb-6">
                     <div className="w-12 h-12 rounded-2xl bg-gray-800 overflow-hidden ring-2 ring-blue-500/20">
                       <img 
-                        src={u.img?.startsWith('http') ? u.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80`} 
+                        src={getAvatarUrl(u)} 
                         alt={u.displayName} 
                         className="w-full h-full object-cover" 
                       />

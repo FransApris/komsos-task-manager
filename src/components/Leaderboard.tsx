@@ -1,6 +1,7 @@
 import React from 'react';
 import { Trophy, Medal, Award } from 'lucide-react';
 import { UserAccount } from '../types';
+import { getAvatarUrl } from '../lib/avatar';
 import { motion } from 'motion/react';
 
 interface LeaderboardProps {
@@ -60,7 +61,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ users }) => {
               <div className="relative">
                 <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden ring-2 ring-gray-700/50 group-hover:ring-blue-500/30 transition-all">
                   <img 
-                    src={u.img?.startsWith('http') ? u.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${u.img || '1'}`} 
+                    src={getAvatarUrl(u)} 
                     alt={u.displayName} 
                     className="w-full h-full object-cover" 
                   />

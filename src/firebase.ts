@@ -5,11 +5,13 @@ import {
   orderBy, serverTimestamp, Timestamp, getDocs, addDoc, updateDoc, deleteDoc, 
   arrayUnion, getDocFromServer, writeBatch 
 } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from "./services/firebase-applet-config.json";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const storage = getStorage(app);
 
 export const googleProvider = new GoogleAuthProvider();
 
@@ -89,5 +91,8 @@ export {
   deleteDoc,
   arrayUnion,
   getDocFromServer,
-  writeBatch
+  writeBatch,
+  ref,
+  uploadBytes,
+  getDownloadURL
 };

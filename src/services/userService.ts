@@ -1,4 +1,4 @@
-import { db } from "../firebase";
+import { db, storage, ref, uploadBytes, getDownloadURL } from "../firebase";
 import { 
   doc, 
   getDoc, 
@@ -79,6 +79,21 @@ export const updateNotificationPrefs = async (userId: string, prefs: any) => {
     });
   } catch (error) {
     console.error("Error updating notification prefs:", error);
+    throw error;
+  }
+};
+
+/**
+ * Mengunggah foto profil ke Firebase Storage
+ */
+export const uploadProfileImage = async (userId: string, file: File | Blob): Promise<string> => {
+  try {
+    const storageRef = ref(storage, `profile_pictures/${userId}_${Date.now()}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
+  } catch (error) {
+    console.error("Error uploading profile image:", error);
     throw error;
   }
 };

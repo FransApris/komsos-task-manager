@@ -21,8 +21,10 @@ export const addTask = async (
   date: string, 
   time: string, 
   description: string = "",
-  requiredEquipment: string[] = [], // Tambahan: Array ID peralatan
-  teamLeaderId: string = ""         // Tambahan: ID Ketua Tim
+  requiredEquipment: string[] = [], 
+  teamLeaderId: string = "",         
+  linkedScheduleId: string = "",    // <-- TAMBAHAN: ID Agenda
+  linkedScheduleTitle: string = ""  // <-- TAMBAHAN: Judul Agenda
 ) => {
   try {
     const user = auth.currentUser;
@@ -35,10 +37,11 @@ export const addTask = async (
       date,
       time,
       status: "IN_PROGRESS",
-      // Jika ada ketua tim, otomatis masukkan dia ke daftar assignedUsers
       assignedUsers: teamLeaderId ? [teamLeaderId] : [], 
       teamLeaderId,
-      requiredEquipment, // Simpan peralatan ke Firebase
+      requiredEquipment, 
+      linkedScheduleId,     // <-- Disimpan ke Firebase
+      linkedScheduleTitle,  // <-- Disimpan ke Firebase
       createdBy: user.uid,
       createdAt: serverTimestamp()
     };

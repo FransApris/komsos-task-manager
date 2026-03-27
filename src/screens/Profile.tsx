@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ChevronLeft, LogOut, Settings2, User, Activity, Bell, Award, Camera, Edit3, Heart, Star, Zap, Shield, Target, Globe, Youtube, Instagram, ExternalLink, CheckCircle2, AlertCircle, Clock, Flame } from 'lucide-react';
 import { Screen, UserAccount, Badge, Task } from '../types';
 import { db, collection, query, where, onSnapshot, addDoc } from '../firebase';
+import { getAvatarUrl } from '../lib/avatar';
 
 const badgeIcons: Record<string, any> = {
   Award, Camera, Edit3, Heart, Star, Zap, Shield, Target
@@ -82,7 +83,7 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
 
       <div className="p-5 flex flex-col items-center">
         <div className="w-24 h-24 rounded-full bg-gray-800 overflow-hidden ring-4 ring-blue-500/20 mb-4">
-          <img src={user?.img?.startsWith('http') || user?.img?.startsWith('blob:') || user?.img?.startsWith('data:') ? user.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${user?.img || '1'}`} alt="Profile" className="w-full h-full object-cover" />
+          <img src={getAvatarUrl(user)} alt="Profile" className="w-full h-full object-cover" />
         </div>
         <h2 className="text-xl font-extrabold mb-1 text-white">{user?.displayName || 'User'}</h2>
         <p className="text-sm text-gray-400 font-medium mb-6">{user?.email || 'user@komsos.org'}</p>

@@ -53,6 +53,10 @@ service cloud.firestore {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field]);
     }
 
+    function isUnchanged(field) {
+      return request.resource.data[field] == resource.data[field];
+    }
+
     function validString(field, maxLen) {
       return request.resource.data[field] is string && request.resource.data[field].size() <= maxLen;
     }
@@ -68,7 +72,9 @@ service cloud.firestore {
              isValidEmail(data.email) &&
              data.role in ['SUPERADMIN', 'ADMIN_MULTIMEDIA', 'ADMIN_PHOTO_VIDEO', 'ADMIN_PUBLICATION', 'USER', 'GUEST'] &&
              data.status in ['PENDING', 'ACTIVE', 'REJECTED'] &&
-             data.createdAt is timestamp;
+             data.createdAt is timestamp &&
+             (!('isOnline' in data) || data.isOnline is bool) &&
+             (!('lastSeen' in data) || data.lastSeen is timestamp);
     }
 
     function isValidTask(data) {
@@ -116,9 +122,18 @@ service cloud.firestore {
       allow list: if isAuthenticated();
       allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
                     ((userId == request.auth.uid && (request.resource.data.role == 'USER' || isSuperAdmin())) || isAdmin());
-      allow update: if isAuthenticated() && isValidUser(request.resource.data) &&
-                    isImmutable('uid') && isImmutable('createdAt') &&
-                    (isAdmin() || (isOwner(userId) && isImmutable('role') && isImmutable('status')));
+      allow update: if isAuthenticated() && 
+                    (
+                      // Allow presence updates (isOnline, lastSeen)
+                      (isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isOnline', 'lastSeen'])) ||
+                      // Allow full profile updates
+                      (
+                        isValidUser(request.resource.data) &&
+                        (isUnchanged('uid') || isImmutable('uid')) && 
+                        (isUnchanged('createdAt') || isImmutable('createdAt')) &&
+                        (isAdmin() || (isOwner(userId) && (isUnchanged('role') || isImmutable('role')) && (isUnchanged('status') || isImmutable('status'))))
+                      )
+                    );
       allow delete: if isAdmin() || (isAuthenticated() && resource.data.email == request.auth.token.email);
     }
 

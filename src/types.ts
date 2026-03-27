@@ -48,6 +48,7 @@ export interface UserAccount {
   isOnline?: boolean;
   lastSeen?: any;
   divisions?: string[]; // Fitur Multi-Divisi
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
 }
 
 export interface SubTask {

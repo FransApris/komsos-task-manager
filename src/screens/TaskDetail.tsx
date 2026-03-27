@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircle2, PlayCircle, Plus, Upload, Award, FileText, Send, MessageSquare, Image as ImageIcon, Crown, Briefcase, Camera, Activity, UserX, Trash2 } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Inventory, TaskType } from '../types';
 import { db, doc, updateDoc, serverTimestamp, collection, addDoc, auth } from '../firebase';
+import { TaskChat } from './TaskChat';
 import { arrayRemove, arrayUnion } from 'firebase/firestore'; 
 import { toast } from 'sonner';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -13,13 +14,13 @@ export const TaskDetail: React.FC<{
   taskId: string | null,
   tasksDb?: Task[],
   inventoryDb?: Inventory[],
-  taskTypes?: TaskType[]
-}> = ({ onNavigate, role, usersDb = [], taskId, tasksDb = [], inventoryDb = [], taskTypes = [] }) => {
+  taskTypes?: TaskType[],
+  currentUser: UserAccount | null
+}> = ({ onNavigate, role, usersDb = [], taskId, tasksDb = [], inventoryDb = [], taskTypes = [], currentUser }) => {
   const task = (tasksDb || []).find(t => t.id === taskId);
   const [proofNotes, setProofNotes] = useState('');
   const [showProofModal, setShowProofModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'DETAIL' | 'CHAT'>('DETAIL');
-  const [chatMessage, setChatMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Confirmation Modal State
@@ -166,11 +167,6 @@ export const TaskDetail: React.FC<{
       default: return 'bg-blue-500/10';
     }
   };
-
-  const [messages, setMessages] = useState([
-    { id: 1, sender: 'Yohanes', text: 'Kamera 1 sudah siap di posisi.', time: '07:30', isMe: false },
-    { id: 2, sender: 'Maria', text: 'Audio aman, mic altar sudah dicek.', time: '07:35', isMe: false },
-  ]);
 
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40">
@@ -440,44 +436,12 @@ export const TaskDetail: React.FC<{
         </div>
         </>
       ) : (
-        <div className="flex-1 flex flex-col p-5">
-          <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-            {messages.map(msg => (
-              <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] rounded-2xl p-3 ${msg.isMe ? 'bg-blue-600 text-white rounded-tr-none shadow-lg shadow-blue-500/20' : 'bg-[#151b2b] border border-gray-800 text-gray-200 rounded-tl-none'}`}>
-                  {!msg.isMe && <p className="text-[10px] font-bold text-gray-400 mb-1">{msg.sender}</p>}
-                  <p className="text-sm">{msg.text}</p>
-                  <p className="text-[10px] text-right mt-1 opacity-70">{msg.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2 sticky bottom-0 bg-[#0a0f18] pt-2">
-            <input 
-              type="text" 
-              value={chatMessage}
-              onChange={(e) => setChatMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && chatMessage.trim()) {
-                  setMessages([...messages, { id: Date.now(), sender: 'Saya', text: chatMessage, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), isMe: true }]);
-                  setChatMessage('');
-                }
-              }}
-              placeholder="Ketik pesan..."
-              className="flex-1 bg-[#151b2b] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-            />
-            <button 
-              onClick={() => {
-                if (chatMessage.trim()) {
-                  setMessages([...messages, { id: Date.now(), sender: 'Saya', text: chatMessage, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), isMe: true }]);
-                  setChatMessage('');
-                }
-              }}
-              className="p-3 bg-blue-600 hover:bg-blue-700 rounded-xl text-white transition-colors shadow-lg shadow-blue-500/20"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </div>
+        <div className="flex-1 flex flex-col min-h-0">
+          <TaskChat 
+            taskId={task.id} 
+            currentUser={currentUser} 
+            role={role} 
+          />
         </div>
       )}
 

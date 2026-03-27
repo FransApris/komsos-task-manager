@@ -4,6 +4,7 @@ import { Users, Mail, Phone, ShieldAlert, CheckCircle2, ChevronDown, Plus, Trash
 import { db, doc, updateDoc, deleteDoc, setDoc, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
 import { AwardBadgeModal } from '../components/AwardBadgeModal';
 import { BadgeGallery } from '../components/BadgeGallery';
+import { getAvatarUrl } from '../lib/avatar';
 
 interface TeamScreenProps {
   onNavigate: (s: Screen) => void;
@@ -241,7 +242,7 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 flex-1 overflow-hidden">
                   <div className="w-12 h-12 rounded-full bg-gray-800 overflow-hidden shrink-0 border border-gray-700">
-                    <img src={member.img?.startsWith('http') ? member.img : `https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80&v=${member.img}`} alt={member.displayName} className="w-full h-full object-cover" />
+                    <img src={getAvatarUrl(member)} alt={member.displayName} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
                     {editingUserId === member.id ? (

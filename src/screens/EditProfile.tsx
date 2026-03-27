@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, Camera, Loader2, Plus, X, Check } from 'lucide-react';
+import { ChevronLeft, Camera, Loader2, Plus, X, Check, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { Screen, UserAccount, Role, AvailabilityStatus, PortfolioLink } from '../types';
 import { db, doc, updateDoc } from '../firebase';
+import { uploadProfileImage } from '../services/userService';
+import { getAvatarUrl } from '../lib/avatar';
 import { toast } from 'sonner';
 
 // DAFTAR KEAHLIAN BAKU UNTUK KOMSOS
@@ -21,11 +23,12 @@ export const EditProfile: React.FC<{
   onNavigate: (s: Screen) => void,
   user?: UserAccount | null
 }> = ({ onNavigate, user }) => {
-  const [profileImage, setProfileImage] = useState(user?.img?.startsWith('http') || user?.img?.startsWith('blob:') || user?.img?.startsWith('data:') ? user.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${user?.img || '1'}`);
+  const [profileImage, setProfileImage] = useState(getAvatarUrl(user));
   const [name, setName] = useState(user?.displayName || '');
   const [email, setEmail] = useState(user?.email || '');
   const [role, setRole] = useState<Role>(user?.role || 'USER');
   const [availability, setAvailability] = useState<AvailabilityStatus>(user?.availability || 'AVAILABLE');
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>(user?.gender || 'OTHER');
   
   // STATE UNTUK SKILL
   const [skills, setSkills] = useState<string[]>(user?.skills || []);
@@ -34,32 +37,42 @@ export const EditProfile: React.FC<{
   const [newLinkPlatform, setNewLinkPlatform] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const [showImageSourceModal, setShowImageSourceModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
   useEffect(() => {
     if (user) {
       setName(user.displayName);
       setEmail(user.email);
       setRole(user.role);
       setAvailability(user.availability || 'AVAILABLE');
+      setGender(user.gender || 'OTHER');
       setSkills(user.skills || []);
-      setProfileImage(user.img?.startsWith('http') || user?.img?.startsWith('blob:') || user?.img?.startsWith('data:') ? user.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${user.img || '1'}`);
+      setProfileImage(getAvatarUrl(user));
     }
   }, [user]);
 
   const handleImageClick = () => {
-    fileInputRef.current?.click();
+    setShowImageSourceModal(true);
   };
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>, isCamera: boolean) => {
     const file = event.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setProfileImage(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
+    setShowImageSourceModal(false);
+  };
+
+  const handleRemovePhoto = () => {
+    setProfileImage('1');
+    setSelectedFile(null);
+    setShowImageSourceModal(false);
   };
 
   const toggleSkill = (skillName: string) => {
@@ -79,14 +92,24 @@ export const EditProfile: React.FC<{
       const userId = user.id || user.uid;
       const userRef = doc(db, 'users', userId);
       
+      let finalImageUrl = profileImage;
+      
+      // Jika ada file baru yang dipilih, unggah ke Firebase Storage
+      if (selectedFile) {
+        toast.loading("Mengunggah foto profil...", { id: 'upload-toast' });
+        finalImageUrl = await uploadProfileImage(userId, selectedFile);
+        toast.dismiss('upload-toast');
+      }
+      
       await updateDoc(userRef, {
         displayName: name.trim(),
         email: email.trim(),
         role: role,
-        img: profileImage,
+        img: finalImageUrl,
         availability: availability,
         skills: skills,
-        portfolioLinks: portfolioLinks
+        portfolioLinks: portfolioLinks,
+        gender: gender
       });
 
       toast.success("Profil berhasil diperbarui!");
@@ -133,19 +156,90 @@ export const EditProfile: React.FC<{
             <div className="w-24 h-24 rounded-full bg-gray-800 overflow-hidden ring-4 ring-blue-500/20 mb-2 transition-all group-hover:ring-blue-500/50">
               <img src={profileImage} alt="Profile" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
             </div>
-            <button className="absolute bottom-2 right-0 p-2 bg-blue-600 rounded-full border-2 border-[#0a0f18] group-hover:bg-blue-500 transition-colors shadow-lg">
+            <label 
+              className="absolute bottom-2 right-0 p-2 bg-blue-600 rounded-full border-2 border-[#0a0f18] group-hover:bg-blue-500 transition-colors shadow-lg z-10 cursor-pointer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input 
+                type="file" 
+                onChange={(e) => handleFileSelect(e, true)} 
+                onClick={(e) => (e.target as any).value = null}
+                accept="image/*" 
+                capture
+                className="hidden" 
+              />
               <Camera className="w-4 h-4 text-white" />
-            </button>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleImageChange} 
-              accept="image/*" 
-              className="hidden" 
-            />
+            </label>
           </div>
           <p className="text-[10px] text-gray-500 mt-2">Ketuk gambar untuk mengubah</p>
         </div>
+
+        {/* MODAL PILIH SUMBER GAMBAR */}
+        {showImageSourceModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-[#151b2b] border border-gray-800 rounded-3xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-bold text-white">Ganti Foto Profil</h3>
+                  <button 
+                    type="button"
+                    onClick={() => setShowImageSourceModal(false)} 
+                    className="p-2 bg-gray-800 rounded-full text-gray-400"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="flex flex-col items-center justify-center gap-3 p-6 bg-blue-600/10 border border-blue-500/20 rounded-2xl hover:bg-blue-600/20 transition-all group cursor-pointer">
+                    <input 
+                      type="file" 
+                      onChange={(e) => handleFileSelect(e, true)} 
+                      onClick={(e) => (e.target as any).value = null}
+                      accept="image/*" 
+                      capture
+                      className="hidden" 
+                    />
+                    <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-600/20 group-active:scale-90 transition-transform">
+                      <Camera className="w-6 h-6 text-white" />
+                    </div>
+                    <span className="text-xs font-bold text-blue-400">Kamera</span>
+                  </label>
+                  
+                  <label className="flex flex-col items-center justify-center gap-3 p-6 bg-purple-600/10 border border-purple-500/20 rounded-2xl hover:bg-purple-600/20 transition-all group cursor-pointer">
+                    <input 
+                      type="file" 
+                      onChange={(e) => handleFileSelect(e, false)} 
+                      onClick={(e) => (e.target as any).value = null}
+                      accept="image/*" 
+                      className="hidden" 
+                    />
+                    <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-purple-600/20 group-active:scale-90 transition-transform">
+                      <ImageIcon className="w-6 h-6 text-white" />
+                    </div>
+                    <span className="text-xs font-bold text-purple-400">Galeri HP</span>
+                  </label>
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="w-full mt-4 py-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 text-xs font-bold hover:bg-red-500/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" /> Hapus Foto Profil
+                </button>
+                
+                <button 
+                  type="button"
+                  onClick={() => setShowImageSourceModal(false)}
+                  className="w-full mt-6 py-3 text-sm font-bold text-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <div>
@@ -198,6 +292,29 @@ export const EditProfile: React.FC<{
               <option value="BUSY">Sibuk (Busy)</option>
               <option value="AWAY">Tidak di Tempat (Away)</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Jenis Kelamin</label>
+            <div className="flex gap-2">
+              <button 
+                type="button"
+                onClick={() => setGender('MALE')}
+                className={`flex-1 py-3.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${gender === 'MALE' ? 'bg-blue-600/20 border-blue-500 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'bg-[#151b2b] border-gray-800 text-gray-500'}`}
+              >
+                <div className={`w-2 h-2 rounded-full ${gender === 'MALE' ? 'bg-blue-500 animate-pulse' : 'bg-gray-700'}`}></div>
+                Laki-laki
+              </button>
+              <button 
+                type="button"
+                onClick={() => setGender('FEMALE')}
+                className={`flex-1 py-3.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${gender === 'FEMALE' ? 'bg-pink-600/20 border-pink-500 text-pink-400 shadow-[0_0_15px_rgba(236,72,153,0.1)]' : 'bg-[#151b2b] border-gray-800 text-gray-500'}`}
+              >
+                <div className={`w-2 h-2 rounded-full ${gender === 'FEMALE' ? 'bg-pink-500 animate-pulse' : 'bg-gray-700'}`}></div>
+                Perempuan
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-500 mt-2 italic">Membantu sistem menentukan warna avatar default yang sesuai.</p>
           </div>
 
           <div>

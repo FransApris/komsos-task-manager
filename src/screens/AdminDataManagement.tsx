@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronLeft, Database, Users, ClipboardList, Wrench, Calendar, Search, Filter, Download, Trash2, Edit2, Bell, MessageSquare, CheckSquare, FileBarChart, Award, Sparkles, Activity, Plus, X, Save, Loader2, Trophy, Medal, Crown, Flame, Music, Video, Book, Coffee, PenTool, Code, Heart, Star, Shield, Target, Camera, Zap } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Inventory, MassSchedule, Notification, ChatMessage, Attendance, Report, Badge } from '../types';
 import { db, doc, deleteDoc, collection, addDoc, serverTimestamp, updateDoc } from '../firebase';
+import { getAvatarUrl } from '../lib/avatar';
 import { toast } from 'sonner';
 
 export const AdminDataManagement: React.FC<{ 
@@ -234,12 +235,17 @@ export const AdminDataManagement: React.FC<{
           <div key={user.id} className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden ring-2 ring-gray-700">
-                <img src={`https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${user.img || '1'}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                <img src={getAvatarUrl(user)} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
               </div>
               <div>
                 <h3 className="font-bold text-sm text-white">{user.displayName || 'Tanpa Nama'}</h3>
                 <p className="text-[10px] text-gray-500 font-medium">{user.email}</p>
                 <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest bg-blue-500/10 px-1.5 py-0.5 rounded mt-1 inline-block">{user.role}</span>
+                {user.gender && (
+                  <span className={`text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded mt-1 inline-block ml-1 ${user.gender === 'FEMALE' ? 'bg-pink-500/10 text-pink-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                    {user.gender === 'FEMALE' ? 'Perempuan' : 'Laki-laki'}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex gap-2">

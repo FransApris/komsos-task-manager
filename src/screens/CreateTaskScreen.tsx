@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, Calendar, Clock, MapPin, Users, FileText, CheckCircle2, AlertCircle, X, Camera, Crown, Briefcase, Sparkles } from 'lucide-react';
+import { ChevronLeft, Calendar, Clock, MapPin, Users, FileText, CheckCircle2, AlertCircle, X, Camera, Crown, Briefcase, Sparkles, Link } from 'lucide-react';
 import { Screen, UserAccount, Inventory, TaskType } from '../types';
 import { db, collection, addDoc, serverTimestamp } from '../firebase';
 import { useData } from '../contexts/DataContext';
@@ -11,7 +11,9 @@ export const CreateTaskScreen: React.FC<{
   usersDb?: UserAccount[],
   inventoryDb?: Inventory[]
 }> = ({ onNavigate, currentUser, usersDb = [], inventoryDb = [] }) => {
-  const { taskTypes } = useData();
+  // MENGAMBIL DATA AGENDA (massSchedules) DARI CONTEXT
+  const { taskTypes, massSchedules } = useData();
+  
   const [taskType, setTaskType] = useState(taskTypes[0]?.name || 'Peliputan');
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
@@ -22,10 +24,35 @@ export const CreateTaskScreen: React.FC<{
   const [assignedUsers, setAssignedUsers] = useState<string[]>([]);
   const [teamLeaderId, setTeamLeaderId] = useState<string>('');
   const [requiredEquipment, setRequiredEquipment] = useState<string[]>([]);
+  const [linkedScheduleId, setLinkedScheduleId] = useState<string>(''); // STATE BARU UNTUK ID AGENDA
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
+
+  // === LOGIKA AUTO-FILL JIKA AGENDA DIPILIH ===
+  const handleScheduleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = e.target.value;
+    setLinkedScheduleId(selectedId);
+
+    if (selectedId) {
+      const schedule = massSchedules?.find((s: any) => s.id === selectedId);
+      if (schedule) {
+        // Mengisi otomatis form di bawahnya agar Admin tidak perlu mengetik ulang
+        setTitle(schedule.title || '');
+        setDate(schedule.date || '');
+        setLocation(schedule.location || '');
+        
+        // Memecah format waktu "08:00 - 10:00" (jika ada)
+        if (schedule.time) {
+          const timeParts = schedule.time.split('-');
+          if (timeParts.length >= 1) setTimeStart(timeParts[0].trim());
+          if (timeParts.length >= 2) setTimeEnd(timeParts[1].trim());
+        }
+      }
+    }
+  };
 
   // === LOGIKA SMART ASSIGNMENT (Rekomendasi Pintar) ===
   const recommendedUsers = useMemo(() => {
@@ -59,13 +86,17 @@ export const CreateTaskScreen: React.FC<{
     return usersDb.filter(user => user.role !== 'SUPERADMIN' && !recommendedUsers.find(ru => ru.uid === user.uid));
   }, [usersDb, recommendedUsers]);
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
     
     setIsSubmitting(true);
     
+    // Mendapatkan judul agenda untuk disimpan (jika ada)
+    const linkedScheduleTitle = linkedScheduleId 
+      ? (massSchedules?.find((s: any) => s.id === linkedScheduleId)?.title || '') 
+      : '';
+
     try {
       await addDoc(collection(db, 'tasks'), {
         title,
@@ -78,13 +109,15 @@ export const CreateTaskScreen: React.FC<{
         assignedUsers,
         teamLeaderId,
         requiredEquipment,
+        linkedScheduleId,     // DISIMPAN KE FIREBASE
+        linkedScheduleTitle,  // DISIMPAN KE FIREBASE
         createdBy: currentUser.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
       await addDoc(collection(db, 'notifications'), {
-        userId: 'ALL', // Secara realitas, ini bisa di-map ke assignedUsers saja
+        userId: 'ALL',
         title: 'Tugas Baru Ditugaskan',
         message: `Tugas baru "${title}" telah dibuat oleh ${currentUser.displayName}.`,
         type: 'TASK',
@@ -146,6 +179,30 @@ export const CreateTaskScreen: React.FC<{
       <div className="p-5">
         <form onSubmit={handleSubmit} className="space-y-6">
           
+          {/* TAUTKAN KE AGENDA (DROP LIST BARU) */}
+          <div className="bg-blue-600/10 p-5 rounded-2xl border border-blue-500/20 space-y-2">
+            <label className="text-xs font-bold text-blue-400 uppercase tracking-wider block flex items-center gap-2">
+              <Link className="w-3.5 h-3.5" /> Tautkan ke Agenda (Opsional)
+            </label>
+            <select 
+              value={linkedScheduleId}
+              onChange={handleScheduleChange}
+              className="w-full bg-[#0a0f18] border border-blue-500/30 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-all appearance-none"
+            >
+              <option value="">-- Tidak Ditautkan (Tugas Bebas) --</option>
+              {massSchedules?.map((s: any) => (
+                <option key={s.id} value={s.id}>
+                  {s.date} | {s.title}
+                </option>
+              ))}
+            </select>
+            {linkedScheduleId && (
+              <p className="text-[10px] text-blue-400 mt-2 italic">
+                * Formulir di bawah telah diisi otomatis berdasarkan Agenda ini.
+              </p>
+            )}
+          </div>
+
           {/* Task Type Selection */}
           <div className="space-y-3">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Jenis Tugas</label>

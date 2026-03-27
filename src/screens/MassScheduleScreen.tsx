@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Plus, Calendar, Clock, MapPin, CheckCircle2, UserPlus, Trash2, Tag } from 'lucide-react';
-import { Screen, Role, UserAccount, MassSchedule } from '../types';
+import { ChevronLeft, Plus, Calendar, Clock, MapPin, CheckCircle2, UserPlus, Trash2, Edit2, Tag, FileText, Users, Activity, Video, Image as ImageIcon, X } from 'lucide-react';
+import { Screen, Role, UserAccount, MassSchedule, Task, TaskType } from '../types';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from '../firebase';
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
@@ -10,20 +10,25 @@ export const MassScheduleScreen: React.FC<{
   onNavigate: (s: Screen) => void, 
   role: Role,
   usersDb?: UserAccount[],
+  tasksDb?: Task[],
+  taskTypes?: TaskType[],
   currentUser: UserAccount | null
-}> = ({ onNavigate, role, usersDb = [], currentUser }) => {
-  // Catatan: Nama koleksi di Firebase dan tipe datanya tetap massSchedules agar tidak merusak data lama, kita hanya ubah tampilannya (UI).
+}> = ({ onNavigate, role, usersDb = [], tasksDb = [], taskTypes = [], currentUser }) => {
   const { massSchedules: schedules } = useData();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<MassSchedule | null>(null);
+  
+  // STATE BARU: Menyimpan ID agenda yang sedang diedit
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   const [newSchedule, setNewSchedule] = useState({
     title: '',
-    type: 'Misa', // Tambahan tipe agenda
+    type: 'Misa',
     date: '',
     time: '',
     location: 'Gereja St. Paulus Juanda',
   });
 
-  // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: '',
@@ -37,22 +42,36 @@ export const MassScheduleScreen: React.FC<{
 
   const isAdmin = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
 
-  const handleAdd = async () => {
+  // FUNGSI BARU: Menangani Simpan (Bisa untuk Tambah Baru atau Update Edit)
+  const handleSave = async () => {
     if (!newSchedule.title || !newSchedule.date || !newSchedule.time) return;
     try {
-      await addDoc(collection(db, 'massSchedules'), {
-        ...newSchedule,
-        status: 'OPEN',
-        assignedUsers: [],
-        createdBy: currentUser?.uid || 'system',
-        createdAt: serverTimestamp()
-      });
-      toast.success('Agenda berhasil ditambahkan');
-      setShowAddModal(false);
-      setNewSchedule({ title: '', type: 'Misa', date: '', time: '', location: 'Gereja St. Paulus Juanda' });
+      if (editingId) {
+        // PROSES UPDATE/EDIT
+        await updateDoc(doc(db, 'massSchedules', editingId), {
+          title: newSchedule.title,
+          type: newSchedule.type,
+          date: newSchedule.date,
+          time: newSchedule.time,
+          location: newSchedule.location,
+          updatedAt: serverTimestamp()
+        });
+        toast.success('Agenda berhasil diperbarui');
+      } else {
+        // PROSES TAMBAH BARU
+        await addDoc(collection(db, 'massSchedules'), {
+          ...newSchedule,
+          status: 'OPEN',
+          assignedUsers: [],
+          createdBy: currentUser?.uid || 'system',
+          createdAt: serverTimestamp()
+        });
+        toast.success('Agenda berhasil ditambahkan');
+      }
+      closeModal();
     } catch (e) {
       console.error(e);
-      toast.error('Gagal menambahkan agenda');
+      toast.error(editingId ? 'Gagal memperbarui agenda' : 'Gagal menambahkan agenda');
     }
   };
 
@@ -65,7 +84,7 @@ export const MassScheduleScreen: React.FC<{
       await updateDoc(doc(db, 'massSchedules', schedule.id), {
         assignedUsers: updatedUsers
       });
-      toast.success('Berhasil bergabung ke agenda');
+      toast.success('Berhasil bergabung ke panitia agenda');
     } catch (e) {
       console.error(e);
       toast.error('Gagal bergabung ke agenda');
@@ -88,6 +107,26 @@ export const MassScheduleScreen: React.FC<{
     );
   };
 
+  // FUNGSI BARU: Buka modal dalam mode Edit
+  const openEditModal = (schedule: any) => {
+    setEditingId(schedule.id);
+    setNewSchedule({
+      title: schedule.title || '',
+      type: schedule.type || 'Misa',
+      date: schedule.date || '',
+      time: schedule.time || '',
+      location: schedule.location || 'Gereja St. Paulus Juanda',
+    });
+    setShowAddModal(true);
+  };
+
+  // FUNGSI BARU: Tutup modal dan reset form
+  const closeModal = () => {
+    setShowAddModal(false);
+    setEditingId(null);
+    setNewSchedule({ title: '', type: 'Misa', date: '', time: '', location: 'Gereja St. Paulus Juanda' });
+  };
+
   const getTypeColor = (type: string) => {
     switch(type) {
       case 'Misa': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
@@ -98,78 +137,109 @@ export const MassScheduleScreen: React.FC<{
     }
   };
 
+  const getTaskIcon = (type: string) => {
+    const t = type?.toLowerCase();
+    if (t === 'peliputan' || t === 'obs' || t === 'editing') return <Video className="w-4 h-4 text-blue-500"/>;
+    if (t === 'dokumentasi' || t === 'desain') return <ImageIcon className="w-4 h-4 text-emerald-500"/>;
+    return <FileText className="w-4 h-4 text-amber-500"/>;
+  };
+
   return (
-    <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40">
+    <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white">
       <header className="p-5 flex items-center gap-4 sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
         <button onClick={() => onNavigate(isAdmin ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD')} className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
           <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
         <h1 className="text-xl font-extrabold text-gray-400">Agenda Komsos</h1>
         {isAdmin && (
-          <button onClick={() => setShowAddModal(true)} className="ml-auto p-2 bg-blue-600 rounded-full shadow-lg shadow-blue-500/20">
+          <button onClick={() => { setEditingId(null); setShowAddModal(true); }} className="ml-auto p-2 bg-blue-600 rounded-full shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors">
             <Plus className="w-5 h-5 text-white" />
           </button>
         )}
       </header>
 
       <div className="p-5 space-y-4">
-        {schedules.length > 0 ? schedules.map((s) => (
-          <div key={s.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 shadow-xl">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${getTypeColor((s as any).type || 'Lainnya')}`}>
-                    {(s as any).type || 'Agenda'}
-                  </span>
+        {schedules.length > 0 ? schedules.map((s) => {
+          const relatedTasks = tasksDb.filter(t => (t as any).linkedScheduleId === s.id);
+          const completedTasks = relatedTasks.filter(t => t.status === 'COMPLETED').length;
+
+          return (
+            <div key={s.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 shadow-xl relative overflow-hidden group">
+              {relatedTasks.length > 0 && relatedTasks.length === completedTasks && (
+                <div className="absolute -right-10 -top-10 opacity-5">
+                  <CheckCircle2 size={120} className="text-emerald-500" />
                 </div>
-                <h3 className="text-lg font-bold text-white mb-2">{s.title}</h3>
-                <div className="flex items-center gap-4 text-gray-400 text-xs">
-                  <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-blue-400" /> {s.date}</span>
-                  <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /> {s.time}</span>
-                </div>
-              </div>
-              {isAdmin && (
-                <button onClick={() => handleDelete(s.id)} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors shrink-0">
-                  <Trash2 className="w-4 h-4" />
-                </button>
               )}
-            </div>
 
-            <div className="flex items-center gap-2 text-gray-400 text-xs mb-6 bg-gray-800/50 p-2.5 rounded-lg border border-gray-800">
-              <MapPin className="w-4 h-4 text-emerald-400 shrink-0" /> <span className="truncate">{s.location}</span>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-gray-800">
-              <div className="flex -space-x-2">
-                {(s.assignedUsers || []).length > 0 ? (s.assignedUsers || []).map((uid, i) => {
-                  const u = usersDb.find(user => user.uid === uid);
-                  return (
-                    <div key={i} className="w-8 h-8 rounded-full border-2 border-[#151b2b] bg-gray-800 overflow-hidden relative z-10">
-                      <img src={`https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${u?.img || '1'}`} className="w-full h-full object-cover" />
-                    </div>
-                  );
-                }) : (
-                  <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Belum ada peserta</span>
-                )}
-              </div>
-              
-              <div className="flex gap-2 relative z-10">
-                {!(s.assignedUsers || []).includes(currentUser?.uid || '') ? (
-                  <button 
-                    onClick={() => handleJoin(s)}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-500/20"
-                  >
-                    <UserPlus className="w-3.5 h-3.5" /> Gabung
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-1.5 text-emerald-500 text-xs font-bold bg-emerald-500/10 px-3 py-1.5 rounded-lg">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Hadir
+              <div className="flex justify-between items-start mb-4 relative z-10">
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${getTypeColor((s as any).type || 'Lainnya')}`}>
+                      {(s as any).type || 'Agenda'}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-2">{s.title}</h3>
+                  <div className="flex items-center gap-4 text-gray-400 text-xs">
+                    <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-blue-400" /> {s.date}</span>
+                    <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /> {s.time}</span>
+                  </div>
+                </div>
+                {isAdmin && (
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => openEditModal(s)} className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Edit Agenda">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(s.id)} className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" title="Hapus Agenda">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
               </div>
+
+              <div className="flex items-center gap-2 text-gray-400 text-xs mb-6 bg-gray-800/50 p-2.5 rounded-lg border border-gray-800 relative z-10">
+                <MapPin className="w-4 h-4 text-emerald-400 shrink-0" /> <span className="truncate">{s.location}</span>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-4 border-t border-gray-800 relative z-10">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-gray-500" />
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      {relatedTasks.length} Tugas Terkait
+                    </span>
+                  </div>
+                  {relatedTasks.length > 0 && (
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${completedTasks === relatedTasks.length ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                      {completedTasks}/{relatedTasks.length} Selesai
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  {!(s.assignedUsers || []).includes(currentUser?.uid || '') ? (
+                    <button 
+                      onClick={() => handleJoin(s)}
+                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-3 rounded-xl text-xs font-bold transition-all border border-gray-700 flex items-center justify-center gap-2"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" /> Hadir
+                    </button>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center gap-1.5 text-emerald-500 text-xs font-bold bg-emerald-500/10 py-3 rounded-xl border border-emerald-500/20">
+                      <CheckCircle2 className="w-4 h-4" /> Hadir
+                    </div>
+                  )}
+
+                  <button 
+                    onClick={() => setSelectedReport(s)}
+                    className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-500/20"
+                  >
+                    <FileText className="w-3.5 h-3.5" /> Laporan Event
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        )) : (
+          );
+        }) : (
           <div className="text-center py-20 bg-[#151b2b] rounded-3xl border border-gray-800 border-dashed">
             <Calendar className="w-12 h-12 text-gray-700 mx-auto mb-4 opacity-20" />
             <p className="text-gray-500 font-medium">Belum ada agenda yang dibuat.</p>
@@ -180,7 +250,15 @@ export const MassScheduleScreen: React.FC<{
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-5">
           <div className="bg-[#151b2b] w-full max-w-md rounded-3xl border border-gray-800 p-6 shadow-2xl">
-            <h2 className="text-xl font-bold mb-6">Tambah Agenda Baru</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-white">
+                {editingId ? 'Edit Agenda' : 'Tambah Agenda Baru'}
+              </h2>
+              <button onClick={closeModal} className="text-gray-500 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Nama Agenda</label>
@@ -188,7 +266,7 @@ export const MassScheduleScreen: React.FC<{
                   type="text" 
                   value={newSchedule.title}
                   onChange={(e) => setNewSchedule({...newSchedule, title: e.target.value})}
-                  className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none transition-colors"
+                  className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none transition-colors"
                   placeholder="Contoh: Rapat Pleno Komsos"
                 />
               </div>
@@ -197,7 +275,7 @@ export const MassScheduleScreen: React.FC<{
                 <select 
                   value={newSchedule.type}
                   onChange={(e) => setNewSchedule({...newSchedule, type: e.target.value})}
-                  className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none transition-colors appearance-none"
+                  className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none"
                 >
                   <option value="Misa">Misa / Liturgi</option>
                   <option value="Rapat">Rapat / Evaluasi</option>
@@ -213,7 +291,7 @@ export const MassScheduleScreen: React.FC<{
                     type="date" 
                     value={newSchedule.date}
                     onChange={(e) => setNewSchedule({...newSchedule, date: e.target.value})}
-                    className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none transition-colors"
+                    className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none transition-colors [color-scheme:dark]"
                   />
                 </div>
                 <div>
@@ -222,7 +300,7 @@ export const MassScheduleScreen: React.FC<{
                     type="time" 
                     value={newSchedule.time}
                     onChange={(e) => setNewSchedule({...newSchedule, time: e.target.value})}
-                    className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none transition-colors"
+                    className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none transition-colors [color-scheme:dark]"
                   />
                 </div>
               </div>
@@ -232,13 +310,99 @@ export const MassScheduleScreen: React.FC<{
                   type="text" 
                   value={newSchedule.location}
                   onChange={(e) => setNewSchedule({...newSchedule, location: e.target.value})}
-                  className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none transition-colors"
+                  className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none transition-colors"
                 />
               </div>
             </div>
             <div className="flex gap-3 mt-8">
-              <button onClick={() => setShowAddModal(false)} className="flex-1 py-3 bg-gray-800 text-gray-300 font-bold rounded-xl text-sm">Batal</button>
-              <button onClick={handleAdd} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-500/20">Simpan Agenda</button>
+              <button onClick={closeModal} className="flex-1 py-3 bg-gray-800 text-gray-300 font-bold rounded-xl text-sm hover:bg-gray-700 transition-colors">Batal</button>
+              <button onClick={handleSave} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors">
+                {editingId ? 'Simpan Perubahan' : 'Simpan Agenda'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedReport && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-5">
+          <div className="bg-[#151b2b] w-full max-w-md max-h-[85vh] rounded-3xl border border-gray-800 shadow-2xl flex flex-col">
+            <div className="p-6 border-b border-gray-800 bg-gradient-to-b from-blue-600/10 to-transparent rounded-t-3xl">
+              <div className="flex justify-between items-start mb-2">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${getTypeColor((selectedReport as any).type || 'Lainnya')}`}>
+                  Laporan {(selectedReport as any).type || 'Agenda'}
+                </span>
+                <button onClick={() => setSelectedReport(null)} className="p-1 bg-gray-800 rounded-full text-gray-400 hover:text-white">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <h2 className="text-xl font-black text-white mb-2 leading-tight">{selectedReport.title}</h2>
+              <p className="text-xs text-gray-400 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5"/> {selectedReport.date} | {selectedReport.time}</p>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5" /> Rincian Tugas Tim Komsos
+              </h3>
+              
+              <div className="space-y-3">
+                {(() => {
+                  const tasksForReport = tasksDb.filter(t => (t as any).linkedScheduleId === selectedReport.id);
+                  
+                  if (tasksForReport.length === 0) {
+                    return (
+                      <div className="text-center py-8 border border-gray-800 border-dashed rounded-xl bg-[#0a0f18]">
+                        <p className="text-xs text-gray-500">Belum ada tugas yang ditautkan ke agenda ini.</p>
+                      </div>
+                    );
+                  }
+
+                  return tasksForReport.map((task) => (
+                    <div key={task.id} className="bg-[#0a0f18] p-3.5 rounded-xl border border-gray-800">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 bg-gray-800 rounded-lg">{getTaskIcon(task.type)}</div>
+                          <div>
+                            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">{task.type}</p>
+                            <p className="text-sm font-bold text-white leading-tight">{task.title}</p>
+                          </div>
+                        </div>
+                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter shrink-0 ${
+                          task.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-500' : 
+                          task.status === 'WAITING_VERIFICATION' ? 'bg-amber-500/20 text-amber-500' : 
+                          'bg-blue-500/20 text-blue-500'
+                        }`}>
+                          {task.status.replace('_', ' ')}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-800/50">
+                        <Users className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                        <div className="flex flex-wrap gap-1">
+                          {task.assignedUsers && task.assignedUsers.length > 0 ? (
+                            task.assignedUsers.map(uid => {
+                              const u = usersDb.find(user => user.uid === uid);
+                              return (
+                                <span key={uid} className="text-[10px] font-medium bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md">
+                                  {u?.displayName.split(' ')[0] || 'Petugas'}
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <span className="text-[10px] font-medium text-gray-500 italic">Belum ada petugas</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-800 bg-[#0a0f18] rounded-b-3xl">
+              <button onClick={() => setSelectedReport(null)} className="w-full py-3 bg-gray-800 text-white font-bold rounded-xl text-sm hover:bg-gray-700 transition-colors">
+                Tutup Laporan
+              </button>
             </div>
           </div>
         </div>

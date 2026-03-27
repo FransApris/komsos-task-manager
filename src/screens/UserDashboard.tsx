@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award } from 'lucide-react';
+import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone } from 'lucide-react';
 import { Screen, UserAccount, Task, Notification, TaskType, AvailabilityStatus } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
 import { motion, AnimatePresence } from 'motion/react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { db, doc, updateDoc } from '../firebase';
+import { db, doc, updateDoc, onSnapshot } from '../firebase';
 import { toast } from 'sonner';
+
+import { getAvatarUrl } from '../lib/avatar';
 
 export const UserDashboard: React.FC<{ 
   onNavigate: (s: Screen) => void, 
@@ -22,6 +24,19 @@ export const UserDashboard: React.FC<{
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
   const [countdown, setCountdown] = useState<string>('');
+  
+  // --- STATE PENGUMUMAN BARU ---
+  const [announcement, setAnnouncement] = useState('Selamat datang di Sistem Manajemen Tugas Komsos St. Paulus Juanda!');
+
+  // --- MENGAMBIL DATA PENGUMUMAN DARI DATABASE SECARA REAL-TIME ---
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'announcement'), (docSnap) => {
+      if (docSnap.exists()) {
+        setAnnouncement(docSnap.data().text);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const getRoleName = () => {
     if (user?.role === 'SUPERADMIN') return 'Superadmin';
@@ -192,7 +207,7 @@ export const UserDashboard: React.FC<{
             animate={{ scale: 1, opacity: 1 }}
             className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden ring-2 ring-gray-700"
           >
-            <img src={user?.img?.startsWith('http') || user?.img?.startsWith('blob:') || user?.img?.startsWith('data:') ? user.img : `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80&v=${user?.img || '1'}`} alt="Profile" className="w-full h-full object-cover" />
+            <img src={getAvatarUrl(user)} alt="Profile" className="w-full h-full object-cover" />
           </motion.div>
           <h1 className="text-lg font-extrabold tracking-tight text-white">Tugas Komsos</h1>
         </div>
@@ -280,16 +295,21 @@ export const UserDashboard: React.FC<{
               "{user.bio}"
             </p>
           )}
+        </motion.div>
 
-          {user?.skills && user.skills.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-4">
-              {user.skills.map((skill, idx) => (
-                <span key={idx} className="px-2 py-0.5 bg-gray-800 border border-gray-700 rounded-lg text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                  #{skill}
-                </span>
-              ))}
+        {/* --- PAPAN PENGUMUMAN USER (READ ONLY) --- */}
+        <motion.div variants={itemVariants} className="mb-6">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 rounded-3xl shadow-lg shadow-blue-500/20 relative overflow-hidden group">
+            <div className="absolute -right-4 -top-4 opacity-10"><Megaphone size={100} /></div>
+            <div className="relative z-10">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="text-[10px] font-black text-blue-200 uppercase tracking-widest flex items-center gap-1.5">
+                  <Megaphone className="w-3.5 h-3.5" /> Papan Pengumuman Komsos
+                </h3>
+              </div>
+              <p className="text-sm font-medium text-white leading-relaxed whitespace-pre-wrap">{announcement}</p>
             </div>
-          )}
+          </div>
         </motion.div>
 
         {/* Streak & Level Summary */}
@@ -449,7 +469,6 @@ export const UserDashboard: React.FC<{
             <span className="text-[10px] font-bold text-gray-500">7 Hari Terakhir</span>
           </div>
           
-          {/* === INI ADALAH BAGIAN YANG DIPERBAIKI UNTUK MENGHILANGKAN WARNING RECHARTS === */}
           <div className="h-40 w-full" style={{ minHeight: 0, minWidth: 0 }}>
             <ResponsiveContainer width="99%" height="100%">
               <AreaChart data={statsData}>
@@ -561,12 +580,6 @@ export const UserDashboard: React.FC<{
           </motion.button>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="flex gap-6 border-b border-gray-800 mb-6">
-          <button className="pb-3 border-b-2 border-blue-500 text-blue-400 font-bold text-sm">Aktif</button>
-          <button className="pb-3 text-gray-500 font-medium text-sm">Selesai</button>
-          <button className="pb-3 text-gray-500 font-medium text-sm">Semua</button>
-        </motion.div>
-
         <motion.div variants={itemVariants} className="flex justify-between items-center mb-4">
           <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Tugas Hari Ini</h3>
           <span className="text-blue-500 text-[10px] font-bold bg-blue-500/10 px-2 py-1 rounded-md uppercase tracking-wider">{activeTasks.length} Tugas</span>
@@ -606,12 +619,6 @@ export const UserDashboard: React.FC<{
                 <div className="flex items-center gap-2 text-gray-400 text-xs font-medium mb-4">
                   <Clock className="w-3.5 h-3.5" /> {task.time}
                 </div>
-                <motion.button 
-                  whileTap={{ scale: 0.95 }}
-                  className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-sm shadow-md shadow-blue-500/20"
-                >
-                  Selesai Tugas
-                </motion.button>
               </div>
             </motion.div>
           )) : (

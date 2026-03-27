@@ -22,6 +22,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('OTHER');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -72,6 +73,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
         role: 'USER',
         status: 'PENDING',
         img: '1',
+        gender: gender,
         points: 0,
         level: 1,
         completedTasksCount: 0,
@@ -209,6 +211,26 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
               placeholder="••••••••" 
               className="w-full bg-[#151b2b] border border-gray-800 rounded-2xl pl-11 pr-4 py-4 focus:border-blue-500 transition-all text-sm text-white" 
             />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Jenis Kelamin</label>
+          <div className="flex gap-2">
+            <button 
+              type="button"
+              onClick={() => setGender('MALE')}
+              className={`flex-1 py-4 rounded-2xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${gender === 'MALE' ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-[#151b2b] border-gray-800 text-gray-500'}`}
+            >
+              Laki-laki
+            </button>
+            <button 
+              type="button"
+              onClick={() => setGender('FEMALE')}
+              className={`flex-1 py-4 rounded-2xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${gender === 'FEMALE' ? 'bg-pink-600/20 border-pink-500 text-pink-400' : 'bg-[#151b2b] border-gray-800 text-gray-500'}`}
+            >
+              Perempuan
+            </button>
           </div>
         </div>
         
