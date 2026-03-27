@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Plus, RefreshCw, X, Calendar, Clock, AlertCircle, UserCheck, UserX } from 'lucide-react';
 import { Screen, UserAccount, Task } from '../types';
 
-// --- PERBAIKAN IMPOR ADA DI SINI ---
+// Impor Firebase yang benar (arrayRemove sudah tidak dibutuhkan karena kita memfilter array secara manual)
 import { db, collection, addDoc, query, onSnapshot, serverTimestamp, doc, updateDoc } from '../firebase';
-import { arrayRemove, arrayUnion, orderBy } from 'firebase/firestore'; 
+import { arrayUnion, orderBy } from 'firebase/firestore'; 
 
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
@@ -21,6 +21,10 @@ export const SwapRequestScreen: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
 
+  // --- KUNCI PENYELESAIAN: Deteksi ID Pengguna Yang Tepat ---
+  // Sistem akan membaca uid atau id untuk menghindari ralat pengecaman Si A / Si B
+  const currentUserId = user?.uid || user?.id;
+
   // 1. Ambil Data Bursa secara Real-time
   useEffect(() => {
     const q = query(collection(db, 'swapRequests'), orderBy('createdAt', 'desc'));
@@ -30,16 +34,32 @@ export const SwapRequestScreen: React.FC<{
     return () => unsub();
   }, []);
 
-  // Filter tugas milik user yang sedang aktif
-  const myActiveTasks = tasksDb.filter(t => 
-    t.status === 'IN_PROGRESS' && user && t.assignedUsers?.includes(user.uid)
+  // --- FILTER PERMINTAAN SAYA ---
+  const myRequests = requests.filter(r => r.requesterId === currentUserId);
+  const myOpenRequestsTaskIds = myRequests.filter(r => r.status === 'OPEN').map(r => r.taskId);
+
+  // Hanya paparkan tugas yang BELUM dilempar ke bursa di dalam Dropdown
+  const mySwappableTasks = tasksDb.filter(t => 
+    t.status === 'IN_PROGRESS' && 
+    currentUserId && t.assignedUsers?.includes(currentUserId) &&
+    !myOpenRequestsTaskIds.includes(t.id) 
   );
 
-  // Pemisahan Data Tab
-  const myRequests = requests.filter(r => r.requesterId === user?.uid);
-  const bursaRequests = requests.filter(r => r.requesterId !== user?.uid && r.status === 'OPEN');
+  // --- FILTER BURSA TUKAR ---
+  const bursaRequests = requests.filter(r => {
+    if (r.requesterId === currentUserId) return false; // Jangan paparkan permintaan sendiri
+    if (r.status !== 'OPEN') return false;             // Hanya yang masih OPEN
+    
+    // Semak jika pengguna yang login SUDAH ADA di dalam tugas tersebut
+    const taskTerkait = tasksDb.find(t => t.id === r.taskId);
+    if (taskTerkait && currentUserId && taskTerkait.assignedUsers?.includes(currentUserId)) {
+      return false; // Jangan paparkan jika sudah ditugaskan dalam acara yang sama
+    }
+    
+    return true;
+  });
 
-  // 2. Fungsi Membuat Permintaan Baru
+  // Fungsi Membuat Permintaan Baru
   const handleCreateRequest = async () => {
     if (!selectedTaskId || !reason.trim()) {
       toast.error('Pilih tugas dan isi alasan Anda.');
@@ -47,7 +67,7 @@ export const SwapRequestScreen: React.FC<{
     }
 
     const taskToSwap = tasksDb.find(t => t.id === selectedTaskId);
-    if (!taskToSwap || !user) return;
+    if (!taskToSwap || !currentUserId) return;
 
     setIsLoading(true);
     try {
@@ -57,10 +77,10 @@ export const SwapRequestScreen: React.FC<{
         taskDate: taskToSwap.date,
         taskTime: taskToSwap.time,
         taskType: taskToSwap.type,
-        requesterId: user.uid,
-        requesterName: user.displayName,
+        requesterId: currentUserId,
+        requesterName: user?.displayName || 'Petugas',
         reason: reason,
-        status: 'OPEN', // OPEN, ACCEPTED
+        status: 'OPEN', 
         createdAt: serverTimestamp()
       });
       
@@ -77,39 +97,47 @@ export const SwapRequestScreen: React.FC<{
     }
   };
 
-  // 3. Fungsi Mengambil Alih Tugas Orang Lain
+  // --- SINKRONISASI SAAT MENGAMBIL ALIH TUGAS ---
   const handleAcceptSwap = async (req: any) => {
-    if (!user) return;
+    if (!currentUserId) return;
     setIsLoading(true);
     try {
-      // A. Update Status Permintaan di Bursa
+      const taskTerkait = tasksDb.find(t => t.id === req.taskId);
+      if (!taskTerkait) throw new Error("Tugas tidak ditemui dalam pangkalan data");
+
+      // A. Kemas kini Status Permintaan di Bursa menjadi ACCEPTED
       await updateDoc(doc(db, 'swapRequests', req.id), {
         status: 'ACCEPTED',
-        acceptedById: user.uid,
-        acceptedByName: user.displayName,
+        acceptedById: currentUserId,
+        acceptedByName: user?.displayName || 'Petugas',
         updatedAt: serverTimestamp()
       });
 
-      // B. Tukar Nama di Database Tugas (Tasks)
-      await updateDoc(doc(db, 'tasks', req.taskId), {
-        assignedUsers: arrayRemove(req.requesterId), // Hapus yang minta tolong
-      });
-      await updateDoc(doc(db, 'tasks', req.taskId), {
-        assignedUsers: arrayUnion(user.uid),         // Masukkan sang pahlawan penolong
-      });
+      // B. Modifikasi Array Petugas (Hapus yang minta tolong, Masukkan pahlawan pengganti)
+      const newAssigned = (taskTerkait.assignedUsers || []).filter(id => id !== req.requesterId);
+      if (!newAssigned.includes(currentUserId)) {
+        newAssigned.push(currentUserId);
+      }
 
-      // C. Tambah Riwayat Perubahan
-      const taskRef = doc(db, 'tasks', req.taskId);
-      await updateDoc(taskRef, {
+      const updateData: any = {
+        assignedUsers: newAssigned,
         history: arrayUnion({
           id: Date.now().toString(),
-          message: `Posisi ${req.requesterName} digantikan oleh ${user.displayName} (Via Bursa)`,
-          userName: user.displayName,
+          message: `Posisi ${req.requesterName} digantikan oleh ${user?.displayName || 'Petugas'} (Via Bursa)`,
+          userName: user?.displayName || 'Sistem',
           createdAt: new Date().toISOString()
         })
-      });
+      };
 
-      toast.success(`Berhasil! Anda sekarang bertugas untuk ${req.taskTitle}`);
+      // C. SINKRONISASI KETUA PASUKAN (Jika yang diganti adalah ketua, penerima menjadi ketua baru)
+      if (taskTerkait.teamLeaderId === req.requesterId) {
+        updateData.teamLeaderId = currentUserId;
+      }
+
+      // Jalankan Kemas Kini Pangkalan Data Tugas secara serentak
+      await updateDoc(doc(db, 'tasks', req.taskId), updateData);
+
+      toast.success(`Berhasil! Anda kini bertugas untuk ${req.taskTitle}`);
     } catch (error) {
       console.error(error);
       toast.error('Gagal mengambil alih tugas.');
@@ -253,9 +281,9 @@ export const SwapRequestScreen: React.FC<{
               <div className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Pilih Tugas yang Ingin Ditukar</label>
-                  {myActiveTasks.length === 0 ? (
+                  {mySwappableTasks.length === 0 ? (
                     <div className="p-4 bg-[#0a0f18] rounded-xl border border-gray-800 text-sm text-gray-400 text-center">
-                      Anda tidak memiliki tugas aktif yang bisa ditukar.
+                      Semua tugas aktif Anda sudah dilempar ke bursa, atau Anda tidak memiliki tugas aktif.
                     </div>
                   ) : (
                     <select 
@@ -264,7 +292,7 @@ export const SwapRequestScreen: React.FC<{
                       className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 outline-none"
                     >
                       <option value="" disabled>-- Pilih Tugas --</option>
-                      {myActiveTasks.map(t => (
+                      {mySwappableTasks.map(t => (
                         <option key={t.id} value={t.id}>{t.title} ({t.date})</option>
                       ))}
                     </select>
