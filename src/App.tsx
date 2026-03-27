@@ -4,7 +4,7 @@ import { BottomNav } from './components/BottomNav';
 import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import { ChatProvider } from './contexts/ChatContext';
-import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where, setDoc, updateDoc, serverTimestamp, getDocFromServer, handleFirestoreError, OperationType } from './firebase';
+import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where, setDoc, updateDoc, serverTimestamp, handleFirestoreError, OperationType } from './firebase';
 import { Screen, UserAccount, Task, Notification, Inventory, Role, Badge, MassSchedule } from './types';
 import { Loader2 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
@@ -43,21 +43,19 @@ const TaskTypeManagement = React.lazy(() => import('./screens/TaskTypeManagement
 const PerformanceStats = React.lazy(() => import('./screens/PerformanceStats'));
 const EditTaskScreen = React.lazy(() => import('./screens/EditTaskScreen'));
 const SwapRequestScreen = React.lazy(() => import('./screens/SwapRequestScreen'));
+const HelpdeskScreen = React.lazy(() => import('./screens/HelpdeskScreen'));
 
 // ==========================================
 // 2. KOMPONEN UTAMA APLIKASI
 // ==========================================
 export default function App() {
-  // --- State Navigasi & Sesi ---
   const [currentScreen, setCurrentScreen] = useState<Screen>('SPLASH');
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-
-  // --- Referensi untuk Data yang Berubah ---
   const currentUserRef = useRef(currentUser);
 
-  // --- State Database Global ---
+  // State Database Global
   const [usersDb, setUsersDb] = useState<UserAccount[]>([]);
   const [tasksDb, setTasksDb] = useState<Task[]>([]);
   const [inventoryDb, setInventoryDb] = useState<Inventory[]>([]);
@@ -65,12 +63,11 @@ export default function App() {
   const [badgesDb, setBadgesDb] = useState<Badge[]>([]);
   const [massSchedulesDb, setMassSchedulesDb] = useState<MassSchedule[]>([]);
 
-  // Update referensi agar bisa dibaca oleh Event Listener HP
   useEffect(() => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
 
-  // --- PENGENDALI TOMBOL BACK HP (Browser History API) ---
+  // Routing Browser
   const handleNavigate = (screen: Screen) => {
     if (screen !== currentScreen) {
       window.history.pushState({ screen }, '', `?menu=${screen.toLowerCase()}`);
@@ -87,19 +84,16 @@ export default function App() {
         const user = currentUserRef.current;
         
         if (user && (nextScreen === 'LOGIN' || nextScreen === 'SPLASH' || nextScreen === 'REGISTER')) {
-          nextScreen = user.role === 'SUPERADMIN' || user.role.startsWith('ADMIN_') ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD';
+          nextScreen = user.role === 'SUPERADMIN' || user.role?.startsWith('ADMIN_') ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD';
           window.history.replaceState({ screen: nextScreen }, '', `?menu=${nextScreen.toLowerCase()}`);
         }
-        
         setCurrentScreen(nextScreen);
       }
     };
-
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [currentScreen]);
 
-  // Pantau Status Internet (Hardware Online/Offline)
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -111,118 +105,91 @@ export default function App() {
     };
   }, []);
 
-  // ==========================================
-  // FITUR BARU: LOGIKA PRESENCE (USER AKTIF)
-  // ==========================================
+  // Presence Logic
   useEffect(() => {
     if (!currentUser) return;
+    const userRef = doc(db, 'users', currentUser.uid || '');
 
-    const userRef = doc(db, 'users', currentUser.uid);
-
-    // Set status online saat komponen berhasil dimuat
     const setOnlineStatus = async () => {
       try {
-        await updateDoc(userRef, { 
-          isOnline: true, 
-          lastSeen: serverTimestamp() 
-        });
-      } catch (error) {
-        console.error("Gagal mengupdate status online:", error);
-      }
+        await updateDoc(userRef, { isOnline: true, lastSeen: serverTimestamp() });
+      } catch (error) {}
     };
-    
     setOnlineStatus();
 
-    // Fungsi untuk mengubah status offline saat menutup tab/browser
     const handleBeforeUnload = () => {
-      updateDoc(userRef, { 
-        isOnline: false, 
-        lastSeen: serverTimestamp() 
-      }).catch(() => {});
+      updateDoc(userRef, { isOnline: false, lastSeen: serverTimestamp() }).catch(() => {});
     };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // Pembersihan (Cleanup): Set offline saat pengguna logout atau aplikasi ditutup
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      updateDoc(userRef, { 
-        isOnline: false, 
-        lastSeen: serverTimestamp() 
-      }).catch(() => {});
+      updateDoc(userRef, { isOnline: false, lastSeen: serverTimestamp() }).catch(() => {});
     };
-  }, [currentUser?.uid]); // Akan dieksekusi ulang setiap kali ID pengguna berubah
+  }, [currentUser?.uid]);
 
-
-  // Pantau Status Autentikasi User (Login/Logout)
+  // ==========================================
+  // 🛡️ LOGIKA AUTENTIKASI (PINTU GERBANG UTAMA)
+  // ==========================================
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const isSuperAdmin = firebaseUser.email === "fad2beth@gmail.com";
         try {
-          let userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+
           if (!userDoc.exists()) {
-            const newUser: any = {
-              uid: firebaseUser.uid,
-              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User Baru',
-              email: firebaseUser.email,
-              role: isSuperAdmin ? 'SUPERADMIN' : 'USER',
-              status: isSuperAdmin ? 'ACTIVE' : 'PENDING',
-              img: firebaseUser.photoURL || '1',
-              points: 0,
-              level: 1,
-              completedTasksCount: 0,
-              createdAt: serverTimestamp()
-            };
-            
-            try {
-              await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-              userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-            } catch (err) {
-              handleFirestoreError(err, OperationType.WRITE, `users/${firebaseUser.uid}`, firebaseUser);
+            // PERBAIKAN 1: HENTIKAN PENDAFTARAN DIAM-DIAM.
+            // Jika data user tidak ada di database, PAKSA MEREKA DAFTAR DULU
+            if (currentScreen !== 'REGISTER') {
+               auth.signOut();
+               toast.info("Anda belum terdaftar. Silakan lengkapi formulir pendaftaran.");
+               handleNavigate('REGISTER');
             }
+            return; 
           }
 
-          if (userDoc.exists()) {
-            const userData = { id: userDoc.id, ...userDoc.data() } as UserAccount;
-            
-            if (userData.status === 'PENDING' && !isSuperAdmin) {
-              if (currentScreen !== 'REGISTER') {
-                toast.warning("Akun Anda sedang menunggu verifikasi dari Admin/Koordinator.", {
-                  description: "Silakan hubungi pengurus jika pendaftaran Anda belum disetujui.",
-                  duration: 5000
-                });
-                setTimeout(() => {
-                  auth.signOut();
-                  handleNavigate('LOGIN');
-                }, 3000);
-              }
-              return;
-            } else if (userData.status === 'REJECTED') {
-              toast.error("Pendaftaran Anda ditolak.", {
-                description: "Silakan hubungi pengurus untuk informasi lebih lanjut.",
-                duration: 5000
-              });
-              setTimeout(() => {
-                auth.signOut();
-                handleNavigate('LOGIN');
-              }, 3000);
-              return;
-            }
+          // Jika data user ADA di database:
+          const userData = { id: userDoc.id, ...userDoc.data() } as UserAccount;
+          const isSuperAdmin = userData.role === 'SUPERADMIN';
 
-            setCurrentUser(userData);
-            
-            if (currentScreen === 'SPLASH' || currentScreen === 'LOGIN' || currentScreen === 'REGISTER') {
-              if (userData.role === 'SUPERADMIN' || userData.role.startsWith('ADMIN_')) {
-                handleNavigate('ADMIN_DASHBOARD');
-              } else {
-                handleNavigate('USER_DASHBOARD');
-              }
+          // PERBAIKAN 2: CEK STATUS (PENDING & REJECTED)
+          if (userData.status === 'PENDING' && !isSuperAdmin) {
+            toast.warning("Akun Menunggu Verifikasi", {
+              description: "Pendaftaran Anda sedang ditinjau oleh Admin.",
+              duration: 4000
+            });
+            setTimeout(() => {
+              auth.signOut();
+              handleNavigate('LOGIN');
+            }, 1000);
+            return;
+          } 
+          
+          if (userData.status === 'REJECTED' && !isSuperAdmin) {
+            toast.error("Akses Ditolak", {
+              description: "Pendaftaran Anda telah ditolak oleh Admin.",
+              duration: 4000
+            });
+            setTimeout(() => {
+              auth.signOut();
+              handleNavigate('LOGIN');
+            }, 1000);
+            return;
+          }
+
+          // PERBAIKAN 3: Jika status ACTIVE, izinkan masuk.
+          setCurrentUser(userData);
+          
+          if (currentScreen === 'SPLASH' || currentScreen === 'LOGIN' || currentScreen === 'REGISTER') {
+            if (userData.role === 'SUPERADMIN' || userData.role?.startsWith('ADMIN_')) {
+              handleNavigate('ADMIN_DASHBOARD');
+            } else {
+              handleNavigate('USER_DASHBOARD');
             }
           }
         } catch (err) {
-          handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`, firebaseUser);
+          console.error("Auth error:", err);
+          handleNavigate('LOGIN');
         }
       } else {
         setCurrentUser(null);
@@ -235,7 +202,7 @@ export default function App() {
     return () => unsubscribe();
   }, [currentScreen]);
 
-  // Sinkronisasi Data Global dari Firestore secara Real-time
+  // Sinkronisasi Database
   useEffect(() => {
     if (!currentUser) return; 
 
@@ -259,10 +226,10 @@ export default function App() {
       setInventoryDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Inventory)));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'inventory', currentUser));
 
-    const isAdmin = currentUser.role === 'SUPERADMIN' || currentUser.role.startsWith('ADMIN_');
+    const isAdmin = currentUser.role === 'SUPERADMIN' || currentUser.role?.startsWith('ADMIN_');
     const notifQuery = isAdmin 
       ? collection(db, 'notifications') 
-      : query(collection(db, 'notifications'), where('userId', 'in', [currentUser.uid, 'ALL']));
+      : query(collection(db, 'notifications'), where('userId', 'in', [currentUser.uid || '', 'ALL']));
 
     const unsubNotifs = onSnapshot(notifQuery, (snap) => {
       const allNotifs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
@@ -288,14 +255,13 @@ export default function App() {
   }, [currentUser]);
 
   const handleLogout = () => {
-    // Status offline akan ditangani otomatis oleh useEffect Presence di atas saat currentUser menjadi null
     auth.signOut();
     handleNavigate('LOGIN');
   };
 
   const handleDemoLogin = (user: UserAccount) => {
     setCurrentUser(user);
-    if (user.role === 'SUPERADMIN' || user.role.startsWith('ADMIN_')) {
+    if (user.role === 'SUPERADMIN' || user.role?.startsWith('ADMIN_')) {
       handleNavigate('ADMIN_DASHBOARD');
     } else {
       handleNavigate('USER_DASHBOARD');
@@ -308,7 +274,7 @@ export default function App() {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'SPLASH':
-        return <SplashScreen onFinish={() => handleNavigate(currentUser ? (currentUser.role.startsWith('ADMIN') || currentUser.role === 'SUPERADMIN' ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD') : 'LOGIN')} />;
+        return <SplashScreen onFinish={() => handleNavigate(currentUser ? (currentUser.role?.startsWith('ADMIN') || currentUser.role === 'SUPERADMIN' ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD') : 'LOGIN')} />;
       case 'LOGIN':
         return <LoginScreen onDemoLogin={handleDemoLogin} onNavigate={handleNavigate} usersDb={usersDb} />;
       case 'REGISTER':
@@ -372,6 +338,8 @@ export default function App() {
         return <TaskTypeManagement onNavigate={handleNavigate} />;
       case 'PERFORMANCE_STATS':
         return <PerformanceStats onNavigate={handleNavigate} role={currentUser?.role} tasksDb={tasksDb} badgesDb={badgesDb} currentUser={currentUser} />;
+      case 'HELPDESK':
+        return <HelpdeskScreen onNavigate={handleNavigate} role={currentUser?.role || 'USER'} currentUser={currentUser} />;
       default:
         return <SplashScreen onFinish={() => handleNavigate('LOGIN')} />;
     }
