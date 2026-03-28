@@ -241,9 +241,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* SIAPA YANG ONLINE */}
         <div className="bg-[#151b2b]/50 border border-gray-800 p-4 rounded-3xl">
-          <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-             <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" /> Anggota Aktif ({onlineUsers.length})
-          </h3>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+               <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" /> Anggota Aktif ({onlineUsers.length})
+            </h3>
+            <div className="flex items-center gap-1">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-[8px] font-bold text-emerald-500/50 uppercase tracking-tighter">Live Update</span>
+            </div>
+          </div>
           <div className="flex flex-wrap gap-2">
             {onlineUsers.length > 0 ? onlineUsers.map((u) => (
               <div key={u.uid} className="flex items-center gap-2 bg-[#0a0f18] border border-gray-800 pl-1 pr-3 py-1 rounded-full ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/5">

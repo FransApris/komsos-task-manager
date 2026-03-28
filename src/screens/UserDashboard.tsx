@@ -327,6 +327,45 @@ export const UserDashboard: React.FC<{
           </div>
         </motion.div>
 
+        {/* SIAPA YANG ONLINE */}
+        <motion.div variants={itemVariants} className="bg-[#151b2b]/50 border border-gray-800 p-4 rounded-3xl mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+               <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" /> Anggota Aktif ({usersDb.filter(u => u.isOnline === true && u.uid !== user?.uid).length})
+            </h3>
+            <div className="flex items-center gap-1">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-[8px] font-bold text-emerald-500/50 uppercase tracking-tighter">Live Update</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {usersDb.filter(u => u.isOnline === true && u.uid !== user?.uid).length > 0 ? 
+              usersDb.filter(u => u.isOnline === true && u.uid !== user?.uid)
+                .sort((a, b) => {
+                  const roleWeights: Record<string, number> = {
+                    'SUPERADMIN': 1, 'ADMIN_MULTIMEDIA': 2, 'ADMIN_PHOTO_VIDEO': 3, 'ADMIN_PUBLICATION': 4, 'USER': 5
+                  };
+                  const weightA = roleWeights[a.role || 'USER'] || 99;
+                  const weightB = roleWeights[b.role || 'USER'] || 99;
+                  if (weightA !== weightB) return weightA - weightB;
+                  return (a.displayName || '').localeCompare(b.displayName || '');
+                })
+                .map((u) => (
+              <div key={u.uid} className="flex items-center gap-2 bg-[#0a0f18] border border-gray-800 pl-1 pr-3 py-1 rounded-full ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/5">
+                <div className="w-6 h-6 rounded-full overflow-hidden border border-emerald-500/30">
+                  <img src={getAvatarUrl(u)} className="w-full h-full object-cover" />
+                </div>
+                <span className="text-[10px] font-bold text-gray-300 truncate max-w-[80px]">{u.displayName?.split(' ')[0]}</span>
+              </div>
+            )) : (
+              <p className="text-[10px] text-gray-600 font-medium italic">Hanya Anda yang sedang aktif saat ini.</p>
+            )}
+          </div>
+        </motion.div>
+
         <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-6">
           <div className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex items-center gap-3">
             <div className={`p-2 rounded-xl ${hasStreak ? 'bg-orange-500/10' : 'bg-gray-800'}`}>

@@ -107,26 +107,42 @@ export default function App() {
     };
   }, []);
 
-  // Presence Logic
+  // Presence Logic (Real-time Online/Offline)
   useEffect(() => {
-    if (!currentUser) return;
-    const userRef = doc(db, 'users', currentUser.uid || '');
+    if (!currentUser?.uid) return;
+    const userRef = doc(db, 'users', currentUser.uid);
 
-    const setOnlineStatus = async () => {
+    const setStatus = async (online: boolean) => {
       try {
-        await updateDoc(userRef, { isOnline: true, lastSeen: serverTimestamp() });
-      } catch (error) {}
+        await updateDoc(userRef, { 
+          isOnline: online, 
+          lastSeen: serverTimestamp() 
+        });
+      } catch (error) {
+        // Silent fail if permission denied during logout
+      }
     };
-    setOnlineStatus();
+
+    // Set online on mount
+    setStatus(true);
+
+    const handleVisibilityChange = () => {
+      setStatus(document.visibilityState === 'visible');
+    };
 
     const handleBeforeUnload = () => {
-      updateDoc(userRef, { isOnline: false, lastSeen: serverTimestamp() }).catch(() => {});
+      // Use a synchronous-like update if possible, but Firestore is async.
+      // We'll just try our best here.
+      setStatus(false);
     };
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      updateDoc(userRef, { isOnline: false, lastSeen: serverTimestamp() }).catch(() => {});
+      setStatus(false);
     };
   }, [currentUser?.uid]);
 
@@ -255,7 +271,15 @@ export default function App() {
     };
   }, [currentUser]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (currentUser?.uid) {
+      try {
+        await updateDoc(doc(db, 'users', currentUser.uid), { 
+          isOnline: false, 
+          lastSeen: serverTimestamp() 
+        });
+      } catch (e) {}
+    }
     auth.signOut();
     handleNavigate('LOGIN');
   };
