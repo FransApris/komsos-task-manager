@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, RefreshCw, X, Calendar, Clock, AlertCircle, UserCheck, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, Plus, RefreshCw, X, Calendar, Clock, AlertCircle, UserCheck, ShieldCheck, UserX } from 'lucide-react';
 import { Screen, UserAccount, Task } from '../types';
 import { db, collection, addDoc, query, onSnapshot, serverTimestamp, doc, updateDoc } from '../firebase';
 import { orderBy } from 'firebase/firestore'; 
@@ -18,8 +18,7 @@ export const SwapRequestScreen: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
 
-  // --- KUNCI SINKRONISASI DASBOR ---
-  // Menggunakan logika yang sama persis dengan Dashboard untuk deteksi ID
+  // Mengatasi masalah mismatch ID (uid vs id) agar sinkron dengan Dashboard
   const currentUserId = user?.uid || user?.id;
 
   useEffect(() => {
@@ -30,16 +29,15 @@ export const SwapRequestScreen: React.FC<{
     return () => unsub();
   }, []);
 
-  // Ambil semua ID tugas yang sedang dalam proses pertukaran (agar tidak muncul double di dropdown)
+  // Ambil semua ID tugas yang sedang dalam proses pertukaran milik user
   const myRequests = requests.filter(r => r.requesterId === currentUserId);
   const tasksInBursaIds = myRequests.filter(r => r.status === 'OPEN' || r.status === 'PENDING_APPROVAL').map(r => r.taskId);
 
-  // --- FILTER DROPDOWN YANG DISEMPURNAKAN ---
-  // Menampilkan tugas yang statusnya IN_PROGRESS DAN benar-benar ditugaskan ke user
+  // SINKRONISASI DROPDOWN: Menampilkan tugas yang ditugaskan ke user dan belum selesai
   const mySwappableTasks = tasksDb.filter(t => 
-    t.status === 'IN_PROGRESS' && 
     currentUserId && 
     t.assignedUsers?.includes(currentUserId) &&
+    t.status !== 'COMPLETED' && 
     !tasksInBursaIds.includes(t.id) 
   );
 
@@ -47,7 +45,6 @@ export const SwapRequestScreen: React.FC<{
     if (r.requesterId === currentUserId) return false; 
     if (r.status !== 'OPEN') return false;             
     const taskTerkait = tasksDb.find(t => t.id === r.taskId);
-    // Jangan tampilkan penawaran bursa jika user sudah ada di dalam tugas tersebut
     if (taskTerkait && currentUserId && taskTerkait.assignedUsers?.includes(currentUserId)) return false;
     return true;
   });
@@ -88,7 +85,7 @@ export const SwapRequestScreen: React.FC<{
     if (!currentUserId) return;
     setIsLoading(true);
     try {
-      // Alur: Membutuhkan persetujuan koordinator setelah ada kesepakatan antar user
+      // Alur: Membutuhkan persetujuan koordinator
       await updateDoc(doc(db, 'swapRequests', req.id), {
         status: 'PENDING_APPROVAL',
         acceptedById: currentUserId,
@@ -191,7 +188,7 @@ export const SwapRequestScreen: React.FC<{
             <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="w-full max-w-md bg-[#151b2b] rounded-3xl border border-gray-800 p-6 pb-10 shadow-2xl">
               <div className="flex justify-between items-center mb-8">
                 <h3 className="text-xl font-black text-white">Buat Permintaan</h3>
-                <button onClick={() => setShowModal(false)} className="p-2 text-gray-500 hover:text-white"><X size={24} /></button>
+                <button onClick={() => setShowModal(false)} className="p-2 text-gray-400 hover:text-white"><X size={24} /></button>
               </div>
               <div className="space-y-6">
                 <div>
