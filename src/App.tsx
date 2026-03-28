@@ -141,7 +141,6 @@ export default function App() {
 
           if (!userDoc.exists()) {
             if (currentScreen !== 'REGISTER') {
-               auth.signOut();
                toast.info("Anda belum terdaftar. Silakan lengkapi formulir pendaftaran.");
                handleNavigate('REGISTER');
             }

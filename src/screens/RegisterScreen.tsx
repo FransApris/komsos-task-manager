@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { 
   Loader2, ArrowLeft, Mail, User as UserIcon, 
-  Lock, ShieldCheck, Eye, EyeOff 
+  ShieldCheck 
 } from 'lucide-react';
 import { 
-  auth, db, createUserWithEmailAndPassword, 
+  auth, db, 
   doc, setDoc, serverTimestamp 
 } from '../firebase';
 import { motion } from 'motion/react';
@@ -17,32 +17,27 @@ interface RegisterScreenProps {
 }
 
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState(auth.currentUser?.displayName || '');
+  const [email, setEmail] = useState(auth.currentUser?.email || '');
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>('OTHER');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const handleRegister = async () => {
+    if (!auth.currentUser) {
+      return setError('Sesi login tidak ditemukan. Silakan kembali ke halaman Login.');
+    }
     if (!name.trim()) return setError('Nama lengkap wajib diisi');
     if (!email.trim()) return setError('Email wajib diisi');
-    if (!password) return setError('Kata sandi wajib diisi');
-    if (password.length < 6) return setError('Kata sandi minimal 6 karakter');
-    if (password !== confirmPassword) return setError('Konfirmasi kata sandi tidak cocok');
 
     setIsLoading(true);
     setError('');
 
     try {
-      // 1. Buat Akun di Firebase Auth (Sistem otomatis menolak jika email sudah terdaftar)
-      const userCredential = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
-      const user = userCredential.user;
+      const user = auth.currentUser;
 
-      // 2. Simpan Data Profil ke Database
+      // Simpan Data Profil ke Database
       const newUser = {
         uid: user.uid,
         displayName: name.trim(),
@@ -57,23 +52,13 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
         createdAt: serverTimestamp()
       };
       
-      // Proses ini diizinkan karena pengguna baru saja berhasil melewati tahap 1 (sudah Auth)
       await setDoc(doc(db, 'users', user.uid), newUser);
 
       setIsSuccess(true);
       toast.success("Pendaftaran berhasil! Menunggu verifikasi admin.");
     } catch (err: any) {
       console.error("Registration error details:", err);
-      
-      if (err.code === 'auth/network-request-failed') {
-        setError('Koneksi gagal. Periksa internet Anda.');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError('Email ini sudah terdaftar. Silakan kembali ke halaman Login.');
-      } else if (err.code === 'auth/invalid-email') {
-        setError('Format email tidak valid.');
-      } else {
-        setError('Gagal mendaftar: ' + err.message);
-      }
+      setError('Gagal mendaftar: ' + err.message);
     } finally {
       setIsLoading(false);
     }
@@ -145,36 +130,6 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
             <input 
               type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               placeholder="nama@email.com" 
-              className="w-full bg-[#151b2b] border border-gray-800 rounded-2xl pl-11 pr-4 py-4 focus:border-blue-500 transition-all text-sm text-white" 
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Kata Sandi</label>
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input 
-              type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••" 
-              className="w-full bg-[#151b2b] border border-gray-800 rounded-2xl pl-11 pr-12 py-4 focus:border-blue-500 transition-all text-sm text-white" 
-            />
-            <button 
-              type="button" onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-blue-500 transition-colors"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Konfirmasi Kata Sandi</label>
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input 
-              type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••" 
               className="w-full bg-[#151b2b] border border-gray-800 rounded-2xl pl-11 pr-4 py-4 focus:border-blue-500 transition-all text-sm text-white" 
             />
           </div>

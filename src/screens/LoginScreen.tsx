@@ -100,7 +100,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onDemoLogin, onNavigat
 
         {/* Tombol Daftar Anggota Baru */}
         <button 
-          onClick={() => onNavigate('REGISTER')}
+          onClick={handleGoogleLogin}
           className="w-full flex justify-center items-center bg-emerald-600/10 text-emerald-500 font-bold rounded-2xl py-4 hover:bg-emerald-600/20 transition-all border border-emerald-500/20 active:scale-95 gap-2"
         >
           <ShieldCheck className="w-5 h-5" />
