@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, RefreshCw, X, Calendar, Clock, AlertCircle, ShieldCheck } from 'lucide-react';
+import { ChevronLeft, Plus, RefreshCw, X, Calendar, Clock, AlertCircle, ShieldCheck, Bug } from 'lucide-react';
 import { Screen, UserAccount, Task } from '../types';
-import { db } from '../firebase';
+import { db, auth } from '../firebase'; // Wajib import auth
 import { 
   collection, 
   addDoc, 
@@ -26,11 +26,10 @@ export const SwapRequestScreen: React.FC<{
   const [reason, setReason] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
+  const [showDebug, setShowDebug] = useState(false); // State untuk mode diagnosis
 
-  // --- SOLUSI FINAL: JARING PENGAMAN ID ---
-  // Menggabungkan uid dan id ke dalam array agar tidak meleset saat testing
-  const myIds = [user?.uid, user?.id].filter(Boolean) as string[];
-  const primaryId = user?.uid || user?.id || "";
+  // 1. SOLUSI MUTLAK: Ambil UID langsung dari inti Firebase Auth, hindari keterlambatan prop
+  const currentUserId = auth.currentUser?.uid || user?.uid || user?.id || "";
 
   useEffect(() => {
     const q = query(collection(db, 'swapRequests'), orderBy('createdAt', 'desc'));
@@ -42,22 +41,18 @@ export const SwapRequestScreen: React.FC<{
     return () => unsub();
   }, []);
 
-  // Filter permintaan yang dibuat oleh user saat ini
-  const myRequests = requests.filter(r => myIds.includes(r.requesterId));
-  const tasksInBursaIds = myRequests.filter(r => r.status === 'OPEN' || r.status === 'PENDING_APPROVAL').map(r => r.taskId);
+  // Semua tugas yang sudah ada di Bursa (dari siapa pun)
+  const tasksInBursaIds = requests.filter(r => r.status === 'OPEN' || r.status === 'PENDING_APPROVAL').map(r => r.taskId);
+  const myRequests = requests.filter(r => r.requesterId === currentUserId);
 
-  // --- FILTER TUGAS YANG SINKRON DENGAN DATABASE ---
+  // 2. FILTER TUGAS: Menggunakan .trim() untuk membersihkan spasi tidak kasat mata
   const mySwappableTasks = (tasksDb || []).filter(t => {
-    // 1. Cek apakah SALAH SATU ID kita ada di dalam array assignedUsers
-    const isAssigned = t.assignedUsers && t.assignedUsers.some(assignedId => myIds.includes(assignedId));
-    
-    // 2. Tugas masih aktif (bukan COMPLETED)
+    const assigned = t.assignedUsers || [];
+    const isAssigned = assigned.some(id => id?.trim() === currentUserId?.trim());
     const isNotCompleted = t.status !== 'COMPLETED';
-    
-    // 3. Tugas ini belum pernah dilempar ke bursa
-    const notYetInBursa = !tasksInBursaIds.includes(t.id);
+    const notInBursa = !tasksInBursaIds.includes(t.id);
 
-    return isAssigned && isNotCompleted && notYetInBursa;
+    return isAssigned && isNotCompleted && notInBursa;
   });
 
   const handleCreateRequest = async () => {
@@ -75,8 +70,8 @@ export const SwapRequestScreen: React.FC<{
         taskTitle: task.title,
         taskDate: task.date,
         taskTime: task.time,
-        requesterId: primaryId, // Gunakan ID utama untuk konsistensi
-        requesterName: user?.displayName || 'Petugas',
+        requesterId: currentUserId, 
+        requesterName: auth.currentUser?.displayName || user?.displayName || 'Petugas',
         reason: reason,
         status: 'OPEN', 
         createdAt: serverTimestamp()
@@ -94,13 +89,13 @@ export const SwapRequestScreen: React.FC<{
   };
 
   const handleAcceptSwap = async (req: any) => {
-    if (!primaryId) return;
+    if (!currentUserId) return;
     setIsLoading(true);
     try {
       await updateDoc(doc(db, 'swapRequests', req.id), {
         status: 'PENDING_APPROVAL',
-        acceptedById: primaryId,
-        acceptedByName: user?.displayName || 'Petugas',
+        acceptedById: currentUserId,
+        acceptedByName: auth.currentUser?.displayName || user?.displayName || 'Petugas',
         updatedAt: serverTimestamp()
       });
       toast.success('Menunggu persetujuan koordinator.');
@@ -151,7 +146,7 @@ export const SwapRequestScreen: React.FC<{
         ) : (
           <div className="space-y-4">
              <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 mb-6"><AlertCircle className="w-5 h-5 text-amber-500" /><p className="text-xs text-gray-300">Bantu teman Anda jika Anda memiliki waktu luang.</p></div>
-            {requests.filter(r => !myIds.includes(r.requesterId) && r.status === 'OPEN').map(req => (
+            {requests.filter(r => r.requesterId !== currentUserId && r.status === 'OPEN').map(req => (
               <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{req.requesterName} Butuh Bantuan</span>
                 <h4 className="font-extrabold text-white text-lg mb-2">{req.taskTitle}</h4>
@@ -177,6 +172,30 @@ export const SwapRequestScreen: React.FC<{
                 <h3 className="text-lg font-black text-white">Buat Permintaan</h3>
                 <button onClick={() => setShowModal(false)} className="p-2 text-gray-400"><X size={24} /></button>
               </div>
+              
+              {/* === PANEL DEBUG: Akan muncul jika tugas kosong === */}
+              {mySwappableTasks.length === 0 && (
+                <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-xl mb-4">
+                  <button onClick={() => setShowDebug(!showDebug)} className="text-[10px] font-bold text-red-400 flex items-center gap-1 mb-1">
+                    <Bug size={12} /> Klik untuk melihat Info Diagnosis
+                  </button>
+                  {showDebug && (
+                    <div className="text-[9px] text-gray-400 font-mono break-all mt-2 space-y-1 bg-black/50 p-2 rounded">
+                      <p>UID Aplikasi Saya: <span className="text-white font-bold">{currentUserId || 'KOSONG (Masalah Prop/Auth)'}</span></p>
+                      <hr className="border-gray-800 my-1"/>
+                      <p>Tugas di Database (Bukan Selesai):</p>
+                      {tasksDb.filter(t => t.status !== 'COMPLETED').map(t => (
+                        <div key={t.id} className="pl-2 border-l border-gray-700 my-1">
+                          <p className="text-yellow-400">{t.title}</p>
+                          <p>UID di Database: <span className="text-white">{JSON.stringify(t.assignedUsers)}</span></p>
+                          <p>Sudah di Bursa?: {tasksInBursaIds.includes(t.id) ? 'YA (Terblokir)' : 'TIDAK'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-4">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block ml-1">Pilih Tugas Anda</label>
                 <select value={selectedTaskId} onChange={(e) => setSelectedTaskId(e.target.value)} className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 outline-none">
