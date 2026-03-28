@@ -167,13 +167,38 @@ export const SwapRequestScreen: React.FC<{
     }
   };
 
+  const handleCancelRequest = async (reqId: string) => {
+    setIsLoading(true);
+    try {
+      await updateDoc(doc(db, 'swapRequests', reqId), {
+        status: 'CANCELLED',
+        updatedAt: serverTimestamp()
+      });
+      toast.success('Permintaan dibatalkan.');
+    } catch (error) {
+      toast.error('Gagal membatalkan permintaan.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white relative">
       <header className="p-5 flex items-center gap-4 sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
         <button onClick={() => onNavigate('USER_DASHBOARD')} className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
           <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
-        <h1 className="text-lg font-extrabold tracking-tight">Bursa Pertukaran</h1>
+        <h1 className="text-lg font-extrabold tracking-tight flex-1">Bursa Pertukaran</h1>
+        <button 
+          onClick={() => {
+            setIsLoading(true);
+            setTimeout(() => setIsLoading(false), 500);
+            toast.success('Data diperbarui');
+          }}
+          className="p-2 text-gray-400 hover:text-white transition-colors"
+        >
+          <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+        </button>
       </header>
 
       <div className="flex border-b border-gray-800/50 bg-[#0a0f18] sticky top-[72px] z-10">
@@ -198,7 +223,18 @@ export const SwapRequestScreen: React.FC<{
                   <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500' : req.status === 'APPROVED' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-bold text-white pr-4">{req.taskTitle}</h4>
-                    <span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500/20 text-blue-400' : req.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>{req.status.replace('_', ' ')}</span>
+                    <div className="flex flex-col items-end gap-2">
+                      <span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500/20 text-blue-400' : req.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-500' : req.status === 'CANCELLED' ? 'bg-gray-500/20 text-gray-500' : 'bg-amber-500/20 text-amber-500'}`}>{req.status.replace('_', ' ')}</span>
+                      {req.status === 'OPEN' && (
+                        <button 
+                          onClick={() => handleCancelRequest(req.id)}
+                          disabled={isLoading}
+                          className="text-[10px] font-bold text-red-500 hover:underline"
+                        >
+                          Batalkan
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <p className="text-xs text-gray-400 italic">"{req.reason}"</p>
                   {req.status === 'PENDING_APPROVAL' && (
@@ -213,14 +249,33 @@ export const SwapRequestScreen: React.FC<{
         ) : activeTab === 'BURSA' ? (
           <div className="space-y-4">
              <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 mb-6"><AlertCircle className="w-5 h-5 text-amber-500" /><p className="text-xs text-gray-300">Bantu teman Anda jika Anda memiliki waktu luang.</p></div>
-            {requests.filter(r => r.requesterId?.trim() !== currentUserId?.trim() && r.status === 'OPEN').map(req => (
-              <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{req.requesterName} Butuh Bantuan</span>
-                <h4 className="font-extrabold text-white text-lg mb-2">{req.taskTitle}</h4>
-                <div className="bg-[#0a0f18] p-3 rounded-xl border border-gray-800 mb-4"><p className="text-sm text-gray-300 italic">"{req.reason}"</p></div>
-                <button onClick={() => handleAcceptSwap(req)} disabled={isLoading} className="w-full py-3 bg-amber-500 text-black font-bold rounded-xl active:scale-95 disabled:opacity-50">Ambil Alih Tugas</button>
+            {requests.filter(r => r.requesterId?.trim() !== currentUserId?.trim() && r.status === 'OPEN').length === 0 ? (
+              <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800">
+                <RefreshCw className="w-10 h-10 text-gray-700 mx-auto mb-4 animate-pulse" />
+                <p className="text-gray-500 mb-2">Bursa sedang sepi.</p>
+                <p className="text-[10px] text-gray-600 px-10">Belum ada teman yang meminta bantuan saat ini.</p>
               </div>
-            ))}
+            ) : (
+              requests.filter(r => r.requesterId?.trim() !== currentUserId?.trim() && r.status === 'OPEN').map(req => (
+                <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-[10px] font-bold text-amber-500">
+                        {req.requesterName?.charAt(0)}
+                      </div>
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{req.requesterName}</span>
+                    </div>
+                    <div className="flex flex-col items-end text-[10px] text-gray-500 font-medium">
+                      <div className="flex items-center gap-1"><Calendar size={10} /> {req.taskDate}</div>
+                      <div className="flex items-center gap-1"><Clock size={10} /> {req.taskTime}</div>
+                    </div>
+                  </div>
+                  <h4 className="font-extrabold text-white text-lg mb-2">{req.taskTitle}</h4>
+                  <div className="bg-[#0a0f18] p-3 rounded-xl border border-gray-800 mb-4"><p className="text-sm text-gray-300 italic">"{req.reason}"</p></div>
+                  <button onClick={() => handleAcceptSwap(req)} disabled={isLoading} className="w-full py-3 bg-amber-500 text-black font-bold rounded-xl active:scale-95 disabled:opacity-50">Ambil Alih Tugas</button>
+                </div>
+              ))
+            )}
           </div>
         ) : (
           /* TAB ADMIN */
@@ -273,29 +328,6 @@ export const SwapRequestScreen: React.FC<{
                 <h3 className="text-lg font-black text-white">Buat Permintaan</h3>
                 <button onClick={() => setShowModal(false)} className="p-2 text-gray-400"><X size={24} /></button>
               </div>
-              
-              {/* === PANEL DEBUG: Akan muncul jika tugas kosong === */}
-              {mySwappableTasks.length === 0 && (
-                <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-xl mb-4">
-                  <button onClick={() => setShowDebug(!showDebug)} className="text-[10px] font-bold text-red-400 flex items-center gap-1 mb-1">
-                    <Bug size={12} /> Klik untuk melihat Info Diagnosis
-                  </button>
-                  {showDebug && (
-                    <div className="text-[9px] text-gray-400 font-mono break-all mt-2 space-y-1 bg-black/50 p-2 rounded">
-                      <p>UID Aplikasi Saya: <span className="text-white font-bold">{currentUserId || 'KOSONG (Masalah Prop/Auth)'}</span></p>
-                      <hr className="border-gray-800 my-1"/>
-                      <p>Tugas di Database (OPEN/IN_PROGRESS):</p>
-                      {tasksDb.filter(t => t.status === 'IN_PROGRESS' || t.status === 'OPEN').map(t => (
-                        <div key={t.id} className="pl-2 border-l border-gray-700 my-1">
-                          <p className="text-yellow-400">{t.title}</p>
-                          <p>UID di Database: <span className="text-white">{JSON.stringify(t.assignedUsers)}</span></p>
-                          <p>Sudah di Bursa?: {tasksInBursaIds.includes(t.id) ? 'YA (Terblokir)' : 'TIDAK'}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
 
               <div className="space-y-4">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block ml-1">Pilih Tugas Anda</label>
