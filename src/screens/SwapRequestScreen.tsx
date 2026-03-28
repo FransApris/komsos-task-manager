@@ -13,7 +13,7 @@ import {
   orderBy 
 } from 'firebase/firestore'; 
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion'; // Menggunakan framer-motion yang lebih stabil
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const SwapRequestScreen: React.FC<{ 
   onNavigate: (s: Screen) => void,
@@ -27,15 +27,13 @@ export const SwapRequestScreen: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
 
-  // Sinkronisasi ID user agar tugas "Minggu Palma II" terdeteksi
+  // --- LOGIKA IDENTITAS GANDA (Sama dengan Dashboard) ---
   const currentUserId = user?.uid || user?.id || "";
 
   useEffect(() => {
     const q = query(collection(db, 'swapRequests'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snap) => {
       setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => {
-      console.error("Connection error:", error);
     });
     return () => unsub();
   }, []);
@@ -43,17 +41,27 @@ export const SwapRequestScreen: React.FC<{
   const myRequests = requests.filter(r => r.requesterId === currentUserId);
   const tasksInBursaIds = myRequests.filter(r => r.status === 'OPEN' || r.status === 'PENDING_APPROVAL').map(r => r.taskId);
 
-  // Filter Dropdown yang sinkron dengan Dashboard
+  // --- PERBAIKAN FILTER DROPDOWN ---
+  // Kita abaikan status IN_PROGRESS dan gunakan pencarian assignedUsers yang lebih luas
   const mySwappableTasks = tasksDb.filter(t => {
-    const isAssigned = t.assignedUsers && t.assignedUsers.includes(currentUserId);
-    const isNotCompleted = t.status !== 'COMPLETED';
+    // Pastikan t.assignedUsers ada dan merupakan array
+    const users = t.assignedUsers || [];
+    
+    // Syarat 1: Nama user ada di dalam daftar petugas (uid atau id)
+    const isMyTask = users.some(uId => uId === user?.uid || uId === user?.id);
+    
+    // Syarat 2: Tugas belum selesai (Completed)
+    const isNotDone = t.status !== 'COMPLETED';
+    
+    // Syarat 3: Belum ada di bursa
     const notInBursa = !tasksInBursaIds.includes(t.id);
-    return isAssigned && isNotCompleted && notInBursa;
+
+    return isMyTask && isNotDone && notInBursa;
   });
 
   const handleCreateRequest = async () => {
     if (!selectedTaskId || !reason.trim()) {
-      toast.error('Lengkapi data Anda.');
+      toast.error('Mohon isi data dengan lengkap.');
       return;
     }
     setIsLoading(true);
@@ -70,12 +78,12 @@ export const SwapRequestScreen: React.FC<{
         status: 'OPEN', 
         createdAt: serverTimestamp()
       });
-      toast.success('Permintaan terkirim.');
+      toast.success('Permintaan dikirim ke bursa.');
       setShowModal(false);
       setSelectedTaskId('');
       setReason('');
     } catch (error) {
-      toast.error('Terjadi kesalahan koneksi.');
+      toast.error('Gagal mengirim permintaan.');
     } finally {
       setIsLoading(false);
     }
@@ -102,7 +110,7 @@ export const SwapRequestScreen: React.FC<{
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white relative">
       <header className="p-5 flex items-center gap-4 sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
         <button onClick={() => onNavigate('USER_DASHBOARD')} className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
         <h1 className="text-lg font-extrabold tracking-tight">Bursa Pertukaran</h1>
       </header>
@@ -116,25 +124,27 @@ export const SwapRequestScreen: React.FC<{
         {activeTab === 'MINE' ? (
           <div className="space-y-4">
             {myRequests.length === 0 ? (
-              <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800">
-                <p className="text-gray-500">Belum ada permintaan.</p>
-              </div>
+              <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800"><p className="text-gray-500">Belum ada permintaan.</p></div>
             ) : (
               myRequests.map(req => (
                 <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 relative">
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500' : 'bg-amber-500'}`}></div>
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500' : req.status === 'ACCEPTED' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
                   <h4 className="font-bold text-white pr-4">{req.taskTitle}</h4>
                   <p className="text-xs text-gray-400 mt-2 italic">"{req.reason}"</p>
+                  {req.status === 'PENDING_APPROVAL' && (
+                    <p className="mt-2 text-[10px] text-blue-400 font-bold uppercase italic">Menunggu Persetujuan Koordinator</p>
+                  )}
                 </div>
               ))
             )}
           </div>
         ) : (
           <div className="space-y-4">
+             <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 mb-6"><AlertCircle className="w-5 h-5 text-amber-500" /><p className="text-xs text-gray-300">Bantu temanmu jika Anda memiliki waktu luang.</p></div>
             {requests.filter(r => r.requesterId !== currentUserId && r.status === 'OPEN').map(req => (
               <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800">
                 <h4 className="font-extrabold text-white text-lg">{req.taskTitle}</h4>
-                <button onClick={() => handleAcceptSwap(req)} disabled={isLoading} className="w-full mt-4 py-3 bg-amber-500 text-black font-bold rounded-xl">Ambil Alih</button>
+                <button onClick={() => handleAcceptSwap(req)} disabled={isLoading} className="w-full mt-4 py-3 bg-amber-500 text-black font-bold rounded-xl active:scale-95">Ambil Alih</button>
               </div>
             ))}
           </div>
@@ -156,6 +166,7 @@ export const SwapRequestScreen: React.FC<{
                 <button onClick={() => setShowModal(false)} className="p-2 text-gray-400"><X size={24} /></button>
               </div>
               <div className="space-y-4">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block ml-1">Pilih Tugas Anda</label>
                 <select value={selectedTaskId} onChange={(e) => setSelectedTaskId(e.target.value)} className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 outline-none">
                   <option value="" disabled>-- Pilih Tugas Anda --</option>
                   {mySwappableTasks.map(t => <option key={t.id} value={t.id}>{t.title} ({t.date})</option>)}
