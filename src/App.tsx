@@ -43,6 +43,7 @@ const TaskTypeManagement = React.lazy(() => import('./screens/TaskTypeManagement
 const PerformanceStats = React.lazy(() => import('./screens/PerformanceStats'));
 const EditTaskScreen = React.lazy(() => import('./screens/EditTaskScreen'));
 const SwapRequestScreen = React.lazy(() => import('./screens/SwapRequestScreen'));
+const NewTaskAlertScreen = React.lazy(() => import('./screens/NewTaskAlertScreen'));
 const HelpdeskScreen = React.lazy(() => import('./screens/HelpdeskScreen'));
 
 // ==========================================
@@ -180,7 +181,7 @@ export default function App() {
             if (userData.role === 'SUPERADMIN' || userData.role?.startsWith('ADMIN_')) {
               handleNavigate('ADMIN_DASHBOARD');
             } else {
-              handleNavigate('USER_DASHBOARD');
+              handleNavigate('NEW_TASK_ALERT');
             }
           }
         } catch (err) {
@@ -265,7 +266,7 @@ export default function App() {
     if (user.role === 'SUPERADMIN' || user.role?.startsWith('ADMIN_')) {
       handleNavigate('ADMIN_DASHBOARD');
     } else {
-      handleNavigate('USER_DASHBOARD');
+      handleNavigate('NEW_TASK_ALERT');
     }
   };
 
@@ -275,7 +276,7 @@ export default function App() {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'SPLASH':
-        return <SplashScreen onFinish={() => handleNavigate(currentUser ? (currentUser.role?.startsWith('ADMIN') || currentUser.role === 'SUPERADMIN' ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD') : 'LOGIN')} />;
+        return <SplashScreen onFinish={() => handleNavigate(currentUser ? (currentUser.role?.startsWith('ADMIN') || currentUser.role === 'SUPERADMIN' ? 'ADMIN_DASHBOARD' : 'NEW_TASK_ALERT') : 'LOGIN')} />;
       case 'LOGIN':
         return <LoginScreen onDemoLogin={handleDemoLogin} onNavigate={handleNavigate} usersDb={usersDb} />;
       case 'REGISTER':
@@ -343,6 +344,8 @@ export default function App() {
         return <PerformanceStats onNavigate={handleNavigate} role={currentUser?.role} tasksDb={tasksDb} badgesDb={badgesDb} currentUser={currentUser} />;
       case 'HELPDESK':
         return <HelpdeskScreen onNavigate={handleNavigate} role={currentUser?.role || 'USER'} currentUser={currentUser} />;
+      case 'NEW_TASK_ALERT':
+        return <NewTaskAlertScreen onNavigate={handleNavigate} user={currentUser} tasksDb={tasksDb} />;
       default:
         return <SplashScreen onFinish={() => handleNavigate('LOGIN')} />;
     }
