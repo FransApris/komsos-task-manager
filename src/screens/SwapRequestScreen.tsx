@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, RefreshCw, X, Calendar, Clock, AlertCircle, ShieldCheck, Bug } from 'lucide-react';
+import { ChevronLeft, Plus, RefreshCw, X, Calendar, Clock, AlertCircle, ShieldCheck } from 'lucide-react';
 import { Screen, UserAccount, Task } from '../types';
 import { db, auth } from '../firebase'; // Wajib import auth
 import { 
@@ -13,7 +13,7 @@ import {
   orderBy 
 } from 'firebase/firestore'; 
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 export const SwapRequestScreen: React.FC<{ 
   onNavigate: (s: Screen) => void,
@@ -49,7 +49,13 @@ export const SwapRequestScreen: React.FC<{
   // 2. FILTER TUGAS: Menggunakan .trim() untuk membersihkan spasi tidak kasat mata
   const mySwappableTasks = (tasksDb || []).filter(t => {
     const assigned = t.assignedUsers || [];
-    const isAssigned = assigned.some(id => id?.trim() === currentUserId?.trim());
+    // Cek kecocokan ID dengan lebih fleksibel (uid atau id)
+    const isAssigned = assigned.some(id => 
+      id?.trim() === currentUserId?.trim() || 
+      (user?.uid && id?.trim() === user.uid.trim()) || 
+      (user?.id && id?.trim() === user.id.trim())
+    );
+    
     // Konsisten dengan Dashboard: Hanya tugas OPEN atau IN_PROGRESS yang bisa ditukar
     const isSwappableStatus = t.status === 'IN_PROGRESS' || t.status === 'OPEN';
     const notInBursa = !tasksInBursaIds.includes(t.id);
@@ -330,13 +336,31 @@ export const SwapRequestScreen: React.FC<{
               </div>
 
               <div className="space-y-4">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block ml-1">Pilih Tugas Anda</label>
-                <select value={selectedTaskId} onChange={(e) => setSelectedTaskId(e.target.value)} className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 outline-none">
-                  <option value="" disabled>-- Pilih Tugas Anda --</option>
-                  {mySwappableTasks.map(t => <option key={t.id} value={t.id}>{t.title} ({t.date})</option>)}
-                </select>
-                <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Alasan pertukaran..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white h-28 resize-none focus:border-amber-500 outline-none" />
-                <button onClick={handleCreateRequest} disabled={isLoading || !selectedTaskId || !reason.trim()} className="w-full py-4 font-bold text-black bg-amber-500 rounded-xl disabled:opacity-50 transition-all">Kirim ke Bursa</button>
+                {mySwappableTasks.length === 0 ? (
+                  <div className="p-6 bg-[#0a0f18] rounded-2xl border border-dashed border-gray-800 text-center">
+                    <AlertCircle className="w-8 h-8 text-gray-600 mx-auto mb-3" />
+                    <p className="text-sm text-gray-400 font-bold mb-1">Tidak Ada Tugas Tersedia</p>
+                    <p className="text-[10px] text-gray-600 leading-relaxed">
+                      Anda tidak memiliki tugas aktif (OPEN/IN_PROGRESS) yang bisa ditukar saat ini, atau tugas Anda sudah ada di bursa.
+                    </p>
+                    <button 
+                      onClick={() => setShowModal(false)}
+                      className="mt-6 w-full py-3 bg-gray-800 text-gray-400 font-bold rounded-xl text-xs uppercase tracking-widest"
+                    >
+                      Tutup
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block ml-1">Pilih Tugas Anda</label>
+                    <select value={selectedTaskId} onChange={(e) => setSelectedTaskId(e.target.value)} className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 outline-none">
+                      <option value="" disabled>-- Pilih Tugas Anda --</option>
+                      {mySwappableTasks.map(t => <option key={t.id} value={t.id}>{t.title} ({t.date})</option>)}
+                    </select>
+                    <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Alasan pertukaran..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white h-28 resize-none focus:border-amber-500 outline-none" />
+                    <button onClick={handleCreateRequest} disabled={isLoading || !selectedTaskId || !reason.trim()} className="w-full py-4 font-bold text-black bg-amber-500 rounded-xl disabled:opacity-50 transition-all">Kirim ke Bursa</button>
+                  </>
+                )}
               </div>
             </motion.div>
           </div>
