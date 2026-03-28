@@ -361,7 +361,7 @@ export const UserDashboard: React.FC<{
                   return (a.displayName || '').localeCompare(b.displayName || '');
                 })
                 .map((u) => (
-              <div key={u.uid} className="flex items-center gap-2 bg-[#0a0f18] border border-gray-800 pl-1 pr-3 py-1 rounded-full ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/5">
+              <div key={u.uid || u.id} className="flex items-center gap-2 bg-[#0a0f18] border border-gray-800 pl-1 pr-3 py-1 rounded-full ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/5">
                 <div className="w-6 h-6 rounded-full overflow-hidden border border-emerald-500/30">
                   <img src={getAvatarUrl(u)} className="w-full h-full object-cover" />
                 </div>

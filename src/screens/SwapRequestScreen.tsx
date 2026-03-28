@@ -18,8 +18,9 @@ import { motion, AnimatePresence } from 'motion/react';
 export const SwapRequestScreen: React.FC<{ 
   onNavigate: (s: Screen) => void,
   user?: UserAccount | null,
+  role?: Role,
   tasksDb?: Task[]
-}> = ({ onNavigate, user, tasksDb = [] }) => {
+}> = ({ onNavigate, user, role, tasksDb = [] }) => {
   const [activeTab, setActiveTab] = useState<'MINE' | 'BURSA' | 'ADMIN'>('MINE');
   const [showModal, setShowModal] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState('');
@@ -30,7 +31,8 @@ export const SwapRequestScreen: React.FC<{
 
   // 1. SOLUSI MUTLAK: Ambil UID langsung dari inti Firebase Auth, hindari keterlambatan prop
   const currentUserId = auth.currentUser?.uid || user?.uid || user?.id || "";
-  const isAdmin = user?.role === 'SUPERADMIN' || user?.role?.startsWith('ADMIN_');
+  const isAdmin = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
+  const backScreen: Screen = isAdmin ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD';
 
   useEffect(() => {
     const q = query(collection(db, 'swapRequests'), orderBy('createdAt', 'desc'));
@@ -191,7 +193,7 @@ export const SwapRequestScreen: React.FC<{
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white relative">
       <header className="p-5 flex items-center gap-4 sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
-        <button onClick={() => onNavigate('USER_DASHBOARD')} className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
+        <button onClick={() => onNavigate(backScreen)} className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
           <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
         <h1 className="text-lg font-extrabold tracking-tight flex-1">Bursa Pertukaran</h1>

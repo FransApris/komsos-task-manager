@@ -121,7 +121,7 @@ export const AttendanceScreen: React.FC<{
       await addDoc(collection(db, 'attendance'), attendanceData);
       
       toast.success("Check-in berhasil! Selamat bertugas.");
-      onNavigate('USER_DASHBOARD');
+      onNavigate(isAdmin ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD');
     } catch (err: any) {
       handleFirestoreError(err, OperationType.CREATE, 'attendance');
       toast.error("Gagal melakukan check-in. Silakan coba lagi.");

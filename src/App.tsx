@@ -74,6 +74,7 @@ export default function App() {
     if (screen !== currentScreen) {
       window.history.pushState({ screen }, '', `?menu=${screen.toLowerCase()}`);
       setCurrentScreen(screen);
+      window.scrollTo(0, 0);
     }
   };
 
@@ -335,7 +336,7 @@ export default function App() {
       
       // --- PERBAIKAN: MENGIRIMKAN tasksDb KE BURSA PERTUKARAN ---
       case 'SWAP_REQUEST':
-        return <SwapRequestScreen onNavigate={handleNavigate} user={currentUser} tasksDb={tasksDb} />;
+        return <SwapRequestScreen onNavigate={handleNavigate} user={currentUser} role={currentUser?.role} tasksDb={tasksDb} />;
       
       case 'TEAM':
         return <TeamScreen onNavigate={handleNavigate} role={currentUser?.role} usersDb={usersDb} currentUser={currentUser} />;
