@@ -13,7 +13,7 @@ import {
   orderBy 
 } from 'firebase/firestore'; 
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion'; // Menggunakan framer-motion yang lebih stabil
 
 export const SwapRequestScreen: React.FC<{ 
   onNavigate: (s: Screen) => void,
@@ -27,7 +27,7 @@ export const SwapRequestScreen: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
 
-  // Gunakan ID login yang paling pasti
+  // Sinkronisasi ID user agar tugas "Minggu Palma II" terdeteksi
   const currentUserId = user?.uid || user?.id || "";
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export const SwapRequestScreen: React.FC<{
     const unsub = onSnapshot(q, (snap) => {
       setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     }, (error) => {
-      console.error("Firestore Error:", error);
+      console.error("Connection error:", error);
     });
     return () => unsub();
   }, []);
@@ -43,7 +43,7 @@ export const SwapRequestScreen: React.FC<{
   const myRequests = requests.filter(r => r.requesterId === currentUserId);
   const tasksInBursaIds = myRequests.filter(r => r.status === 'OPEN' || r.status === 'PENDING_APPROVAL').map(r => r.taskId);
 
-  // LOGIKA SINKRONISASI TOTAL: Munculkan apa pun yang ada nama usernya
+  // Filter Dropdown yang sinkron dengan Dashboard
   const mySwappableTasks = tasksDb.filter(t => {
     const isAssigned = t.assignedUsers && t.assignedUsers.includes(currentUserId);
     const isNotCompleted = t.status !== 'COMPLETED';
@@ -51,50 +51,37 @@ export const SwapRequestScreen: React.FC<{
     return isAssigned && isNotCompleted && notInBursa;
   });
 
-  const bursaRequests = requests.filter(r => {
-    if (r.requesterId === currentUserId) return false; 
-    if (r.status !== 'OPEN') return false;             
-    const taskTerkait = tasksDb.find(t => t.id === r.taskId);
-    if (taskTerkait && taskTerkait.assignedUsers?.includes(currentUserId)) return false;
-    return true;
-  });
-
   const handleCreateRequest = async () => {
     if (!selectedTaskId || !reason.trim()) {
-      toast.error('Mohon lengkapi data.');
+      toast.error('Lengkapi data Anda.');
       return;
     }
-
     setIsLoading(true);
     try {
-      const taskToSwap = tasksDb.find(t => t.id === selectedTaskId);
-      if (!taskToSwap) return;
-
+      const task = tasksDb.find(t => t.id === selectedTaskId);
       await addDoc(collection(db, 'swapRequests'), {
-        taskId: taskToSwap.id,
-        taskTitle: taskToSwap.title,
-        taskDate: taskToSwap.date,
-        taskTime: taskToSwap.time,
+        taskId: task?.id,
+        taskTitle: task?.title,
+        taskDate: task?.date,
+        taskTime: task?.time,
         requesterId: currentUserId,
         requesterName: user?.displayName || 'Petugas',
         reason: reason,
         status: 'OPEN', 
         createdAt: serverTimestamp()
       });
-      
-      toast.success('Permintaan dikirim.');
+      toast.success('Permintaan terkirim.');
       setShowModal(false);
       setSelectedTaskId('');
       setReason('');
     } catch (error) {
-      toast.error('Gagal mengirim permintaan.');
+      toast.error('Terjadi kesalahan koneksi.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleAcceptSwap = async (req: any) => {
-    if (!currentUserId) return;
     setIsLoading(true);
     try {
       await updateDoc(doc(db, 'swapRequests', req.id), {
@@ -103,7 +90,7 @@ export const SwapRequestScreen: React.FC<{
         acceptedByName: user?.displayName || 'Petugas',
         updatedAt: serverTimestamp()
       });
-      toast.success('Kesepakatan dikirim ke Koordinator.');
+      toast.success('Menunggu persetujuan koordinator.');
     } catch (error) {
       toast.error('Gagal memproses.');
     } finally {
@@ -115,7 +102,7 @@ export const SwapRequestScreen: React.FC<{
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white relative">
       <header className="p-5 flex items-center gap-4 sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
         <button onClick={() => onNavigate('USER_DASHBOARD')} className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
-          <ChevronLeft className="w-5 h-5 text-gray-300" />
+          <ChevronLeft className="w-5 h-5" />
         </button>
         <h1 className="text-lg font-extrabold tracking-tight">Bursa Pertukaran</h1>
       </header>
@@ -129,27 +116,25 @@ export const SwapRequestScreen: React.FC<{
         {activeTab === 'MINE' ? (
           <div className="space-y-4">
             {myRequests.length === 0 ? (
-              <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800"><p className="text-gray-500">Belum ada permintaan.</p></div>
+              <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800">
+                <p className="text-gray-500">Belum ada permintaan.</p>
+              </div>
             ) : (
               myRequests.map(req => (
                 <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 relative">
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500' : req.status === 'ACCEPTED' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-white pr-4">{req.taskTitle}</h4>
-                    <span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500/20 text-blue-400' : req.status === 'ACCEPTED' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>{req.status.replace('_', ' ')}</span>
-                  </div>
-                  <p className="text-xs text-gray-400 italic">"{req.reason}"</p>
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500' : 'bg-amber-500'}`}></div>
+                  <h4 className="font-bold text-white pr-4">{req.taskTitle}</h4>
+                  <p className="text-xs text-gray-400 mt-2 italic">"{req.reason}"</p>
                 </div>
               ))
             )}
           </div>
         ) : (
           <div className="space-y-4">
-            {bursaRequests.map(req => (
+            {requests.filter(r => r.requesterId !== currentUserId && r.status === 'OPEN').map(req => (
               <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{req.requesterName} Butuh Bantuan</span>
-                <h4 className="font-extrabold text-white text-lg mb-4">{req.taskTitle}</h4>
-                <button onClick={() => handleAcceptSwap(req)} disabled={isLoading} className="w-full py-3 bg-amber-500 text-black font-bold rounded-xl active:scale-95 disabled:opacity-50">Ambil Alih Tugas</button>
+                <h4 className="font-extrabold text-white text-lg">{req.taskTitle}</h4>
+                <button onClick={() => handleAcceptSwap(req)} disabled={isLoading} className="w-full mt-4 py-3 bg-amber-500 text-black font-bold rounded-xl">Ambil Alih</button>
               </div>
             ))}
           </div>
@@ -157,7 +142,7 @@ export const SwapRequestScreen: React.FC<{
       </div>
 
       <div className="fixed bottom-24 right-5 z-30">
-        <button onClick={() => setShowModal(true)} className="w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center text-black shadow-lg hover:scale-105 transition-all">
+        <button onClick={() => setShowModal(true)} className="w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center text-black shadow-lg">
           <Plus className="w-6 h-6" />
         </button>
       </div>
@@ -171,12 +156,12 @@ export const SwapRequestScreen: React.FC<{
                 <button onClick={() => setShowModal(false)} className="p-2 text-gray-400"><X size={24} /></button>
               </div>
               <div className="space-y-4">
-                <select value={selectedTaskId} onChange={(e) => setSelectedTaskId(e.target.value)} className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-amber-500">
+                <select value={selectedTaskId} onChange={(e) => setSelectedTaskId(e.target.value)} className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:border-amber-500 outline-none">
                   <option value="" disabled>-- Pilih Tugas Anda --</option>
                   {mySwappableTasks.map(t => <option key={t.id} value={t.id}>{t.title} ({t.date})</option>)}
                 </select>
                 <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Alasan pertukaran..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white h-28 resize-none focus:border-amber-500 outline-none" />
-                <button onClick={handleCreateRequest} disabled={isLoading || !selectedTaskId || !reason.trim()} className="w-full py-4 font-bold text-black bg-amber-500 rounded-xl disabled:opacity-50 transition-all">Kirim ke Bursa</button>
+                <button onClick={handleCreateRequest} disabled={isLoading || !selectedTaskId || !reason.trim()} className="w-full py-4 font-bold text-black bg-amber-500 rounded-xl disabled:opacity-50">Kirim ke Bursa</button>
               </div>
             </motion.div>
           </div>
