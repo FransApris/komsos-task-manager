@@ -5,7 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
 import { ChatProvider } from './contexts/ChatContext';
 import { auth, db, onAuthStateChanged, collection, onSnapshot, doc, getDoc, query, where, setDoc, updateDoc, serverTimestamp, handleFirestoreError, OperationType } from './firebase';
-import { Screen, UserAccount, Task, Notification, Inventory, Role, Badge, MassSchedule } from './types';
+import { Screen, UserAccount, Task, Notification, Inventory, Role, Badge, MassSchedule, SwapRequest } from './types';
 import { Loader2 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
@@ -62,6 +62,7 @@ export default function App() {
   const [notificationsDb, setNotificationsDb] = useState<Notification[]>([]);
   const [badgesDb, setBadgesDb] = useState<Badge[]>([]);
   const [massSchedulesDb, setMassSchedulesDb] = useState<MassSchedule[]>([]);
+  const [swapRequestsDb, setSwapRequestsDb] = useState<SwapRequest[]>([]);
 
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -239,6 +240,10 @@ export default function App() {
       setMassSchedulesDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MassSchedule)));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'massSchedules', currentUser));
 
+    const unsubSwap = onSnapshot(collection(db, 'swapRequests'), (snap) => {
+      setSwapRequestsDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as SwapRequest)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'swapRequests', currentUser));
+
     return () => {
       unsubUsers();
       unsubTasks();
@@ -246,6 +251,7 @@ export default function App() {
       unsubNotifs();
       unsubBadges();
       unsubMass();
+      unsubSwap();
     };
   }, [currentUser]);
 
@@ -279,7 +285,7 @@ export default function App() {
       case 'TASK_VERIFICATION':
         return <TaskVerificationScreen onNavigate={handleNavigate} setSelectedTaskId={setSelectedTaskId} tasksDb={tasksDb} usersDb={usersDb} />;
       case 'ADMIN_DASHBOARD':
-        return <AdminDashboard onNavigate={handleNavigate} onLogout={handleLogout} role={currentUser?.role} user={currentUser} usersDb={usersDb} tasksDb={tasksDb} notificationsDb={notificationsDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} />;
+        return <AdminDashboard onNavigate={handleNavigate} onLogout={handleLogout} role={currentUser?.role} user={currentUser} usersDb={usersDb} tasksDb={tasksDb} notificationsDb={notificationsDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} swapRequestsDb={swapRequestsDb} />;
       case 'USER_DASHBOARD':
         return <UserDashboard onNavigate={handleNavigate} onLogout={handleLogout} user={currentUser} tasksDb={tasksDb} notificationsDb={notificationsDb} usersDb={usersDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} />;
       case 'CREATE_TASK':

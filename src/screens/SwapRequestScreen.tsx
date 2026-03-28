@@ -20,7 +20,7 @@ export const SwapRequestScreen: React.FC<{
   user?: UserAccount | null,
   tasksDb?: Task[]
 }> = ({ onNavigate, user, tasksDb = [] }) => {
-  const [activeTab, setActiveTab] = useState<'MINE' | 'BURSA'>('MINE');
+  const [activeTab, setActiveTab] = useState<'MINE' | 'BURSA' | 'ADMIN'>('MINE');
   const [showModal, setShowModal] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState('');
   const [reason, setReason] = useState('');
@@ -30,6 +30,7 @@ export const SwapRequestScreen: React.FC<{
 
   // 1. SOLUSI MUTLAK: Ambil UID langsung dari inti Firebase Auth, hindari keterlambatan prop
   const currentUserId = auth.currentUser?.uid || user?.uid || user?.id || "";
+  const isAdmin = user?.role === 'SUPERADMIN' || user?.role?.startsWith('ADMIN_');
 
   useEffect(() => {
     const q = query(collection(db, 'swapRequests'), orderBy('createdAt', 'desc'));
@@ -43,16 +44,17 @@ export const SwapRequestScreen: React.FC<{
 
   // Semua tugas yang sudah ada di Bursa (dari siapa pun)
   const tasksInBursaIds = requests.filter(r => r.status === 'OPEN' || r.status === 'PENDING_APPROVAL').map(r => r.taskId);
-  const myRequests = requests.filter(r => r.requesterId === currentUserId);
+  const myRequests = requests.filter(r => r.requesterId?.trim() === currentUserId?.trim());
 
   // 2. FILTER TUGAS: Menggunakan .trim() untuk membersihkan spasi tidak kasat mata
   const mySwappableTasks = (tasksDb || []).filter(t => {
     const assigned = t.assignedUsers || [];
     const isAssigned = assigned.some(id => id?.trim() === currentUserId?.trim());
-    const isNotCompleted = t.status !== 'COMPLETED';
+    // Konsisten dengan Dashboard: Hanya tugas OPEN atau IN_PROGRESS yang bisa ditukar
+    const isSwappableStatus = t.status === 'IN_PROGRESS' || t.status === 'OPEN';
     const notInBursa = !tasksInBursaIds.includes(t.id);
 
-    return isAssigned && isNotCompleted && notInBursa;
+    return isAssigned && isSwappableStatus && notInBursa;
   });
 
   const handleCreateRequest = async () => {
@@ -70,7 +72,7 @@ export const SwapRequestScreen: React.FC<{
         taskTitle: task.title,
         taskDate: task.date,
         taskTime: task.time,
-        requesterId: currentUserId, 
+        requesterId: currentUserId.trim(), 
         requesterName: auth.currentUser?.displayName || user?.displayName || 'Petugas',
         reason: reason,
         status: 'OPEN', 
@@ -94,13 +96,72 @@ export const SwapRequestScreen: React.FC<{
     try {
       await updateDoc(doc(db, 'swapRequests', req.id), {
         status: 'PENDING_APPROVAL',
-        acceptedById: currentUserId,
-        acceptedByName: auth.currentUser?.displayName || user?.displayName || 'Petugas',
+        accepterId: currentUserId.trim(),
+        accepterName: auth.currentUser?.displayName || user?.displayName || 'Petugas',
         updatedAt: serverTimestamp()
       });
       toast.success('Menunggu persetujuan koordinator.');
     } catch (error) {
       toast.error('Gagal memproses pertukaran.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAdminApprove = async (req: any) => {
+    setIsLoading(true);
+    try {
+      // 1. Update Task
+      const taskRef = doc(db, 'tasks', req.taskId);
+      const task = tasksDb.find(t => t.id === req.taskId);
+      
+      if (task) {
+        let newAssignedUsers = [...(task.assignedUsers || [])];
+        // Ganti requester dengan accepter
+        newAssignedUsers = newAssignedUsers.filter(uid => uid !== req.requesterId);
+        if (req.accepterId) {
+          newAssignedUsers.push(req.accepterId);
+        }
+
+        const taskUpdate: any = {
+          assignedUsers: newAssignedUsers,
+          updatedAt: serverTimestamp()
+        };
+
+        // Jika requester adalah leader, ganti leader ke accepter
+        if (task.teamLeaderId === req.requesterId) {
+          taskUpdate.teamLeaderId = req.accepterId;
+        }
+
+        await updateDoc(taskRef, taskUpdate);
+      }
+
+      // 2. Update Swap Request
+      await updateDoc(doc(db, 'swapRequests', req.id), {
+        status: 'APPROVED',
+        updatedAt: serverTimestamp()
+      });
+
+      toast.success("Pertukaran disetujui!");
+    } catch (err) {
+      console.error("Ralat meluluskan pertukaran:", err);
+      toast.error("Gagal meluluskan pertukaran.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAdminReject = async (req: any) => {
+    setIsLoading(true);
+    try {
+      await updateDoc(doc(db, 'swapRequests', req.id), {
+        status: 'REJECTED',
+        updatedAt: serverTimestamp()
+      });
+      toast.success("Pertukaran ditolak.");
+    } catch (err) {
+      console.error("Ralat menolak pertukaran:", err);
+      toast.error("Gagal menolak pertukaran.");
     } finally {
       setIsLoading(false);
     }
@@ -118,35 +179,41 @@ export const SwapRequestScreen: React.FC<{
       <div className="flex border-b border-gray-800/50 bg-[#0a0f18] sticky top-[72px] z-10">
         <button onClick={() => setActiveTab('MINE')} className={`flex-1 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'MINE' ? 'border-amber-500 text-amber-500' : 'border-transparent text-gray-500'}`}>Permintaan Saya</button>
         <button onClick={() => setActiveTab('BURSA')} className={`flex-1 py-4 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'BURSA' ? 'border-amber-500 text-amber-500' : 'border-transparent text-gray-500'}`}><RefreshCw className="w-4 h-4" /> Bursa Tukar</button>
+        {isAdmin && (
+          <button onClick={() => setActiveTab('ADMIN')} className={`flex-1 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'ADMIN' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500'}`}>Persetujuan</button>
+        )}
       </div>
 
       <div className="p-5">
         {activeTab === 'MINE' ? (
           <div className="space-y-4">
             {myRequests.length === 0 ? (
-              <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800"><p className="text-gray-500">Belum ada permintaan.</p></div>
+              <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800">
+                <p className="text-gray-500 mb-2">Belum ada permintaan.</p>
+                <p className="text-[10px] text-gray-600 px-10">Tugas Anda yang bisa ditukar akan muncul di tombol + di bawah.</p>
+              </div>
             ) : (
               myRequests.map(req => (
                 <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 relative">
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500' : req.status === 'ACCEPTED' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500' : req.status === 'APPROVED' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-bold text-white pr-4">{req.taskTitle}</h4>
-                    <span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500/20 text-blue-400' : req.status === 'ACCEPTED' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>{req.status.replace('_', ' ')}</span>
+                    <span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500/20 text-blue-400' : req.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-amber-500/20 text-amber-500'}`}>{req.status.replace('_', ' ')}</span>
                   </div>
                   <p className="text-xs text-gray-400 italic">"{req.reason}"</p>
                   {req.status === 'PENDING_APPROVAL' && (
                     <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-blue-400 bg-blue-500/5 p-2 rounded-lg border border-blue-500/10">
-                      <ShieldCheck className="w-3.5 h-3.5" /> Menunggu persetujuan koordinator agar digantikan oleh {req.acceptedByName}
+                      <ShieldCheck className="w-3.5 h-3.5" /> Menunggu persetujuan koordinator agar digantikan oleh {req.accepterName}
                     </div>
                   )}
                 </div>
               ))
             )}
           </div>
-        ) : (
+        ) : activeTab === 'BURSA' ? (
           <div className="space-y-4">
              <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 mb-6"><AlertCircle className="w-5 h-5 text-amber-500" /><p className="text-xs text-gray-300">Bantu teman Anda jika Anda memiliki waktu luang.</p></div>
-            {requests.filter(r => r.requesterId !== currentUserId && r.status === 'OPEN').map(req => (
+            {requests.filter(r => r.requesterId?.trim() !== currentUserId?.trim() && r.status === 'OPEN').map(req => (
               <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{req.requesterName} Butuh Bantuan</span>
                 <h4 className="font-extrabold text-white text-lg mb-2">{req.taskTitle}</h4>
@@ -154,6 +221,40 @@ export const SwapRequestScreen: React.FC<{
                 <button onClick={() => handleAcceptSwap(req)} disabled={isLoading} className="w-full py-3 bg-amber-500 text-black font-bold rounded-xl active:scale-95 disabled:opacity-50">Ambil Alih Tugas</button>
               </div>
             ))}
+          </div>
+        ) : (
+          /* TAB ADMIN */
+          <div className="space-y-4">
+            {requests.filter(r => r.status === 'PENDING_APPROVAL').length === 0 ? (
+              <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800">
+                <ShieldCheck className="w-10 h-10 text-gray-700 mx-auto mb-4" />
+                <p className="text-gray-500 mb-2">Tidak ada antrean.</p>
+                <p className="text-[10px] text-gray-600 px-10">Semua permintaan pertukaran telah diproses.</p>
+              </div>
+            ) : (
+              requests.filter(r => r.status === 'PENDING_APPROVAL').map(req => (
+                <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-[10px] font-black bg-blue-500/20 text-blue-400 px-2 py-1 rounded uppercase tracking-widest">Menunggu Persetujuan</span>
+                    <span className="text-[10px] text-gray-500">{req.createdAt?.toDate ? new Date(req.createdAt.toDate()).toLocaleDateString() : 'Baru'}</span>
+                  </div>
+                  <h4 className="font-extrabold text-white text-lg mb-1">{req.taskTitle}</h4>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-xs text-amber-500 font-bold">{req.requesterName}</span>
+                    <RefreshCw size={12} className="text-gray-600" />
+                    <span className="text-xs text-emerald-500 font-bold">{req.accepterName}</span>
+                  </div>
+                  <div className="bg-[#0a0f18] p-3 rounded-xl border border-gray-800 mb-4">
+                    <p className="text-xs text-gray-400 uppercase font-bold mb-1 tracking-wider">Alasan:</p>
+                    <p className="text-sm text-gray-300 italic">"{req.reason}"</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => handleAdminReject(req)} disabled={isLoading} className="flex-1 py-3 bg-red-500/10 text-red-500 font-bold rounded-xl border border-red-500/20 active:scale-95 disabled:opacity-50">Tolak</button>
+                    <button onClick={() => handleAdminApprove(req)} disabled={isLoading} className="flex-1 py-3 bg-emerald-500 text-black font-bold rounded-xl active:scale-95 disabled:opacity-50">Setujui</button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
       </div>
@@ -183,8 +284,8 @@ export const SwapRequestScreen: React.FC<{
                     <div className="text-[9px] text-gray-400 font-mono break-all mt-2 space-y-1 bg-black/50 p-2 rounded">
                       <p>UID Aplikasi Saya: <span className="text-white font-bold">{currentUserId || 'KOSONG (Masalah Prop/Auth)'}</span></p>
                       <hr className="border-gray-800 my-1"/>
-                      <p>Tugas di Database (Bukan Selesai):</p>
-                      {tasksDb.filter(t => t.status !== 'COMPLETED').map(t => (
+                      <p>Tugas di Database (OPEN/IN_PROGRESS):</p>
+                      {tasksDb.filter(t => t.status === 'IN_PROGRESS' || t.status === 'OPEN').map(t => (
                         <div key={t.id} className="pl-2 border-l border-gray-700 my-1">
                           <p className="text-yellow-400">{t.title}</p>
                           <p>UID di Database: <span className="text-white">{JSON.stringify(t.assignedUsers)}</span></p>

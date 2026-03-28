@@ -47,8 +47,12 @@ export const UserDashboard: React.FC<{
     return 'Petugas';
   };
 
-  const allActiveTasks = (tasksDb || []).filter(t => t.status === 'IN_PROGRESS');
-  const myActiveTasks = allActiveTasks.filter(t => user && user.uid && t.assignedUsers && t.assignedUsers.includes(user.uid));
+  const allActiveTasks = (tasksDb || []).filter(t => t.status === 'IN_PROGRESS' || t.status === 'OPEN');
+  const myActiveTasks = allActiveTasks.filter(t => {
+    if (!user || !user.uid) return false;
+    const assigned = t.assignedUsers || [];
+    return assigned.some(id => id?.trim() === user.uid?.trim() || id?.trim() === user.id?.trim());
+  });
   const displayedTasks = taskTab === 'MINE' ? myActiveTasks : allActiveTasks;
 
   const unreadCount = (notificationsDb || []).filter(n => !n.read).length;
@@ -67,10 +71,10 @@ export const UserDashboard: React.FC<{
   // --- HITUNG MUNDUR (TANPA DETIK) ---
   useEffect(() => {
     const validTasks = (tasksDb || []).filter(t => 
-      t.status === 'IN_PROGRESS' && 
+      (t.status === 'IN_PROGRESS' || t.status === 'OPEN') && 
       t.date && 
       t.time &&
-      user && user.uid && t.assignedUsers && t.assignedUsers.includes(user.uid)
+      user && user.uid && (t.assignedUsers || []).some(id => id?.trim() === user.uid?.trim() || id?.trim() === user.id?.trim())
     );
 
     if (validTasks.length === 0) {
@@ -584,10 +588,10 @@ export const UserDashboard: React.FC<{
                     
                     <div className="flex -space-x-1.5">
                       {(task.assignedUsers || []).slice(0, 3).map((uid, i) => {
-                        const u = usersDb?.find(usr => usr.uid === uid || usr.id === uid);
+                        const u = usersDb?.find(usr => usr.uid?.trim() === uid?.trim() || usr.id?.trim() === uid?.trim());
                         return (
                           <div key={i} className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 overflow-hidden shadow-sm relative">
-                            {user && uid === user.uid && <div className="absolute inset-0 border-2 border-emerald-500 rounded-full z-10 pointer-events-none"></div>}
+                            {user && uid?.trim() === user.uid?.trim() && <div className="absolute inset-0 border-2 border-emerald-500 rounded-full z-10 pointer-events-none"></div>}
                             <img src={getAvatarUrl(u)} alt="Avatar" className="w-full h-full object-cover" />
                           </div>
                         );

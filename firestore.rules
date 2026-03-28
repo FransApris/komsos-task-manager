@@ -79,9 +79,9 @@ service cloud.firestore {
 
     function isValidTask(data) {
       return hasRequiredFields(['title', 'type', 'date', 'time', 'status', 'createdBy', 'createdAt']) &&
-             hasOnlyAllowedFields(['title', 'description', 'type', 'date', 'time', 'status', 'assignedUsers', 'createdBy', 'createdAt', 'updatedAt', 'updatedBy', 'location', 'teamLeaderId', 'requiredEquipment', 'evidence', 'history', 'progressHistory', 'missedUsers', 'proofNotes', 'linkedScheduleId', 'linkedScheduleTitle']) &&
+             hasOnlyAllowedFields(['title', 'description', 'type', 'date', 'time', 'status', 'assignedUsers', 'createdBy', 'createdAt', 'updatedAt', 'updatedBy', 'location', 'teamLeaderId', 'requiredEquipment', 'evidence', 'history', 'progressHistory', 'missedUsers', 'proofNotes', 'linkedScheduleId', 'linkedScheduleTitle', 'subTasks', 'resultLink', 'feedback']) &&
              data.title is string && data.title.size() < 200 &&
-             data.status in ['IN_PROGRESS', 'WAITING_VERIFICATION', 'COMPLETED'] &&
+             data.status in ['OPEN', 'IN_PROGRESS', 'WAITING_VERIFICATION', 'COMPLETED'] &&
              data.createdAt is timestamp;
     }
 
@@ -118,10 +118,15 @@ service cloud.firestore {
              data.taskId is string && data.taskTitle is string &&
              data.requesterId is string && data.requesterName is string &&
              data.reason is string && data.reason.size() < 1000 &&
-             data.status in ['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'] &&
+             data.status in ['OPEN', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'CANCELLED', 'ACCEPTED'] &&
              data.createdAt is timestamp &&
              (!('suggestedReplacementId' in data) || data.suggestedReplacementId is string) &&
-             (!('suggestedReplacementName' in data) || data.suggestedReplacementName is string);
+             (!('suggestedReplacementName' in data) || data.suggestedReplacementName is string) &&
+             (!('accepterId' in data) || data.accepterId is string) &&
+             (!('accepterName' in data) || data.accepterName is string) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             (!('approvedBy' in data) || data.approvedBy is string) &&
+             (!('approvedAt' in data) || data.approvedAt is timestamp);
     }
 
     // ===============================================================
@@ -220,11 +225,11 @@ service cloud.firestore {
       allow update: if isAuthenticated() && 
                     (
                       // Requester can cancel
-                      (isOwner(resource.data.requesterId) && request.resource.data.status == 'CANCELLED' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+                      (isOwner(resource.data.requesterId) && request.resource.data.status == 'CANCELLED' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
                       // Other users can volunteer
-                      (!isOwner(resource.data.requesterId) && !('suggestedReplacementId' in resource.data) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['suggestedReplacementId', 'suggestedReplacementName'])) ||
+                      (!isOwner(resource.data.requesterId) && request.resource.data.status == 'PENDING_APPROVAL' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'accepterId', 'accepterName', 'updatedAt'])) ||
                       // Admin can approve/reject
-                      (isAdmin() && request.resource.data.status in ['APPROVED', 'REJECTED'] && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'approvedBy', 'approvedAt']))
+                      (isAdmin() && request.resource.data.status in ['APPROVED', 'REJECTED'] && request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'updatedAt']))
                     );
       allow delete: if isAdmin();
     }

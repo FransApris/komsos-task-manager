@@ -1,4 +1,4 @@
-export type Screen = 'SPLASH' | 'LOGIN' | 'REGISTER' | 'USER_DASHBOARD' | 'ADMIN_DASHBOARD' | 'TASK_DETAIL' | 'TASK_UPDATE' | 'EDIT_TASK' | 'SWAP_REQUEST' | 'NOTIFICATIONS' | 'PROFILE' | 'TASKS' | 'TEAM' | 'SCHEDULE' | 'EDIT_PROFILE' | 'NOTIFICATION_SETTINGS' | 'PERFORMANCE_STATS' | 'APP_SETTINGS' | 'CHANGE_PASSWORD' | 'HELP_CENTER' | 'LIVE_CHAT' | 'EMAIL_SUPPORT' | 'CREATE_TASK' | 'INVENTORY' | 'MASS_SCHEDULE' | 'ATTENDANCE' | 'REPORTS' | 'ADMIN_DATA_MANAGEMENT' | 'TASK_TYPE_MANAGEMENT' | 'USER_VERIFICATION' | 'TASK_VERIFICATION' | 'VCAST_MANAGER';
+export type Screen = 'SPLASH' | 'LOGIN' | 'REGISTER' | 'USER_DASHBOARD' | 'ADMIN_DASHBOARD' | 'TASK_DETAIL' | 'TASK_UPDATE' | 'EDIT_TASK' | 'SWAP_REQUEST' | 'NOTIFICATIONS' | 'PROFILE' | 'TASKS' | 'TEAM' | 'SCHEDULE' | 'EDIT_PROFILE' | 'NOTIFICATION_SETTINGS' | 'PERFORMANCE_STATS' | 'APP_SETTINGS' | 'CHANGE_PASSWORD' | 'HELP_CENTER' | 'LIVE_CHAT' | 'EMAIL_SUPPORT' | 'CREATE_TASK' | 'INVENTORY' | 'MASS_SCHEDULE' | 'ATTENDANCE' | 'REPORTS' | 'ADMIN_DATA_MANAGEMENT' | 'TASK_TYPE_MANAGEMENT' | 'USER_VERIFICATION' | 'TASK_VERIFICATION' | 'VCAST_MANAGER' | 'HELPDESK';
 
 export type Role = 'SUPERADMIN' | 'ADMIN_MULTIMEDIA' | 'ADMIN_PHOTO_VIDEO' | 'ADMIN_PUBLICATION' | 'USER' | null;
 
@@ -48,6 +48,7 @@ export interface UserAccount {
   isOnline?: boolean;
   lastSeen?: any;
   divisions?: string[]; // Fitur Multi-Divisi
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
 }
 
 export interface SubTask {
@@ -171,7 +172,7 @@ export interface SwapRequest {
   reason: string;
   suggestedReplacementId?: string;
   suggestedReplacementName?: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  status: 'OPEN' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'ACCEPTED';
   createdAt: any;
   approvedBy?: string;
   approvedAt?: any;

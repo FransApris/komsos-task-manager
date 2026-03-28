@@ -115,25 +115,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onDemoLogin, onNavigat
             Gunakan Mode Demo (Tanpa Internet)
           </button>
         )}
-
-        {/* Footer Info Anggota */}
-        <div className="mt-8 p-5 bg-[#151b2b] rounded-3xl border border-gray-800 shadow-xl">
-          <p className="font-black text-[10px] text-blue-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-            Anggota Terdaftar
+        
+        {/* Versi Aplikasi */}
+        <div className="pt-12 pb-4 text-center">
+          <p className="text-[10px] text-gray-600 font-bold tracking-[0.2em] uppercase opacity-40">
+            Versi 1.2 - 2026
           </p>
-          <div className="space-y-3">
-            {usersDb.length > 0 ? usersDb.slice(0, 3).map((u) => (
-              <div key={u.id} className="flex justify-between items-center text-[11px] pb-2 border-b border-gray-800/50 last:border-0 last:pb-0">
-                <span className="text-gray-300 font-bold flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-gray-800 overflow-hidden">
-                    <img src={u.img?.startsWith('http') ? u.img : `https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80&v=${u.img}`} alt="Avatar" className="w-full h-full object-cover" />
-                  </div>
-                  {u.displayName || 'Tanpa Nama'}
-                </span>
-                <span className="text-gray-500 uppercase text-[9px] font-black tracking-widest">{getRoleLabel(u.role)}</span>
-              </div>
-            )) : <p className="text-gray-600 text-[10px] italic">Memuat data tim...</p>}
-          </div>
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import {
   FileText, UserCheck, Loader2, ChevronRight, Users, Trophy,
   Settings, Shield, Zap, Activity, BarChart3, Sparkles, X, Gift, Medal, AlertCircle, PlayCircle, Circle, Megaphone, Edit3, RefreshCw
 } from 'lucide-react';
-import { Screen, Role, UserAccount, Task, Notification } from '../types';
+import { Screen, Role, UserAccount, Task, Notification, SwapRequest } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, collection, addDoc, serverTimestamp, doc, updateDoc, setDoc, onSnapshot } from '../firebase';
@@ -23,6 +23,7 @@ interface AdminDashboardProps {
   notificationsDb?: Notification[];
   setSelectedTaskId: (id: string) => void;
   isOnline?: boolean;
+  swapRequestsDb?: SwapRequest[];
 }
 
 const QuickActionBtn = ({ icon, label, onClick, color }: any) => (
@@ -47,7 +48,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   tasksDb = [],
   notificationsDb = [],
   setSelectedTaskId,
-  isOnline = true
+  isOnline = true,
+  swapRequestsDb = []
 }) => {
   const isAdminRole = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
   const [showRewardModal, setShowRewardModal] = useState(false);
@@ -118,6 +120,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const activeTasks = tasksDb.filter(t => t.status === 'IN_PROGRESS' || t.status === 'OPEN');
   const pendingVerifications = tasksDb.filter(t => t.status === 'WAITING_VERIFICATION');
   const pendingUsers = usersDb.filter(u => u.status === 'PENDING');
+  const pendingSwaps = swapRequestsDb.filter(r => r.status === 'PENDING_APPROVAL');
   const unreadCount = notificationsDb.filter(n => !n.read).length;
 
   const topUsers = [...usersDb].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 3);
@@ -293,7 +296,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <>
                     <QuickActionBtn icon={<Database className="w-5 h-5 text-emerald-500" />} label="Database Master" color="bg-emerald-500/10" onClick={() => onNavigate('ADMIN_DATA_MANAGEMENT')} />
                     <QuickActionBtn icon={<Gift className="w-5 h-5 text-amber-500" />} label="Tutup Buku (Reward)" color="bg-amber-500/10" onClick={() => setShowRewardModal(true)} />
-                    <QuickActionBtn icon={<RefreshCw className="w-5 h-5 text-blue-500" />} label="Bursa Pertukaran" color="bg-blue-500/10" onClick={() => onNavigate('SWAP_REQUEST')} />
+                    <div className="relative">
+                      <QuickActionBtn icon={<RefreshCw className="w-5 h-5 text-blue-500" />} label="Bursa Pertukaran" color="bg-blue-500/10" onClick={() => onNavigate('SWAP_REQUEST')} />
+                      {pendingSwaps.length > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f18] animate-pulse">
+                          {pendingSwaps.length}
+                        </span>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
