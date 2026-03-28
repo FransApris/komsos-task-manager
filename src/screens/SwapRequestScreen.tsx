@@ -27,7 +27,8 @@ export const SwapRequestScreen: React.FC<{
   const [isLoading, setIsLoading] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
 
-  // --- LOGIKA IDENTITAS GANDA (Sama dengan Dashboard) ---
+  // --- KUNCI UTAMA: Sinkronisasi Identitas Ganda ---
+  // Kita pastikan sistem mengenali user baik melalui uid maupun id
   const currentUserId = user?.uid || user?.id || "";
 
   useEffect(() => {
@@ -38,30 +39,29 @@ export const SwapRequestScreen: React.FC<{
     return () => unsub();
   }, []);
 
-  const myRequests = requests.filter(r => r.requesterId === currentUserId);
+  const myRequests = requests.filter(r => r.requesterId === user?.uid || r.requesterId === user?.id);
   const tasksInBursaIds = myRequests.filter(r => r.status === 'OPEN' || r.status === 'PENDING_APPROVAL').map(r => r.taskId);
 
-  // --- PERBAIKAN FILTER DROPDOWN ---
-  // Kita abaikan status IN_PROGRESS dan gunakan pencarian assignedUsers yang lebih luas
-  const mySwappableTasks = tasksDb.filter(t => {
-    // Pastikan t.assignedUsers ada dan merupakan array
-    const users = t.assignedUsers || [];
+  // --- FILTER DROPDOWN: Menampilkan tugas yang muncul di Dashboard ---
+  const mySwappableTasks = (tasksDb || []).filter(t => {
+    // 1. Cek apakah salah satu ID user ada di array petugas
+    const isAssigned = t.assignedUsers && (
+      t.assignedUsers.includes(user?.uid || "") || 
+      t.assignedUsers.includes(user?.id || "")
+    );
     
-    // Syarat 1: Nama user ada di dalam daftar petugas (uid atau id)
-    const isMyTask = users.some(uId => uId === user?.uid || uId === user?.id);
+    // 2. Tugas belum selesai
+    const isNotCompleted = t.status !== 'COMPLETED';
     
-    // Syarat 2: Tugas belum selesai (Completed)
-    const isNotDone = t.status !== 'COMPLETED';
-    
-    // Syarat 3: Belum ada di bursa
-    const notInBursa = !tasksInBursaIds.includes(t.id);
+    // 3. Belum diajukan ke bursa
+    const notYetInBursa = !tasksInBursaIds.includes(t.id);
 
-    return isMyTask && isNotDone && notInBursa;
+    return isAssigned && isNotCompleted && notYetInBursa;
   });
 
   const handleCreateRequest = async () => {
     if (!selectedTaskId || !reason.trim()) {
-      toast.error('Mohon isi data dengan lengkap.');
+      toast.error('Mohon lengkapi data pertukaran.');
       return;
     }
     setIsLoading(true);
@@ -72,13 +72,13 @@ export const SwapRequestScreen: React.FC<{
         taskTitle: task?.title,
         taskDate: task?.date,
         taskTime: task?.time,
-        requesterId: currentUserId,
+        requesterId: currentUserId, // Gunakan ID login saat ini
         requesterName: user?.displayName || 'Petugas',
         reason: reason,
         status: 'OPEN', 
         createdAt: serverTimestamp()
       });
-      toast.success('Permintaan dikirim ke bursa.');
+      toast.success('Permintaan berhasil dikirim ke bursa.');
       setShowModal(false);
       setSelectedTaskId('');
       setReason('');
@@ -100,7 +100,7 @@ export const SwapRequestScreen: React.FC<{
       });
       toast.success('Menunggu persetujuan koordinator.');
     } catch (error) {
-      toast.error('Gagal memproses.');
+      toast.error('Gagal memproses pertukaran.');
     } finally {
       setIsLoading(false);
     }
@@ -128,20 +128,17 @@ export const SwapRequestScreen: React.FC<{
             ) : (
               myRequests.map(req => (
                 <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 relative">
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500' : req.status === 'ACCEPTED' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
+                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500' : 'bg-amber-500'}`}></div>
                   <h4 className="font-bold text-white pr-4">{req.taskTitle}</h4>
-                  <p className="text-xs text-gray-400 mt-2 italic">"{req.reason}"</p>
-                  {req.status === 'PENDING_APPROVAL' && (
-                    <p className="mt-2 text-[10px] text-blue-400 font-bold uppercase italic">Menunggu Persetujuan Koordinator</p>
-                  )}
+                  <p className="text-xs text-gray-400 mt-1 italic">"{req.reason}"</p>
                 </div>
               ))
             )}
           </div>
         ) : (
           <div className="space-y-4">
-             <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 mb-6"><AlertCircle className="w-5 h-5 text-amber-500" /><p className="text-xs text-gray-300">Bantu temanmu jika Anda memiliki waktu luang.</p></div>
-            {requests.filter(r => r.requesterId !== currentUserId && r.status === 'OPEN').map(req => (
+             <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 mb-6"><AlertCircle className="w-5 h-5 text-amber-500" /><p className="text-xs text-gray-300">Bantu teman Anda jika Anda memiliki waktu luang.</p></div>
+            {requests.filter(r => r.requesterId !== user?.uid && r.requesterId !== user?.id && r.status === 'OPEN').map(req => (
               <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800">
                 <h4 className="font-extrabold text-white text-lg">{req.taskTitle}</h4>
                 <button onClick={() => handleAcceptSwap(req)} disabled={isLoading} className="w-full mt-4 py-3 bg-amber-500 text-black font-bold rounded-xl active:scale-95">Ambil Alih</button>
@@ -172,7 +169,7 @@ export const SwapRequestScreen: React.FC<{
                   {mySwappableTasks.map(t => <option key={t.id} value={t.id}>{t.title} ({t.date})</option>)}
                 </select>
                 <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Alasan pertukaran..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white h-28 resize-none focus:border-amber-500 outline-none" />
-                <button onClick={handleCreateRequest} disabled={isLoading || !selectedTaskId || !reason.trim()} className="w-full py-4 font-bold text-black bg-amber-500 rounded-xl disabled:opacity-50">Kirim ke Bursa</button>
+                <button onClick={handleCreateRequest} disabled={isLoading || !selectedTaskId || !reason.trim()} className="w-full py-4 font-bold text-black bg-amber-500 rounded-xl">Kirim ke Bursa</button>
               </div>
             </motion.div>
           </div>
