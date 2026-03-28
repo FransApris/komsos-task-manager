@@ -138,8 +138,6 @@ export default function App() {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
 
           if (!userDoc.exists()) {
-            // PERBAIKAN 1: HENTIKAN PENDAFTARAN DIAM-DIAM.
-            // Jika data user tidak ada di database, PAKSA MEREKA DAFTAR DULU
             if (currentScreen !== 'REGISTER') {
                auth.signOut();
                toast.info("Anda belum terdaftar. Silakan lengkapi formulir pendaftaran.");
@@ -148,11 +146,9 @@ export default function App() {
             return; 
           }
 
-          // Jika data user ADA di database:
           const userData = { id: userDoc.id, ...userDoc.data() } as UserAccount;
           const isSuperAdmin = userData.role === 'SUPERADMIN';
 
-          // PERBAIKAN 2: CEK STATUS (PENDING & REJECTED)
           if (userData.status === 'PENDING' && !isSuperAdmin) {
             toast.warning("Akun Menunggu Verifikasi", {
               description: "Pendaftaran Anda sedang ditinjau oleh Admin.",
@@ -177,7 +173,6 @@ export default function App() {
             return;
           }
 
-          // PERBAIKAN 3: Jika status ACTIVE, izinkan masuk.
           setCurrentUser(userData);
           
           if (currentScreen === 'SPLASH' || currentScreen === 'LOGIN' || currentScreen === 'REGISTER') {
@@ -307,9 +302,11 @@ export default function App() {
         const taskToEdit = tasksDb.find(t => t.id === selectedTaskId);
         if (!taskToEdit) return <SplashScreen onFinish={() => handleNavigate('TASKS')} />;
         return <EditTaskScreen onNavigate={handleNavigate} currentUser={currentUser} task={taskToEdit} usersDb={usersDb} inventoryDb={inventoryDb} />;
+      
+      // --- PERBAIKAN: MENGIRIMKAN tasksDb KE BURSA PERTUKARAN ---
       case 'SWAP_REQUEST':
-        const taskForSwap = tasksDb.find(t => t.id === selectedTaskId) || null;
-        return <SwapRequestScreen onNavigate={handleNavigate} currentUser={currentUser} task={taskForSwap} />;
+        return <SwapRequestScreen onNavigate={handleNavigate} user={currentUser} tasksDb={tasksDb} />;
+      
       case 'TEAM':
         return <TeamScreen onNavigate={handleNavigate} role={currentUser?.role} usersDb={usersDb} currentUser={currentUser} />;
       case 'PROFILE':
