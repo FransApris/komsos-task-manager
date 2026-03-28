@@ -60,7 +60,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [editAnnouncementText, setEditAnnouncementText] = useState('');
   const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
 
-  // --- MENGAMBIL DATA PENGUMUMAN DARI DATABASE SECARA REAL-TIME ---
+  // --- MENGAMBIL DATA PENGUMUMAN SECARA REAL-TIME ---
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'announcement'), (docSnap) => {
       if (docSnap.exists()) {
@@ -214,7 +214,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       <div className="p-5 space-y-6">
         
-        {/* --- PAPAN PENGUMUMAN BARU --- */}
+        {/* --- PAPAN PENGUMUMAN --- */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 rounded-3xl shadow-lg shadow-blue-500/20 relative overflow-hidden group">
           <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500"><Megaphone size={100} /></div>
           <div className="relative z-10">
@@ -313,8 +313,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
 
+        {/* --- PERBAIKAN LEADERBOARD: Hanya tampil jika ada poin > 0 --- */}
         <div>
-          <Leaderboard users={usersDb} />
+          {usersDb.filter(u => (u.points || 0) > 0).length > 0 ? (
+            <Leaderboard users={usersDb.filter(u => (u.points || 0) > 0)} />
+          ) : (
+            <div className="bg-[#151b2b] p-6 rounded-3xl border border-gray-800 text-center">
+              <div className="inline-flex p-4 bg-gray-800/50 rounded-full mb-3">
+                <Trophy className="w-8 h-8 text-gray-500" />
+              </div>
+              <h3 className="font-extrabold text-white mb-1">Klasemen Masih Kosong</h3>
+              <p className="text-xs text-gray-400 leading-relaxed max-w-[250px] mx-auto">
+                Belum ada anggota yang mengumpulkan poin bulan ini.
+              </p>
+            </div>
+          )}
         </div>
 
         <div>
