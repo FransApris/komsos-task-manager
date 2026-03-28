@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone, RefreshCw } from 'lucide-react';
+import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone, RefreshCw, Circle } from 'lucide-react';
 import { Screen, UserAccount, Task, Notification, TaskType, AvailabilityStatus } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
 import { motion, AnimatePresence } from 'motion/react';
@@ -20,13 +20,20 @@ export const UserDashboard: React.FC<{
   setSelectedTaskId?: (id: string) => void,
   isOnline?: boolean
 }> = ({ onNavigate, onLogout, user, tasksDb = [], notificationsDb = [], taskTypes = [], usersDb = [], setSelectedTaskId = (_id: string) => {}, isOnline = true }) => {
-  const [quickNotes, setQuickNotes] = useState(user && user.quickNotes ? user.quickNotes : '');
+  const [quickNotes, setQuickNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
   const [countdown, setCountdown] = useState<string>('');
   
   const [taskTab, setTaskTab] = useState<'MINE' | 'ALL'>('MINE');
   const [announcement, setAnnouncement] = useState('Selamat datang di Sistem Manajemen Tugas Komsos St. Paulus Juanda!');
+
+  // Sync quickNotes when user prop changes
+  useEffect(() => {
+    if (user && user.quickNotes !== undefined) {
+      setQuickNotes(user.quickNotes);
+    }
+  }, [user?.quickNotes, user?.id]);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'announcement'), (docSnap) => {
@@ -253,7 +260,7 @@ export const UserDashboard: React.FC<{
     AWAY: { btn: 'bg-amber-500/10 border-amber-500/20 text-amber-500', dot: 'bg-amber-500', text: 'Away' }
   };
   const currentAvail = availStyles[availability as keyof typeof availStyles] || availStyles.AVAILABLE;
-  const isOnlineStatus = isOnline;
+  const isOnlineStatus = user?.isOnline ?? isOnline;
 
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white">
