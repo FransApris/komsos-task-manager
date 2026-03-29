@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Plus, RefreshCw, X, Calendar, Clock, AlertCircle, ShieldCheck } from 'lucide-react';
-import { Screen, UserAccount, Task } from '../types';
+import { Screen, UserAccount, Task, Role } from '../types';
 import { db, auth } from '../firebase'; // Wajib import auth
 import { 
   collection, 

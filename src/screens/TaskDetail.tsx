@@ -206,7 +206,7 @@ export const TaskDetail: React.FC<{
   const customColor = taskTypes.find(tt => tt.name.toLowerCase() === task.type?.toLowerCase())?.color;
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40">
+    <div className={`flex-1 flex flex-col bg-[#0a0f18] ${activeTab === 'DETAIL' ? 'overflow-y-auto pb-40' : 'overflow-hidden'}`}>
       <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
         <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800" onClick={() => onNavigate(isAdminRole ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD')}>
           <ChevronLeft className="w-5 h-5 text-gray-300" />
