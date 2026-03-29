@@ -83,11 +83,11 @@ export const TaskChat: React.FC<TaskChatProps> = ({ taskId, currentUser, role, u
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <div className={`flex flex-col max-w-[80%] ${isCurrentUser(msg.senderId) ? 'items-end' : 'items-start'}`}>
+              <div className={`flex flex-col max-w-[85%] w-full ${isCurrentUser(msg.senderId) ? 'items-end' : 'items-start'}`}>
                 {!isCurrentUser(msg.senderId) && (
                   <span className="text-[10px] text-gray-500 font-bold mb-1 px-1">{msg.senderName}</span>
                 )}
-                <div className={`p-3 rounded-2xl shadow-sm ${
+                <div className={`p-3 rounded-2xl shadow-sm min-w-[140px] w-full ${
                   isCurrentUser(msg.senderId) 
                     ? 'bg-blue-600 text-white rounded-tr-none' 
                     : 'bg-[#151b2b] border border-gray-800 text-gray-200 rounded-tl-none'
