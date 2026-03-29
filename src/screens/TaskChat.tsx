@@ -92,7 +92,7 @@ export const TaskChat: React.FC<TaskChatProps> = ({ taskId, currentUser, role, u
                     ? 'bg-blue-600 text-white rounded-tr-none' 
                     : 'bg-[#151b2b] border border-gray-800 text-gray-200 rounded-tl-none'
                 }`}>
-                  <p className="text-sm leading-relaxed">{msg.text}</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                   <div className="flex items-center justify-end gap-1.5 mt-1 opacity-60">
                     <p className="text-[9px] font-medium">{formatTime(msg.createdAt)}</p>
                   </div>
@@ -105,22 +105,33 @@ export const TaskChat: React.FC<TaskChatProps> = ({ taskId, currentUser, role, u
       </div>
 
       <div className="p-4 bg-[#151b2b] border-t border-gray-800/50">
-        <div className="flex items-center gap-2">
-          <button className="p-2 text-gray-500 hover:text-white transition-colors">
+        <div className="flex items-end gap-2">
+          <button className="p-2 mb-1 text-gray-500 hover:text-white transition-colors">
             <Paperclip className="w-5 h-5" />
           </button>
-          <input 
-            type="text" 
+          <textarea 
+            rows={1}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
             placeholder="Ketik pesan untuk tim..." 
-            className="flex-1 bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-all"
+            className="flex-1 bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-all resize-none max-h-32 overflow-y-auto"
+            style={{ height: 'auto', minHeight: '44px' }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
+            }}
           />
           <button 
             onClick={handleSend}
             disabled={!message.trim() || isSending}
-            className={`p-3 rounded-xl transition-all shadow-lg ${
+            className={`p-3 mb-0.5 rounded-xl transition-all shadow-lg ${
               message.trim() && !isSending 
                 ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20 active:scale-95' 
                 : 'bg-gray-800 text-gray-500'
