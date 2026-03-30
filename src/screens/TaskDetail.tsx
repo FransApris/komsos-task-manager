@@ -213,7 +213,7 @@ export const TaskDetail: React.FC<{
         </button>
         <h1 className="text-lg font-extrabold tracking-tight text-white">Detail Tugas</h1>
         <div className="flex gap-2">
-          {role === 'SUPERADMIN' && (
+          {isAdminRole && (
             <button 
               className="p-2 bg-blue-600/20 text-blue-400 rounded-full border border-blue-500/30 hover:bg-blue-600/30 transition-all"
               onClick={() => onNavigate('EDIT_TASK')}
