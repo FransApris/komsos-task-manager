@@ -5,7 +5,7 @@ import {
   Lightbulb, Wrench, Trash2, Edit2, CheckCircle2, User, Loader2, X, Save,
   QrCode, ScanLine, RefreshCw, Camera as CameraIcon
 } from 'lucide-react';
-import { db, auth, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc } from '../firebase';
+import { db, auth, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc, handleFirestoreError, OperationType } from '../firebase';
 import { motion } from 'motion/react';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { toast } from 'sonner';
@@ -100,29 +100,31 @@ export const InventoryScreen: React.FC<{
     setIsLoading(true);
     try {
       if (editingItem) {
+        // Data yang akan disimpan
+        const itemData: any = {
+          name: name.trim(),
+          category,
+          status,
+          updatedAt: serverTimestamp(),
+          lastChecked: serverTimestamp(),
+          assignedTo: (status === 'AVAILABLE' || status === 'MAINTENANCE' || status === 'BROKEN') 
+            ? null 
+            : (editingItem.assignedTo || null)
+        };
+
         // PERHATIAN: Di Firestore, Anda TIDAK BISA mengganti ID dokumen (doc.id) yang sudah ada. 
         // Jika ID Barcode diubah, kita harus menghapus dokumen lama dan membuat yang baru.
         if (editingItem.id !== finalId) {
           // Buat dokumen baru dengan ID baru
           await setDoc(doc(db, 'inventory', finalId), {
-            name: name.trim(),
-            category,
-            status,
-            assignedTo: editingItem.assignedTo, // Pertahankan status pinjaman
-            updatedAt: serverTimestamp(),
-            lastChecked: serverTimestamp()
+            ...itemData,
+            createdAt: (editingItem as any).createdAt || serverTimestamp()
           });
           // Hapus dokumen lama
           await deleteDoc(doc(db, 'inventory', editingItem.id));
         } else {
           // Jika ID sama, cukup update isinya
-          await updateDoc(doc(db, 'inventory', editingItem.id), {
-            name: name.trim(),
-            category,
-            status,
-            updatedAt: serverTimestamp(),
-            lastChecked: serverTimestamp()
-          });
+          await updateDoc(doc(db, 'inventory', editingItem.id), itemData);
         }
         toast.success('Barang berhasil diperbarui');
       } else {
@@ -139,9 +141,10 @@ export const InventoryScreen: React.FC<{
       }
       setIsAdding(false);
       setEditingItem(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving inventory item:", error);
-      toast.error("Gagal menyimpan barang. Pastikan koneksi internet stabil.");
+      handleFirestoreError(error, OperationType.WRITE, `inventory/${finalId}`);
+      toast.error(`Gagal menyimpan barang: ${error.message || 'Pastikan koneksi internet stabil.'}`);
     } finally {
       setIsLoading(false);
     }
@@ -156,9 +159,10 @@ export const InventoryScreen: React.FC<{
         try {
           await deleteDoc(doc(db, 'inventory', id));
           toast.success('Barang berhasil dihapus');
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error deleting item:", error);
-          toast.error("Gagal menghapus barang.");
+          handleFirestoreError(error, OperationType.DELETE, `inventory/${id}`);
+          toast.error(`Gagal menghapus barang: ${error.message || 'Terjadi kesalahan.'}`);
         } finally {
           setIsLoading(false);
         }
@@ -218,9 +222,10 @@ export const InventoryScreen: React.FC<{
 
       setScanId('');
       setIsScanning(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error scanning item:", error);
-      toast.error("Terjadi kesalahan sistem saat memproses scan.");
+      handleFirestoreError(error, OperationType.UPDATE, `inventory/${scanId}`);
+      toast.error(`Gagal memproses scan: ${error.message || 'Terjadi kesalahan sistem.'}`);
     } finally {
       setIsLoading(false);
     }

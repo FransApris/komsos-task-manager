@@ -18,7 +18,7 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isAuthenticated() &&
         (
-          (request.auth.token.email == "fad2beth@gmail.com") ||
+          ('email' in request.auth.token && request.auth.token.email.toLower() == "fad2beth@gmail.com") ||
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPERADMIN')
         );
@@ -103,7 +103,8 @@ service cloud.firestore {
       return hasRequiredFields(['name', 'category', 'status', 'lastChecked']) &&
              data.name is string && data.name.size() < 200 &&
              data.category in ['Kamera', 'Audio', 'Lighting', 'Aksesoris', 'Lainnya'] &&
-             data.status in ['AVAILABLE', 'IN_USE', 'MAINTENANCE', 'BROKEN'];
+             data.status in ['AVAILABLE', 'IN_USE', 'MAINTENANCE', 'BROKEN'] &&
+             data.lastChecked is timestamp;
     }
 
     function isValidVCast(data) {
