@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone, RefreshCw, Circle } from 'lucide-react';
+import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone, RefreshCw, Circle, HelpCircle } from 'lucide-react';
 import { Screen, UserAccount, Task, Notification, TaskType, AvailabilityStatus } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { db, doc, updateDoc, onSnapshot } from '../firebase';
 import { toast } from 'sonner';
@@ -272,6 +272,16 @@ export const UserDashboard: React.FC<{
           <h1 className="text-lg font-extrabold tracking-tight text-white">Tugas Komsos</h1>
         </div>
         <div className="flex items-center gap-2">
+          
+          {/* --- TOMBOL PUSAT BANTUAN DI SINI --- */}
+          <motion.button 
+            whileTap={{ scale: 0.9 }} 
+            className="p-2 bg-blue-600/10 rounded-full border border-blue-500/20" 
+            onClick={() => onNavigate('HELP_CENTER')}
+          >
+            <HelpCircle className="w-5 h-5 text-blue-400" />
+          </motion.button>
+
           <motion.button whileTap={{ scale: 0.9 }} className="p-2 bg-[#151b2b] rounded-full border border-gray-800 relative" onClick={() => onNavigate('NOTIFICATIONS')}>
             <Bell className="w-5 h-5 text-gray-300" />
             {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-[#151b2b]"></span>}
