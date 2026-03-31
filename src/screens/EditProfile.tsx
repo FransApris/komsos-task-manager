@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { ChevronLeft, Camera, Loader2, Save, User, Phone, FileText } from 'lucide-react';
 import { Screen, UserAccount } from '../types';
-import { db, doc, updateDoc, serverTimestamp } from '../firebase';
+import { db, auth, doc, updateDoc, serverTimestamp } from '../firebase';
+import { updateProfile } from 'firebase/auth'; // Tambahan untuk update sistem Auth
 import { toast } from 'sonner';
 import { getAvatarUrl } from '../lib/avatar';
 
@@ -15,7 +16,6 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
   const [phone, setPhone] = useState(user?.phone || '');
   const [bio, setBio] = useState(user?.bio || '');
   
-  // State baru untuk menampilkan foto secara instan (Preview)
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   
   const [isUploading, setIsUploading] = useState(false);
@@ -31,7 +31,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
       const reader = new FileReader();
       reader.onload = (event) => {
         const img = new Image();
-        img.onload = async () => {
+        img.onload = () => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
@@ -57,17 +57,9 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
           // Konversi ke Base64
           const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
           
-          // 1. Tampilkan gambar secara instan di layar UI
+          // HANYA SET PREVIEW. Jangan simpan ke database dulu.
+          // Database baru akan diupdate saat tombol "Simpan Perubahan" ditekan.
           setPreviewImage(compressedBase64);
-          
-          // 2. Simpan ke database
-          const userRef = doc(db, 'users', user.id);
-          await updateDoc(userRef, {
-            photoURL: compressedBase64,
-            updatedAt: serverTimestamp()
-          });
-          
-          toast.success('Foto profil berhasil diperbarui!');
           setIsUploading(false);
         };
         img.src = event.target?.result as string;
@@ -75,7 +67,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error uploading image:', error);
-      toast.error('Gagal mengunggah foto profil.');
+      toast.error('Gagal memproses foto.');
       setIsUploading(false);
     }
   };
@@ -90,12 +82,28 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
     setIsSaving(true);
     try {
       const userRef = doc(db, 'users', user.id);
-      await updateDoc(userRef, {
+      
+      // Siapkan paket data untuk Firestore
+      const updateData: any = {
         displayName: displayName.trim(),
         phone: phone.trim(),
         bio: bio.trim(),
         updatedAt: serverTimestamp()
-      });
+      };
+
+      // Jika ada gambar baru di preview, gabungkan ke paket data
+      if (previewImage) {
+        updateData.photoURL = previewImage;
+        
+        // SINKRONISASI KE FIREBASE AUTH (Ini kunci agar foto tidak kembali ke semula)
+        if (auth?.currentUser) {
+          await updateProfile(auth.currentUser, { photoURL: previewImage })
+            .catch(e => console.log('Auth profile update warning:', e));
+        }
+      }
+
+      // Kirim semuanya sekaligus ke Firestore
+      await updateDoc(userRef, updateData);
       
       toast.success('Profil berhasil diperbarui!');
       onNavigate('PROFILE'); 
@@ -129,7 +137,6 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
                 </div>
               ) : (
                 <img 
-                  // Gunakan gambar preview lokal JIKA ada, jika tidak gunakan data user
                   src={previewImage || getAvatarUrl(user)} 
                   alt="Profile" 
                   className="w-full h-full object-cover group-hover:opacity-60 transition-opacity"
