@@ -4,6 +4,7 @@ import { Screen, UserAccount, Role, AvailabilityStatus, PortfolioLink } from '..
 import { db, doc, updateDoc } from '../firebase';
 import { uploadProfileImage } from '../services/userService';
 import { getAvatarUrl } from '../lib/avatar';
+import { compressImage, blobToFile } from '../lib/imageUtils';
 import { toast } from 'sonner';
 
 // DAFTAR KEAHLIAN BAKU UNTUK KOMSOS
@@ -56,15 +57,26 @@ export const EditProfile: React.FC<{
     setShowImageSourceModal(true);
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>, isCamera: boolean) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>, isCamera: boolean) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        // Kompresi gambar sebelum disimpan ke state
+        // Menggunakan 800x800 dengan kualitas 0.7 untuk keseimbangan ukuran dan kualitas
+        const compressedBlob = await compressImage(file, 800, 800, 0.7);
+        const compressedFile = blobToFile(compressedBlob, file.name);
+        
+        setSelectedFile(compressedFile);
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setProfileImage(reader.result as string);
+        };
+        reader.readAsDataURL(compressedFile);
+      } catch (error) {
+        console.error("Gagal mengompresi gambar:", error);
+        toast.error("Gagal memproses gambar. Silakan coba lagi.");
+      }
     }
     setShowImageSourceModal(false);
   };

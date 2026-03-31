@@ -3,6 +3,7 @@ import { ChevronLeft, Image as ImageIcon, X, Camera, Plus, Loader2, AlertCircle 
 import { Screen, Task } from '../types';
 import { db, auth, doc, updateDoc, arrayUnion, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
 import { CameraModal } from '../components/CameraModal';
+import { compressImage } from '../lib/imageUtils';
 import { toast } from 'sonner';
 
 export const TaskUpdate: React.FC<{ 
@@ -28,7 +29,7 @@ export const TaskUpdate: React.FC<{
 
   const MAX_PHOTOS = 5;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -40,40 +41,22 @@ export const TaskUpdate: React.FC<{
 
     const filesToProcess = Array.from(files).slice(0, remainingSlots);
 
-    filesToProcess.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-
-          const MAX_SIZE = 800;
-          if (width > height) {
-            if (width > MAX_SIZE) {
-              height *= MAX_SIZE / width;
-              width = MAX_SIZE;
-            }
-          } else {
-            if (height > MAX_SIZE) {
-              width *= MAX_SIZE / height;
-              height = MAX_SIZE;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
-          setAttachments(prev => [...prev, compressedBase64].slice(0, MAX_PHOTOS));
+    for (const file of filesToProcess) {
+      try {
+        // Kompresi gambar menggunakan utility
+        const compressedBlob = await compressImage(file, 800, 800, 0.6);
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64 = event.target?.result as string;
+          setAttachments(prev => [...prev, base64].slice(0, MAX_PHOTOS));
         };
-        img.src = event.target?.result as string;
-      };
-      reader.readAsDataURL(file);
-    });
+        reader.readAsDataURL(compressedBlob);
+      } catch (error) {
+        console.error("Gagal mengompresi gambar:", error);
+        toast.error("Gagal memproses salah satu gambar.");
+      }
+    }
   };
 
   const removeAttachment = (index: number) => {
