@@ -15,11 +15,13 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
   const [phone, setPhone] = useState(user?.phone || '');
   const [bio, setBio] = useState(user?.bio || '');
   
+  // State baru untuk menampilkan foto secara instan (Preview)
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- SOLUSI BASE64: Mengubah gambar menjadi teks tanpa butuh Firebase Storage ---
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -34,7 +36,6 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
           let width = img.width;
           let height = img.height;
 
-          // Kompresi agresif untuk foto profil (max 400px) agar database tetap ringan
           const MAX_SIZE = 400;
           if (width > height) {
             if (width > MAX_SIZE) {
@@ -53,10 +54,13 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
 
-          // Konversi ke Base64 dengan kualitas 50% (Sangat kecil dan cepat)
+          // Konversi ke Base64
           const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
           
-          // Simpan BUKAN ke Storage, melainkan langsung ke Firestore Database
+          // 1. Tampilkan gambar secara instan di layar UI
+          setPreviewImage(compressedBase64);
+          
+          // 2. Simpan ke database
           const userRef = doc(db, 'users', user.id);
           await updateDoc(userRef, {
             photoURL: compressedBase64,
@@ -94,7 +98,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
       });
       
       toast.success('Profil berhasil diperbarui!');
-      onNavigate('PROFILE'); // Kembali ke layar profil setelah berhasil
+      onNavigate('PROFILE'); 
     } catch (error) {
       console.error('Error updating profile:', error);
       toast.error('Gagal memperbarui profil.');
@@ -110,7 +114,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
           <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
         <h1 className="text-lg font-extrabold tracking-tight">Edit Profil</h1>
-        <div className="w-9"></div> {/* Spacer agar teks di tengah */}
+        <div className="w-9"></div>
       </header>
 
       <div className="p-5 space-y-6">
@@ -125,7 +129,8 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
                 </div>
               ) : (
                 <img 
-                  src={getAvatarUrl(user)} 
+                  // Gunakan gambar preview lokal JIKA ada, jika tidak gunakan data user
+                  src={previewImage || getAvatarUrl(user)} 
                   alt="Profile" 
                   className="w-full h-full object-cover group-hover:opacity-60 transition-opacity"
                 />
@@ -193,7 +198,6 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
           </div>
         </div>
 
-        {/* Tombol Simpan Perubahan */}
         <button 
           onClick={handleSave}
           disabled={isSaving || isUploading}
