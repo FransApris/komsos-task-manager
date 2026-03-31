@@ -29,7 +29,7 @@ service cloud.firestore {
         (
           isSuperAdmin() ||
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role.matches('^ADMIN_.*'))
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'USER').matches('^ADMIN_.*'))
         );
     }
 
@@ -153,7 +153,7 @@ service cloud.firestore {
                     (isOwner(resource.data.userId) || isAdmin()) &&
                     isValidHelpdeskTicket(request.resource.data) &&
                     isImmutable('userId') && isImmutable('createdAt');
-      allow delete: if isSuperAdmin();
+      allow delete: if isAdmin();
     }
 
     match /users/{userId} {

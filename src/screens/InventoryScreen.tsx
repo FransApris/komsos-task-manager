@@ -3,13 +3,13 @@ import { Screen, Role, UserAccount, Inventory } from '../types';
 import { 
   ChevronLeft, Plus, Search, Filter, Camera, Mic, 
   Lightbulb, Wrench, Trash2, Edit2, CheckCircle2, User, Loader2, X, Save,
-  QrCode, ScanLine, RefreshCw, Camera as CameraIcon
+  QrCode, ScanLine, RefreshCw, Camera as CameraIcon, AlertTriangle
 } from 'lucide-react';
 import { db, auth, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, setDoc, handleFirestoreError, OperationType } from '../firebase';
 import { motion } from 'motion/react';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
-import { toast } from 'sonner';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { toast } from 'sonner';
 
 export const InventoryScreen: React.FC<{ 
   onNavigate: (s: Screen) => void, 

@@ -5,7 +5,7 @@ import {
   orderBy, serverTimestamp, Timestamp, getDocs, addDoc, updateDoc, deleteDoc, 
   arrayUnion, getDocFromServer, writeBatch, limit 
 } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from "./services/firebase-applet-config.json";
 
 const app = initializeApp(firebaseConfig);
@@ -95,5 +95,6 @@ export {
   limit,
   ref,
   uploadBytes,
+  uploadBytesResumable,
   getDownloadURL
 };

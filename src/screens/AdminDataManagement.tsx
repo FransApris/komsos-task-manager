@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, Database, Users, ClipboardList, Wrench, Calendar, Search, Filter, Download, Trash2, Edit2, Bell, MessageSquare, CheckSquare, FileBarChart, Award, Sparkles, Activity, Plus, X, Save, Loader2, Trophy, Medal, Crown, Flame, Music, Video, Book, Coffee, PenTool, Code, Heart, Star, Shield, Target, Camera, Zap } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Inventory, MassSchedule, Notification, ChatMessage, Attendance, Report, Badge } from '../types';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { db, doc, deleteDoc, collection, addDoc, serverTimestamp, updateDoc } from '../firebase';
 import { getAvatarUrl } from '../lib/avatar';
 import { toast } from 'sonner';
@@ -40,34 +41,33 @@ export const AdminDataManagement: React.FC<{
   const [isSaving, setIsSaving] = useState(false);
 
   // Confirmation Modal State
-  const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    onConfirm: () => void;
-    isDanger?: boolean;
-  }>({
+  const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {}
+    onConfirm: () => {},
+    isDanger: true
   });
 
   const openConfirm = (title: string, message: string, onConfirm: () => void, isDanger = true) => {
     setConfirmModal({ isOpen: true, title, message, onConfirm, isDanger });
   };
 
-  const handleDelete = async (collectionName: string, id: string) => {
+  const handleDelete = (collectionName: string, id: string) => {
+    if (!id) {
+      toast.error("ID data tidak ditemukan");
+      return;
+    }
     openConfirm(
       'Konfirmasi Hapus',
-      'Apakah Anda yakin ingin menghapus data ini secara permanen? Tindakan ini tidak dapat dibatalkan.',
+      `Apakah Anda yakin ingin menghapus data ini dari koleksi ${collectionName}? Tindakan ini tidak dapat dibatalkan.`,
       async () => {
         try {
           await deleteDoc(doc(db, collectionName, id));
-          toast.success('Data berhasil dihapus');
-        } catch (e) {
-          console.error(`Error deleting from ${collectionName}:`, e);
-          toast.error('Gagal menghapus data');
+          toast.success(`Data berhasil dihapus dari ${collectionName}`);
+        } catch (error) {
+          console.error("Error deleting document:", error);
+          toast.error(`Gagal menghapus data: ${error instanceof Error ? error.message : 'Terjadi kesalahan'}`);
         }
       }
     );
@@ -682,37 +682,14 @@ export const AdminDataManagement: React.FC<{
           </div>
         </div>
       )}
-      {/* Confirmation Modal */}
-      {confirmModal.isOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 bg-black/90 backdrop-blur-md">
-          <div className="bg-[#151b2b] w-full max-w-sm rounded-3xl border border-gray-800 p-6 shadow-2xl animate-in zoom-in-95">
-            <div className="text-center mb-6">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${confirmModal.isDanger ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
-                {confirmModal.isDanger ? <Trash2 className="w-8 h-8" /> : <Database className="w-8 h-8" />}
-              </div>
-              <h3 className="text-lg font-extrabold text-white mb-2">{confirmModal.title}</h3>
-              <p className="text-sm text-gray-400 leading-relaxed">{confirmModal.message}</p>
-            </div>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-                className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-all"
-              >
-                Batal
-              </button>
-              <button 
-                onClick={() => {
-                  confirmModal.onConfirm();
-                  setConfirmModal({ ...confirmModal, isOpen: false });
-                }}
-                className={`flex-1 py-3 text-white font-bold rounded-xl transition-all shadow-lg ${confirmModal.isDanger ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'}`}
-              >
-                Ya, Lanjutkan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmationModal 
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        isDanger={confirmModal.isDanger}
+      />
     </div>
   );
 };

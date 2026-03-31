@@ -3,6 +3,7 @@ import { ChevronLeft, Plus, MessageSquare, Clock, CheckCircle2, AlertCircle, Sen
 import { Screen, Role, UserAccount } from '../types';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, arrayUnion, where, limit, handleFirestoreError, OperationType } from '../firebase';
 import { toast } from 'sonner';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 interface HelpdeskScreenProps {
   onNavigate: (s: Screen) => void;
@@ -216,33 +217,13 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
         )}
 
         {/* Modal Konfirmasi Hapus (Detail View) */}
-        {showDeleteConfirm && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-sm bg-[#151b2b] border border-gray-800 rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-              <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center mb-4 mx-auto">
-                <AlertCircle className="w-6 h-6 text-red-500" />
-              </div>
-              <h3 className="text-lg font-bold text-center mb-2">Hapus Laporan?</h3>
-              <p className="text-sm text-gray-400 text-center mb-6">
-                Tindakan ini akan menghapus seluruh percakapan dalam laporan ini secara permanen.
-              </p>
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm font-bold transition-colors"
-                >
-                  Batal
-                </button>
-                <button 
-                  onClick={() => handleDeleteTicket(selectedTicket.id)}
-                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-red-500/20"
-                >
-                  Hapus
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ConfirmationModal 
+          isOpen={showDeleteConfirm}
+          title="Hapus Laporan?"
+          message="Tindakan ini akan menghapus seluruh percakapan dalam laporan ini secara permanen."
+          onConfirm={() => handleDeleteTicket(selectedTicket.id)}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
       </div>
     );
   }

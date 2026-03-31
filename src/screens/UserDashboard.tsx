@@ -508,9 +508,9 @@ export const UserDashboard: React.FC<{
             </div>
             <span className="text-[10px] font-bold text-gray-500">7 Hari Terakhir</span>
           </div>
-          <div className="h-40 w-full" style={{ minHeight: 0, minWidth: 0 }}>
-            <ResponsiveContainer width="99%" height="100%">
-              <AreaChart data={statsData}>
+          <div className="h-48 w-full min-h-[192px]">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+              <AreaChart data={statsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
@@ -519,6 +519,7 @@ export const UserDashboard: React.FC<{
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
                 <XAxis dataKey="name" stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
+                <YAxis stroke="#6b7280" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip contentStyle={{ backgroundColor: '#151b2b', border: '1px solid #374151', borderRadius: '12px' }} itemStyle={{ color: '#fff', fontSize: '12px' }} />
                 <Area type="monotone" dataKey="tasks" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorTasks)" />
               </AreaChart>

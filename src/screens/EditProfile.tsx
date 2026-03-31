@@ -60,10 +60,10 @@ export const EditProfile: React.FC<{
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>, isCamera: boolean) => {
     const file = event.target.files?.[0];
     if (file) {
+      setIsLoading(true);
       try {
-        // Kompresi gambar sebelum disimpan ke state
-        // Menggunakan 800x800 dengan kualitas 0.7 untuk keseimbangan ukuran dan kualitas
-        const compressedBlob = await compressImage(file, 800, 800, 0.7);
+        // Kompresi gambar sangat agresif untuk avatar (256x256) agar upload instan
+        const compressedBlob = await compressImage(file, 256, 256, 0.5);
         const compressedFile = blobToFile(compressedBlob, file.name);
         
         setSelectedFile(compressedFile);
@@ -71,11 +71,13 @@ export const EditProfile: React.FC<{
         const reader = new FileReader();
         reader.onloadend = () => {
           setProfileImage(reader.result as string);
+          setIsLoading(false);
         };
         reader.readAsDataURL(compressedFile);
       } catch (error) {
         console.error("Gagal mengompresi gambar:", error);
         toast.error("Gagal memproses gambar. Silakan coba lagi.");
+        setIsLoading(false);
       }
     }
     setShowImageSourceModal(false);
@@ -108,8 +110,10 @@ export const EditProfile: React.FC<{
       
       // Jika ada file baru yang dipilih, unggah ke Firebase Storage
       if (selectedFile) {
-        toast.loading("Mengunggah foto profil...", { id: 'upload-toast' });
-        finalImageUrl = await uploadProfileImage(userId, selectedFile);
+        toast.loading("Mengunggah foto profil (0%)...", { id: 'upload-toast' });
+        finalImageUrl = await uploadProfileImage(userId, selectedFile, (progress) => {
+          toast.loading(`Mengunggah foto profil (${Math.round(progress)}%)...`, { id: 'upload-toast' });
+        });
         toast.dismiss('upload-toast');
       }
       
@@ -126,10 +130,8 @@ export const EditProfile: React.FC<{
 
       toast.success("Profil berhasil diperbarui!");
       
-      // Memaksa browser memuat ulang halaman ke Profil 
-      // agar data terbaru langsung ditarik dari Firebase dan menyebar ke seluruh aplikasi
-      window.location.href = '/profile';
-      
+      onNavigate('PROFILE');
+      setIsLoading(false);
     } catch (error: any) {
       console.error("Gagal menyimpan profil:", error);
       if (error.code === 'permission-denied') {

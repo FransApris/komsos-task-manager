@@ -1,4 +1,4 @@
-import { db, storage, ref, uploadBytes, getDownloadURL } from "../firebase";
+import { db, storage, ref, uploadBytesResumable, getDownloadURL } from "../firebase";
 import { 
   doc, 
   getDoc, 
@@ -84,18 +84,38 @@ export const updateNotificationPrefs = async (userId: string, prefs: any) => {
 };
 
 /**
- * Mengunggah foto profil ke Firebase Storage
+ * Mengunggah foto profil ke Firebase Storage dengan dukungan progress
  */
-export const uploadProfileImage = async (userId: string, file: File | Blob): Promise<string> => {
-  try {
-    const storageRef = ref(storage, `profile_pictures/${userId}_${Date.now()}`);
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
-    return downloadURL;
-  } catch (error) {
-    console.error("Error uploading profile image:", error);
-    throw error;
-  }
+export const uploadProfileImage = async (
+  userId: string, 
+  file: File | Blob,
+  onProgress?: (progress: number) => void
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const storageRef = ref(storage, `profile_pictures/${userId}_${Date.now()}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          if (onProgress) onProgress(progress);
+        },
+        (error) => {
+          console.error("Error uploading profile image:", error);
+          reject(error);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadURL);
+        }
+      );
+    } catch (error) {
+      console.error("Error initiating upload:", error);
+      reject(error);
+    }
+  });
 };
 
 /**

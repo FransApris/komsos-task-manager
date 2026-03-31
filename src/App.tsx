@@ -262,7 +262,9 @@ export default function App() {
       setSwapRequestsDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as SwapRequest)));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'swapRequests', currentUser));
 
-    const unsubHelpdesk = onSnapshot(collection(db, 'helpdesk_tickets'), (snap) => {
+    const unsubHelpdesk = onSnapshot(isAdmin 
+      ? collection(db, 'helpdesk_tickets') 
+      : query(collection(db, 'helpdesk_tickets'), where('userId', '==', currentUser.uid || '')), (snap) => {
       setHelpdeskTicketsDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'helpdesk_tickets', currentUser));
 
