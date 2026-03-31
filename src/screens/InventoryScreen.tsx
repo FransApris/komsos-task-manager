@@ -109,7 +109,8 @@ export const InventoryScreen: React.FC<{
             category,
             status,
             assignedTo: editingItem.assignedTo, // Pertahankan status pinjaman
-            updatedAt: serverTimestamp()
+            updatedAt: serverTimestamp(),
+            lastChecked: serverTimestamp()
           });
           // Hapus dokumen lama
           await deleteDoc(doc(db, 'inventory', editingItem.id));
@@ -119,7 +120,8 @@ export const InventoryScreen: React.FC<{
             name: name.trim(),
             category,
             status,
-            updatedAt: serverTimestamp()
+            updatedAt: serverTimestamp(),
+            lastChecked: serverTimestamp()
           });
         }
         toast.success('Barang berhasil diperbarui');
@@ -130,7 +132,8 @@ export const InventoryScreen: React.FC<{
           category,
           status,
           assignedTo: null,
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
+          lastChecked: serverTimestamp()
         });
         toast.success('Barang berhasil ditambahkan');
       }
@@ -192,7 +195,8 @@ export const InventoryScreen: React.FC<{
         await updateDoc(itemRef, {
           status: 'IN_USE',
           assignedTo: activeUserId,
-          updatedAt: serverTimestamp()
+          updatedAt: serverTimestamp(),
+          lastChecked: serverTimestamp()
         });
         toast.success(`Berhasil MEMINJAM: ${item.name}`);
         
@@ -201,7 +205,8 @@ export const InventoryScreen: React.FC<{
           await updateDoc(itemRef, {
             status: 'AVAILABLE',
             assignedTo: null,
-            updatedAt: serverTimestamp()
+            updatedAt: serverTimestamp(),
+            lastChecked: serverTimestamp()
           });
           toast.success(`Berhasil MENGEMBALIKAN: ${item.name}`);
         } else {

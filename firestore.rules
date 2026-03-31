@@ -170,7 +170,8 @@ service cloud.firestore {
 
     match /inventory/{itemId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if isAdmin() && isValidInventory(request.resource.data);
+      allow create, update: if isAdmin() && isValidInventory(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /massSchedules/{massId} {
