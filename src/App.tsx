@@ -64,6 +64,7 @@ export default function App() {
   const [badgesDb, setBadgesDb] = useState<Badge[]>([]);
   const [massSchedulesDb, setMassSchedulesDb] = useState<MassSchedule[]>([]);
   const [swapRequestsDb, setSwapRequestsDb] = useState<SwapRequest[]>([]);
+  const [helpdeskTicketsDb, setHelpdeskTicketsDb] = useState<any[]>([]);
 
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -261,6 +262,10 @@ export default function App() {
       setSwapRequestsDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as SwapRequest)));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'swapRequests', currentUser));
 
+    const unsubHelpdesk = onSnapshot(collection(db, 'helpdesk_tickets'), (snap) => {
+      setHelpdeskTicketsDb(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'helpdesk_tickets', currentUser));
+
     return () => {
       unsubUsers();
       unsubTasks();
@@ -269,6 +274,7 @@ export default function App() {
       unsubBadges();
       unsubMass();
       unsubSwap();
+      unsubHelpdesk();
     };
   }, [currentUser]);
 
@@ -310,9 +316,9 @@ export default function App() {
       case 'TASK_VERIFICATION':
         return <TaskVerificationScreen onNavigate={handleNavigate} setSelectedTaskId={setSelectedTaskId} tasksDb={tasksDb} usersDb={usersDb} />;
       case 'ADMIN_DASHBOARD':
-        return <AdminDashboard onNavigate={handleNavigate} onLogout={handleLogout} role={currentUser?.role} user={currentUser} usersDb={usersDb} tasksDb={tasksDb} notificationsDb={notificationsDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} swapRequestsDb={swapRequestsDb} />;
+        return <AdminDashboard onNavigate={handleNavigate} onLogout={handleLogout} role={currentUser?.role} user={currentUser} usersDb={usersDb} tasksDb={tasksDb} notificationsDb={notificationsDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} swapRequestsDb={swapRequestsDb} helpdeskTicketsDb={helpdeskTicketsDb} />;
       case 'USER_DASHBOARD':
-        return <UserDashboard onNavigate={handleNavigate} onLogout={handleLogout} user={currentUser} tasksDb={tasksDb} notificationsDb={notificationsDb} usersDb={usersDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} />;
+        return <UserDashboard onNavigate={handleNavigate} onLogout={handleLogout} user={currentUser} tasksDb={tasksDb} notificationsDb={notificationsDb} usersDb={usersDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} helpdeskTicketsDb={helpdeskTicketsDb} />;
       case 'CREATE_TASK':
         return <CreateTaskScreen onNavigate={handleNavigate} currentUser={currentUser} usersDb={usersDb} inventoryDb={inventoryDb} />;
       case 'INVENTORY':

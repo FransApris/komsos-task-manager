@@ -26,6 +26,7 @@ interface AdminDashboardProps {
   setSelectedTaskId: (id: string) => void;
   isOnline?: boolean;
   swapRequestsDb?: SwapRequest[];
+  helpdeskTicketsDb?: any[];
 }
 
 const QuickActionBtn = ({ icon, label, onClick, color }: any) => (
@@ -51,7 +52,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   notificationsDb = [],
   setSelectedTaskId,
   isOnline = true,
-  swapRequestsDb = []
+  swapRequestsDb = [],
+  helpdeskTicketsDb = []
 }) => {
   const { unreadCount: unreadChatCount } = useChat();
   const isAdminRole = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
@@ -124,6 +126,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const pendingVerifications = tasksDb.filter(t => t.status === 'WAITING_VERIFICATION');
   const pendingUsers = usersDb.filter(u => u.status === 'PENDING');
   const pendingSwaps = swapRequestsDb.filter(r => r.status === 'PENDING_APPROVAL');
+  const pendingHelpdesk = (helpdeskTicketsDb || []).filter(t => t.status === 'OPEN');
   const unreadCount = notificationsDb.filter(n => !n.read).length;
 
   const topUsers = [...usersDb].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 3);
@@ -303,7 +306,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <QuickActionBtn icon={<UserCheck className="w-5 h-5 text-white" />} label="Verifikasi Pendaftar" color="bg-red-600 shadow-red-500/30" onClick={() => onNavigate('USER_VERIFICATION')} />
-                <QuickActionBtn icon={<LifeBuoy className="w-5 h-5 text-amber-500" />} label="Laporan (Helpdesk)" color="bg-amber-500/10" onClick={() => onNavigate('HELPDESK')} />
+                <div className="relative">
+                  <QuickActionBtn icon={<LifeBuoy className="w-5 h-5 text-amber-500" />} label="Laporan (Helpdesk)" color="bg-amber-500/10" onClick={() => onNavigate('HELPDESK')} />
+                  {pendingHelpdesk.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f18] animate-bounce">
+                      {pendingHelpdesk.length}
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <QuickActionBtn icon={<MessageSquare className="w-5 h-5 text-blue-500" />} label="Live Chat Admin" color="bg-blue-500/10" onClick={() => onNavigate('LIVE_CHAT')} />
                   {unreadChatCount > 0 && (

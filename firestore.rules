@@ -153,7 +153,7 @@ service cloud.firestore {
                     (isOwner(resource.data.userId) || isAdmin()) &&
                     isValidHelpdeskTicket(request.resource.data) &&
                     isImmutable('userId') && isImmutable('createdAt');
-      allow delete: if isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
     match /users/{userId} {

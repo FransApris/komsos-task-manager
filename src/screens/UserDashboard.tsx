@@ -20,8 +20,9 @@ export const UserDashboard: React.FC<{
   taskTypes?: TaskType[],
   usersDb?: UserAccount[],
   setSelectedTaskId?: (id: string) => void,
-  isOnline?: boolean
-}> = ({ onNavigate, onLogout, user, tasksDb = [], notificationsDb = [], taskTypes = [], usersDb = [], setSelectedTaskId = (_id: string) => {}, isOnline = true }) => {
+  isOnline?: boolean,
+  helpdeskTicketsDb?: any[]
+}> = ({ onNavigate, onLogout, user, tasksDb = [], notificationsDb = [], taskTypes = [], usersDb = [], setSelectedTaskId = (_id: string) => {}, isOnline = true, helpdeskTicketsDb = [] }) => {
   const { unreadCount: unreadChatCount } = useChat();
   const [quickNotes, setQuickNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
@@ -66,6 +67,8 @@ export const UserDashboard: React.FC<{
   const displayedTasks = taskTab === 'MINE' ? myActiveTasks : allActiveTasks;
 
   const unreadCount = (notificationsDb || []).filter(n => !n.read).length;
+  const repliedHelpdeskCount = (helpdeskTicketsDb || []).filter(t => t.userId === user?.uid && t.status === 'REPLIED').length;
+  const totalHelpdeskUnread = unreadChatCount + repliedHelpdeskCount;
 
   const currentXp = (user && user.xp) ? user.xp : 0;
   const xpPerLevel = 1000;
@@ -594,9 +597,9 @@ export const UserDashboard: React.FC<{
               <p className="text-xs font-extrabold text-blue-500 uppercase tracking-wider">Bantuan Segera</p>
               <p className="text-[10px] text-blue-200/60">Chat Admin atau Lapor Kendala</p>
             </div>
-            {unreadChatCount > 0 && (
+            {totalHelpdeskUnread > 0 && (
               <span className="absolute top-2 right-10 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f18] animate-bounce">
-                {unreadChatCount}
+                {totalHelpdeskUnread}
               </span>
             )}
             <ChevronRight className="w-4 h-4 text-blue-500/50 ml-auto" />

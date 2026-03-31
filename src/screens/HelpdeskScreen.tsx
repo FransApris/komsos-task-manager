@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, MessageSquare, Clock, CheckCircle2, AlertCircle, Send, Wrench, User, Loader2, X } from 'lucide-react';
+import { ChevronLeft, Plus, MessageSquare, Clock, CheckCircle2, AlertCircle, Send, Wrench, User, Loader2, X, Trash2 } from 'lucide-react';
 import { Screen, Role, UserAccount } from '../types';
-import { db, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, serverTimestamp, arrayUnion, where, limit, handleFirestoreError, OperationType } from '../firebase';
+import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, arrayUnion, where, limit, handleFirestoreError, OperationType } from '../firebase';
 import { toast } from 'sonner';
 
 interface HelpdeskScreenProps {
@@ -28,6 +28,8 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
   // State untuk Chat Balasan
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -133,6 +135,18 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
     }
   };
 
+  const handleDeleteTicket = async (ticketId: string) => {
+    try {
+      await deleteDoc(doc(db, 'helpdesk_tickets', ticketId));
+      toast.success('Laporan berhasil dihapus');
+      setSelectedTicket(null);
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `helpdesk_tickets/${ticketId}`);
+      toast.error('Gagal menghapus laporan.');
+    }
+  };
+
   const getCategoryIcon = (cat: string) => {
     if (cat.includes('Alat')) return <Wrench className="w-4 h-4 text-orange-500" />;
     if (cat.includes('Izin')) return <Clock className="w-4 h-4 text-purple-500" />;
@@ -150,11 +164,18 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
             <h1 className="text-sm font-bold truncate">{selectedTicket.subject}</h1>
             <p className="text-[10px] text-gray-400">{selectedTicket.userName} • {selectedTicket.category}</p>
           </div>
-          {isAdmin && selectedTicket.status !== 'RESOLVED' && (
-            <button onClick={handleResolveTicket} className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold border border-emerald-500/20 whitespace-nowrap">
-              Tandai Selesai
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {role === 'SUPERADMIN' && (
+              <button onClick={() => setShowDeleteConfirm(true)} className="p-2 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors" title="Hapus Tiket">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            {isAdmin && selectedTicket.status !== 'RESOLVED' && (
+              <button onClick={handleResolveTicket} className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg text-[10px] font-bold border border-emerald-500/20 whitespace-nowrap">
+                Tandai Selesai
+              </button>
+            )}
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
@@ -192,6 +213,35 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
               {isReplying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
             </button>
           </form>
+        )}
+
+        {/* Modal Konfirmasi Hapus (Detail View) */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-sm bg-[#151b2b] border border-gray-800 rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="w-12 h-12 bg-red-500/10 rounded-2xl flex items-center justify-center mb-4 mx-auto">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold text-center mb-2">Hapus Laporan?</h3>
+              <p className="text-sm text-gray-400 text-center mb-6">
+                Tindakan ini akan menghapus seluruh percakapan dalam laporan ini secara permanen.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm font-bold transition-colors"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={() => handleDeleteTicket(selectedTicket.id)}
+                  className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-red-500/20"
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     );
@@ -256,7 +306,12 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <div className="flex justify-between items-start mb-1">
-                      <h3 className="text-sm font-bold text-white truncate pr-2">{ticket.subject}</h3>
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <h3 className="text-sm font-bold text-white truncate">{ticket.subject}</h3>
+                        {((isAdmin && ticket.status === 'OPEN') || (!isAdmin && ticket.status === 'REPLIED')) && (
+                          <span className="w-2 h-2 bg-red-500 rounded-full shadow-[0_0_5px_rgba(239,68,68,0.8)] animate-pulse shrink-0"></span>
+                        )}
+                      </div>
                       <span className={`text-[8px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest shrink-0 ${
                         ticket.status === 'RESOLVED' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 
                         ticket.status === 'REPLIED' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 
