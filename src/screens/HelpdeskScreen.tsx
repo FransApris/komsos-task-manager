@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Plus, MessageSquare, Clock, CheckCircle2, AlertCircle, Send, Wrench, User, Loader2, X } from 'lucide-react';
 import { Screen, Role, UserAccount } from '../types';
-import { db, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, serverTimestamp, arrayUnion, where } from '../firebase';
+import { db, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, serverTimestamp, arrayUnion, where, limit, handleFirestoreError, OperationType } from '../firebase';
 import { toast } from 'sonner';
 
 interface HelpdeskScreenProps {
@@ -33,10 +33,11 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
     if (!currentUser) return;
 
     // Admin melihat semua tiket. User hanya melihat tiket miliknya.
+    // Tambahkan limit untuk mempercepat loading awal
     const ticketsRef = collection(db, 'helpdesk_tickets');
     const q = isAdmin 
-      ? query(ticketsRef, orderBy('updatedAt', 'desc'))
-      : query(ticketsRef, where('userId', '==', currentUser.uid), orderBy('updatedAt', 'desc'));
+      ? query(ticketsRef, orderBy('updatedAt', 'desc'), limit(50))
+      : query(ticketsRef, where('userId', '==', currentUser.uid), orderBy('updatedAt', 'desc'), limit(20));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ticketData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -47,6 +48,9 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
         const updatedSelected = ticketData.find(t => t.id === selectedTicket.id);
         if (updatedSelected) setSelectedTicket(updatedSelected);
       }
+      setIsLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'helpdesk_tickets');
       setIsLoading(false);
     });
 
@@ -79,8 +83,8 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
       setNewMessage('');
       setActiveTab('LIST');
     } catch (error) {
-      console.error(error);
-      toast.error('Gagal mengirim pesan.');
+      handleFirestoreError(error, OperationType.CREATE, 'helpdesk_tickets');
+      toast.error('Gagal mengirim pesan. Silakan coba lagi.');
     } finally {
       setIsSubmitting(false);
     }
@@ -107,7 +111,7 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
       
       setReplyText('');
     } catch (error) {
-      console.error(error);
+      handleFirestoreError(error, OperationType.UPDATE, `helpdesk_tickets/${selectedTicket.id}`);
       toast.error('Gagal mengirim balasan.');
     } finally {
       setIsReplying(false);
@@ -124,6 +128,7 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
       toast.success('Tiket ditandai sebagai Selesai');
       setSelectedTicket(null);
     } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `helpdesk_tickets/${selectedTicket.id}`);
       toast.error('Gagal menyelesaikan tiket.');
     }
   };

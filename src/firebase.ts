@@ -3,7 +3,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChang
 import { 
   getFirestore, collection, doc, setDoc, getDoc, onSnapshot, query, where, 
   orderBy, serverTimestamp, Timestamp, getDocs, addDoc, updateDoc, deleteDoc, 
-  arrayUnion, getDocFromServer, writeBatch 
+  arrayUnion, getDocFromServer, writeBatch, limit 
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from "./services/firebase-applet-config.json";
@@ -92,6 +92,7 @@ export {
   arrayUnion,
   getDocFromServer,
   writeBatch,
+  limit,
   ref,
   uploadBytes,
   getDownloadURL

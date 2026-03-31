@@ -130,9 +130,31 @@ service cloud.firestore {
              (!('approvedAt' in data) || data.approvedAt is timestamp);
     }
 
+    function isValidHelpdeskTicket(data) {
+      return hasRequiredFields(['userId', 'userName', 'subject', 'category', 'status', 'messages', 'createdAt', 'updatedAt']) &&
+             data.userId is string && data.userName is string &&
+             data.subject is string && data.subject.size() < 200 &&
+             data.category is string &&
+             data.status in ['OPEN', 'REPLIED', 'RESOLVED'] &&
+             data.messages is list &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
     // ===============================================================
     // Rules per Collection
     // ===============================================================
+
+    match /helpdesk_tickets/{ticketId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
+      allow create: if isAuthenticated() && isValidHelpdeskTicket(request.resource.data) && 
+                    isOwner(request.resource.data.userId);
+      allow update: if isAuthenticated() && 
+                    (isOwner(resource.data.userId) || isAdmin()) &&
+                    isValidHelpdeskTicket(request.resource.data) &&
+                    isImmutable('userId') && isImmutable('createdAt');
+      allow delete: if isAdmin();
+    }
 
     match /users/{userId} {
       allow get: if isAuthenticated();

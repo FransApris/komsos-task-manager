@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback, useRef } from 'react';
-import { db, collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, handleFirestoreError, OperationType, doc, deleteDoc, getDocs, writeBatch } from '../firebase';
+import { db, collection, addDoc, onSnapshot, query, where, orderBy, serverTimestamp, handleFirestoreError, OperationType, doc, deleteDoc, getDocs, writeBatch, limit } from '../firebase';
 import { useAuth } from './AuthContext';
 
 import { toast } from 'sonner';
@@ -51,10 +51,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
+    // Gunakan limit untuk performa lebih baik
     const q = query(
       collection(db, 'chatMessages'),
       where('taskId', '==', taskId),
-      orderBy('createdAt', 'asc')
+      orderBy('createdAt', 'asc'),
+      limit(50)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -72,10 +74,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (authLoading || !currentUser) return;
 
+    // Gunakan limit untuk performa lebih baik
     const q = query(
       collection(db, 'chatMessages'),
       where('taskId', '==', 'support'),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -130,7 +134,8 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         markAsRead();
       }
     } catch (error) {
-      console.error("Error sending message:", error);
+      handleFirestoreError(error, OperationType.CREATE, 'chatMessages');
+      toast.error('Gagal mengirim pesan chat.');
     }
   }, [markAsRead]);
 
