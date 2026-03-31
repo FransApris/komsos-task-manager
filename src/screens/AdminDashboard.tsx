@@ -3,7 +3,7 @@ import {
   Bell, ClipboardList, Clock, CheckCircle2, LogOut, 
   MessageSquare, MapPin, Calendar, Wrench, Database, 
   FileText, UserCheck, Loader2, ChevronRight, Users, Trophy,
-  Settings, Shield, Zap, Activity, BarChart3, Sparkles, X, Gift, Medal, AlertCircle, PlayCircle, Circle, Megaphone, Edit3, RefreshCw
+  Settings, Shield, Zap, Activity, BarChart3, Sparkles, X, Gift, Medal, AlertCircle, PlayCircle, Circle, Megaphone, Edit3, RefreshCw, LifeBuoy
 } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Notification, SwapRequest } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
@@ -12,6 +12,8 @@ import { db, collection, addDoc, serverTimestamp, doc, updateDoc, setDoc, onSnap
 import { toast } from 'sonner';
 
 import { getAvatarUrl } from '../lib/avatar';
+
+import { useChat } from '../contexts/ChatContext';
 
 interface AdminDashboardProps {
   onNavigate: (s: Screen) => void;
@@ -51,6 +53,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   isOnline = true,
   swapRequestsDb = []
 }) => {
+  const { unreadCount: unreadChatCount } = useChat();
   const isAdminRole = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [isRewarding, setIsRewarding] = useState(false);
@@ -300,6 +303,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <QuickActionBtn icon={<UserCheck className="w-5 h-5 text-white" />} label="Verifikasi Pendaftar" color="bg-red-600 shadow-red-500/30" onClick={() => onNavigate('USER_VERIFICATION')} />
+                <QuickActionBtn icon={<LifeBuoy className="w-5 h-5 text-amber-500" />} label="Laporan (Helpdesk)" color="bg-amber-500/10" onClick={() => onNavigate('HELPDESK')} />
+                <div className="relative">
+                  <QuickActionBtn icon={<MessageSquare className="w-5 h-5 text-blue-500" />} label="Live Chat Admin" color="bg-blue-500/10" onClick={() => onNavigate('LIVE_CHAT')} />
+                  {unreadChatCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f18] animate-bounce">
+                      {unreadChatCount}
+                    </span>
+                  )}
+                </div>
                 <QuickActionBtn icon={<Users className="w-5 h-5 text-indigo-500" />} label="Manajemen Tim (Role)" color="bg-indigo-500/10" onClick={() => onNavigate('TEAM')} />
                 {role === 'SUPERADMIN' && (
                   <>

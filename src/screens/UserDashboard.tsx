@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 
 import { getAvatarUrl } from '../lib/avatar';
 
+import { useChat } from '../contexts/ChatContext';
+
 export const UserDashboard: React.FC<{ 
   onNavigate: (s: Screen) => void, 
   onLogout: () => void, 
@@ -20,6 +22,7 @@ export const UserDashboard: React.FC<{
   setSelectedTaskId?: (id: string) => void,
   isOnline?: boolean
 }> = ({ onNavigate, onLogout, user, tasksDb = [], notificationsDb = [], taskTypes = [], usersDb = [], setSelectedTaskId = (_id: string) => {}, isOnline = true }) => {
+  const { unreadCount: unreadChatCount } = useChat();
   const [quickNotes, setQuickNotes] = useState('');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
@@ -573,7 +576,7 @@ export const UserDashboard: React.FC<{
           </motion.button>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="grid grid-cols-1 mb-8">
+        <motion.div variants={itemVariants} className="grid grid-cols-1 mb-3">
           <motion.button whileTap={{ scale: 0.95 }} onClick={() => onNavigate('SWAP_REQUEST')} className="bg-gradient-to-r from-amber-600/20 to-orange-600/20 p-4 rounded-2xl border border-amber-500/30 flex items-center gap-3 hover:from-amber-600/30 hover:to-orange-600/30 transition-all group">
             <div className="p-2 bg-amber-500/20 rounded-xl group-hover:scale-110 transition-transform"><RefreshCw className="w-5 h-5 text-amber-500" /></div>
             <div className="text-left">
@@ -581,6 +584,22 @@ export const UserDashboard: React.FC<{
               <p className="text-[10px] text-amber-200/60">Tukar Jadwal atau Cari Pengganti</p>
             </div>
             <ChevronRight className="w-4 h-4 text-amber-500/50 ml-auto" />
+          </motion.button>
+        </motion.div>
+
+        <motion.div variants={itemVariants} className="grid grid-cols-1 mb-8">
+          <motion.button whileTap={{ scale: 0.95 }} onClick={() => onNavigate('HELP_CENTER')} className="bg-gradient-to-r from-blue-600/20 to-indigo-600/20 p-4 rounded-2xl border border-blue-500/30 flex items-center gap-3 hover:from-blue-600/30 hover:to-indigo-600/30 transition-all group relative">
+            <div className="p-2 bg-blue-500/20 rounded-xl group-hover:scale-110 transition-transform"><HelpCircle className="w-5 h-5 text-blue-500" /></div>
+            <div className="text-left">
+              <p className="text-xs font-extrabold text-blue-500 uppercase tracking-wider">Bantuan Segera</p>
+              <p className="text-[10px] text-blue-200/60">Chat Admin atau Lapor Kendala</p>
+            </div>
+            {unreadChatCount > 0 && (
+              <span className="absolute top-2 right-10 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f18] animate-bounce">
+                {unreadChatCount}
+              </span>
+            )}
+            <ChevronRight className="w-4 h-4 text-blue-500/50 ml-auto" />
           </motion.button>
         </motion.div>
 

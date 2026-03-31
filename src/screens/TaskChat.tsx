@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Loader2 } from 'lucide-react';
+import { Send, Paperclip, Loader2, Trash2 } from 'lucide-react';
 import { UserAccount, Role } from '../types';
 import { useChat } from '../contexts/ChatContext';
 import { getAvatarUrl } from '../lib/avatar';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface TaskChatProps {
   taskId: string;
@@ -12,10 +13,12 @@ interface TaskChatProps {
 }
 
 export const TaskChat: React.FC<TaskChatProps> = ({ taskId, currentUser, role, usersDb = [] }) => {
-  const { messages, sendMessage, setTaskId } = useChat();
+  const { messages, sendMessage, setTaskId, deleteMessage } = useChat();
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSending, setIsSending] = useState(false);
+
+  const isSuperAdmin = role === 'SUPERADMIN';
 
   useEffect(() => {
     if (taskId) {
@@ -83,10 +86,23 @@ export const TaskChat: React.FC<TaskChatProps> = ({ taskId, currentUser, role, u
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <div className={`flex flex-col max-w-[85%] w-full ${isCurrentUser(msg.senderId) ? 'items-end' : 'items-start'}`}>
-                {!isCurrentUser(msg.senderId) && (
-                  <span className="text-[10px] text-gray-500 font-bold mb-1 px-1">{msg.senderName}</span>
-                )}
+              <div className={`flex flex-col max-w-[85%] w-full ${isCurrentUser(msg.senderId) ? 'items-end' : 'items-start'} group`}>
+                <div className="flex items-center gap-2 mb-1 px-1">
+                  {!isCurrentUser(msg.senderId) && (
+                    <span className="text-[10px] text-gray-500 font-bold">{msg.senderName}</span>
+                  )}
+                  {isSuperAdmin && (
+                    <button 
+                      onClick={() => deleteMessage(msg.id)}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-red-500/50 hover:text-red-500 transition-all"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
+                  {isCurrentUser(msg.senderId) && (
+                    <span className="text-[10px] text-gray-500 font-bold">{msg.senderName}</span>
+                  )}
+                </div>
                 <div className={`p-3 rounded-2xl shadow-sm min-w-[140px] w-full ${
                   isCurrentUser(msg.senderId) 
                     ? 'bg-blue-600 text-white rounded-tr-none' 
