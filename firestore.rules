@@ -18,7 +18,7 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isAuthenticated() &&
         (
-          ('email' in request.auth.token && request.auth.token.email.toLower() == "fad2beth@gmail.com") ||
+          ('email' in request.auth.token && request.auth.token.email.lower() == "fad2beth@gmail.com") ||
           (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPERADMIN')
         );
@@ -73,8 +73,24 @@ service cloud.firestore {
              data.role in ['SUPERADMIN', 'ADMIN_MULTIMEDIA', 'ADMIN_PHOTO_VIDEO', 'ADMIN_PUBLICATION', 'USER', 'GUEST'] &&
              data.status in ['PENDING', 'ACTIVE', 'REJECTED'] &&
              data.createdAt is timestamp &&
+             (!('img' in data) || data.img is string) &&
              (!('isOnline' in data) || data.isOnline is bool) &&
-             (!('lastSeen' in data) || data.lastSeen is timestamp);
+             (!('lastSeen' in data) || data.lastSeen is timestamp) &&
+             (!('points' in data) || data.points is number) &&
+             (!('xp' in data) || data.xp is number) &&
+             (!('level' in data) || data.level is number) &&
+             (!('completedTasksCount' in data) || data.completedTasksCount is number) &&
+             (!('skills' in data) || data.skills is list) &&
+             (!('availability' in data) || data.availability is string) &&
+             (!('portfolioLinks' in data) || data.portfolioLinks is list) &&
+             (!('quickNotes' in data) || data.quickNotes is string) &&
+             (!('bio' in data) || data.bio is string) &&
+             (!('streak' in data) || data.streak is map) &&
+             (!('stats' in data) || data.stats is map) &&
+             (!('notificationPrefs' in data) || data.notificationPrefs is map) &&
+             (!('divisions' in data) || data.divisions is list) &&
+             (!('gender' in data) || data.gender is string) &&
+             (!('phone' in data) || data.phone is string);
     }
 
     function isValidTask(data) {

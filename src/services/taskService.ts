@@ -1,5 +1,8 @@
-import { db, auth, handleFirestoreError, OperationType } from "../firebase";
 import { 
+  db, 
+  auth, 
+  handleFirestoreError, 
+  OperationType,
   collection, 
   addDoc, 
   updateDoc, 
@@ -8,8 +11,9 @@ import {
   query, 
   orderBy, 
   onSnapshot,
-  arrayUnion
-} from "firebase/firestore";
+  arrayUnion,
+  increment
+} from "../firebase";
 import { sendNotificationToAdmins } from "./notificationService";
 
 /**
@@ -109,6 +113,74 @@ export const assignUserToTask = async (taskId: string, userId: string, taskTitle
     return true;
   } catch (error: any) {
     handleFirestoreError(error, OperationType.UPDATE, `tasks/${taskId}`);
+    throw error;
+  }
+};
+
+/**
+ * 5. MEMBATALKAN VERIFIKASI & MENARIK POIN (Hanya SUPERADMIN)
+ */
+export const revokeTaskPoints = async (task: any, currentUser: any) => {
+  try {
+    const taskRef = doc(db, 'tasks', task.id);
+    
+    // 1. Kembalikan status tugas & Tambah riwayat
+    const historyEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: 'SYSTEM',
+      message: `Verifikasi dibatalkan dan poin ditarik kembali oleh Superadmin (${currentUser?.displayName})`,
+      userId: currentUser?.uid,
+      userName: currentUser?.displayName,
+      createdAt: new Date().toISOString()
+    };
+
+    await updateDoc(taskRef, {
+      status: 'WAITING_VERIFICATION',
+      updatedAt: serverTimestamp(),
+      history: arrayUnion(historyEntry)
+    });
+
+    // 2. Tarik balik poin & skill
+    if (task.assignedUsers && task.assignedUsers.length > 0) {
+      for (const uid of task.assignedUsers) {
+        const isLeader = task.teamLeaderId === uid;
+        const pointsToDeduct = isLeader ? 75 : 50;
+        
+        const userRef = doc(db, 'users', uid);
+        
+        const userUpdate: any = {
+          points: increment(-pointsToDeduct),
+          xp: increment(-pointsToDeduct),
+          completedTasksCount: increment(-1)
+        };
+
+        const typeLower = task.type?.toLowerCase() || '';
+        if (typeLower.includes('dokumentasi') || typeLower.includes('foto')) {
+          userUpdate['stats.photography'] = increment(-10);
+        } else if (typeLower.includes('peliputan') || typeLower.includes('video') || typeLower.includes('obs')) {
+          userUpdate['stats.videography'] = increment(-10);
+        } else if (typeLower.includes('publikasi') || typeLower.includes('nulis') || typeLower.includes('artikel')) {
+          userUpdate['stats.writing'] = increment(-10);
+        } else if (typeLower.includes('desain') || typeLower.includes('design')) {
+          userUpdate['stats.design'] = increment(-10);
+        }
+
+        await updateDoc(userRef, userUpdate);
+
+        // Kirim notifikasi penarikan poin
+        await addDoc(collection(db, 'notifications'), {
+          userId: uid,
+          title: '⚠️ Poin Tugas Ditarik Kembali',
+          message: `Verifikasi untuk tugas "${task.title}" telah dibatalkan oleh Superadmin. Poin dan skill yang Anda peroleh dari tugas ini telah ditarik kembali.`,
+          type: 'ALERT',
+          read: false,
+          createdAt: serverTimestamp()
+        });
+      }
+    }
+    return true;
+  } catch (error: any) {
+    handleFirestoreError(error, OperationType.UPDATE, `tasks/${task.id}`);
     throw error;
   }
 };

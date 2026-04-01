@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircle2, PlayCircle, Plus, Upload, Award, FileText, Send, MessageSquare, Image as ImageIcon, Crown, Briefcase, Camera, Activity, UserX, Trash2, Edit2, RefreshCw, AlertCircle } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Inventory, TaskType } from '../types';
-import { db, doc, updateDoc, serverTimestamp, collection, addDoc, auth } from '../firebase';
+import { db, doc, updateDoc, serverTimestamp, collection, addDoc, auth, arrayUnion, arrayRemove, increment } from '../firebase';
 import { TaskChat } from './TaskChat';
 import { getAvatarUrl } from '../lib/avatar';
-import { arrayRemove, arrayUnion, increment } from 'firebase/firestore'; 
 import { toast } from 'sonner';
+import { revokeTaskPoints } from '../services/taskService';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const TaskDetail: React.FC<{ 
@@ -149,6 +149,25 @@ export const TaskDetail: React.FC<{
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRevokePoints = async () => {
+    openConfirm(
+      'Batalkan Verifikasi & Tarik Poin',
+      'Apakah Anda yakin ingin membatalkan verifikasi tugas ini? Poin dan skill yang telah diberikan kepada petugas akan ditarik kembali, dan status tugas akan dikembalikan ke "Menunggu Verifikasi".',
+      async () => {
+        setIsLoading(true);
+        try {
+          await revokeTaskPoints(task, currentUser);
+          toast.success("Verifikasi dibatalkan dan poin telah ditarik kembali!");
+        } catch (err) {
+          console.error("Error revoking points:", err);
+          toast.error("Gagal membatalkan verifikasi.");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    );
   };
 
   const getTaskTimes = (dateStr: string, timeStr: string) => {
@@ -547,11 +566,24 @@ export const TaskDetail: React.FC<{
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-emerald-500/20 rounded-xl shrink-0"><Award className="w-5 h-5 text-emerald-500" /></div>
-              <div>
+              <div className="flex-1">
                 <h3 className="font-bold text-sm text-emerald-500 mb-1">Tugas Selesai & Diverifikasi</h3>
-                <p className="text-xs text-gray-400 mb-2">Tugas ini telah diverifikasi oleh Admin.</p>
-                <div className="inline-flex items-center gap-1.5 bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-500/30">
-                  <span className="text-emerald-400 font-bold text-sm">+ Poin Berhasil Diagihkan</span>
+                <p className="text-xs text-gray-400 mb-3">Tugas ini telah diverifikasi oleh Admin.</p>
+                <div className="flex flex-col gap-3">
+                  <div className="inline-flex items-center gap-1.5 bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-500/30 w-fit">
+                    <span className="text-emerald-400 font-bold text-sm">+ Poin Berhasil Diagihkan</span>
+                  </div>
+                  
+                  {role === 'SUPERADMIN' && (
+                    <button 
+                      onClick={handleRevokePoints}
+                      disabled={isLoading}
+                      className="flex items-center justify-center gap-2 bg-red-500/10 text-red-500 border border-red-500/30 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-50"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Batalkan Verifikasi & Tarik Poin
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

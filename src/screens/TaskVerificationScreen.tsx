@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft, CheckCircle2, Video, FileText, Activity, Users, Briefcase, Image as ImageIcon } from 'lucide-react';
 import { Screen, Task, UserAccount } from '../types';
-import { db, doc, updateDoc, serverTimestamp } from '../firebase';
-import { increment } from 'firebase/firestore';
+import { db, doc, updateDoc, serverTimestamp, increment } from '../firebase';
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
 

@@ -367,7 +367,7 @@ export default function App() {
       case 'EMAIL_SUPPORT':
         return <EmailSupport onNavigate={handleNavigate} />;
       case 'ADMIN_DATA_MANAGEMENT':
-        return <AdminDataManagement onNavigate={handleNavigate} usersDb={usersDb} tasksDb={tasksDb} inventoryDb={inventoryDb} notificationsDb={notificationsDb} badgesDb={badgesDb} massSchedules={massSchedulesDb} />;
+        return <AdminDataManagement onNavigate={handleNavigate} usersDb={usersDb} tasksDb={tasksDb} inventoryDb={inventoryDb} notificationsDb={notificationsDb} badgesDb={badgesDb} massSchedules={massSchedulesDb} currentUser={currentUser} role={currentUser?.role} />;
       case 'REPORTS':
         return <ReportsScreen onNavigate={handleNavigate} role={currentUser?.role || 'USER'} currentUser={currentUser} tasksDb={tasksDb} usersDb={usersDb} />;
       case 'TASK_TYPE_MANAGEMENT':

@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { ChevronLeft, Database, Users, ClipboardList, Wrench, Calendar, Search, Filter, Download, Trash2, Edit2, Bell, MessageSquare, CheckSquare, FileBarChart, Award, Sparkles, Activity, Plus, X, Save, Loader2, Trophy, Medal, Crown, Flame, Music, Video, Book, Coffee, PenTool, Code, Heart, Star, Shield, Target, Camera, Zap } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Inventory, MassSchedule, Notification, ChatMessage, Attendance, Report, Badge } from '../types';
 import { ConfirmationModal } from '../components/ConfirmationModal';
-import { db, doc, deleteDoc, collection, addDoc, serverTimestamp, updateDoc } from '../firebase';
+import { db, doc, deleteDoc, collection, addDoc, serverTimestamp, updateDoc, increment } from '../firebase';
 import { getAvatarUrl } from '../lib/avatar';
 import { toast } from 'sonner';
+import { revokeTaskPoints } from '../services/taskService';
+import { RefreshCw } from 'lucide-react';
 
 export const AdminDataManagement: React.FC<{ 
   onNavigate: (s: Screen) => void, 
@@ -13,7 +15,9 @@ export const AdminDataManagement: React.FC<{
   inventoryDb?: Inventory[],
   massSchedules?: MassSchedule[],
   notificationsDb?: Notification[],
-  badgesDb?: Badge[]
+  badgesDb?: Badge[],
+  currentUser?: UserAccount | null,
+  role?: Role
 }> = ({ 
   onNavigate, 
   usersDb = [], 
@@ -21,11 +25,14 @@ export const AdminDataManagement: React.FC<{
   inventoryDb = [], 
   massSchedules = [], 
   notificationsDb = [], 
-  badgesDb = [] 
+  badgesDb = [],
+  currentUser,
+  role
 }) => {
   const [activeTab, setActiveTab] = useState<'USERS' | 'TASKS' | 'INVENTORY' | 'MASS' | 'NOTIFS' | 'BADGES' | 'ATTENDANCE' | 'REPORTS'>('USERS');
   const [searchTerm, setSearchTerm] = useState('');
   const [isSeeding, setIsSeeding] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Badge Modal State
   const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
@@ -39,6 +46,12 @@ export const AdminDataManagement: React.FC<{
     status: 'earned' as 'earned' | 'pending'
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  // User Point Adjustment State
+  const [isPointModalOpen, setIsPointModalOpen] = useState(false);
+  const [selectedUserForPoints, setSelectedUserForPoints] = useState<UserAccount | null>(null);
+  const [pointAdjustment, setPointAdjustment] = useState<number>(0);
+  const [pointReason, setPointReason] = useState<string>('');
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
@@ -73,6 +86,39 @@ export const AdminDataManagement: React.FC<{
     );
   };
 
+  const handleUpdatePoints = async () => {
+    if (!selectedUserForPoints || !selectedUserForPoints.uid) return;
+    
+    setIsLoading(true);
+    try {
+      const userRef = doc(db, 'users', selectedUserForPoints.uid);
+      await updateDoc(userRef, {
+        points: increment(pointAdjustment),
+        xp: increment(pointAdjustment)
+      });
+
+      // Add notification for the user
+      await addDoc(collection(db, 'notifications'), {
+        userId: selectedUserForPoints.uid,
+        title: pointAdjustment > 0 ? 'Poin Ditambahkan' : 'Poin Dikurangi',
+        message: `Admin telah ${pointAdjustment > 0 ? 'menambahkan' : 'mengurangi'} ${Math.abs(pointAdjustment)} poin pada akun Anda. Alasan: ${pointReason || 'Penyesuaian Admin'}`,
+        type: pointAdjustment > 0 ? 'SUCCESS' : 'ALERT',
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
+      toast.success(`Poin berhasil ${pointAdjustment > 0 ? 'ditambahkan' : 'dikurangi'}!`);
+      setIsPointModalOpen(false);
+      setSelectedUserForPoints(null);
+      setPointAdjustment(0);
+      setPointReason('');
+    } catch (error) {
+      console.error("Error updating points:", error);
+      toast.error("Gagal memperbarui poin.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
   const handleOpenBadgeModal = (badge?: Badge) => {
     if (badge) {
       setEditingBadge(badge);
@@ -249,6 +295,18 @@ export const AdminDataManagement: React.FC<{
               </div>
             </div>
             <div className="flex gap-2">
+              {role === 'SUPERADMIN' && (
+                <button 
+                  onClick={() => {
+                    setSelectedUserForPoints(user);
+                    setIsPointModalOpen(true);
+                  }}
+                  className="p-2 text-amber-500/70 hover:text-amber-500 transition-colors"
+                  title="Sesuaikan Poin Manual"
+                >
+                  <Award className="w-4 h-4" />
+                </button>
+              )}
               <button onClick={() => handleDelete('users', user.id)} className="p-2 text-red-500/70 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
@@ -264,14 +322,50 @@ export const AdminDataManagement: React.FC<{
       <div className="space-y-3">
         {filtered.map(task => (
           <div key={task.id} className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex justify-between items-center">
-            <div>
+            <div className="flex-1">
               <h3 className="font-bold text-sm text-white mb-1">{task.title}</h3>
               <div className="flex items-center gap-3 text-gray-500 text-[10px] font-medium">
                 <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {task.date}</span>
                 <span className="flex items-center gap-1"><Database className="w-3 h-3" /> {task.type}</span>
+                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest ${
+                  task.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' :
+                  task.status === 'WAITING_VERIFICATION' ? 'bg-amber-500/10 text-amber-500' :
+                  'bg-blue-500/10 text-blue-500'
+                }`}>
+                  {task.status}
+                </span>
               </div>
             </div>
-            <button onClick={() => handleDelete('tasks', task.id)} className="p-2 text-red-500/70 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+            <div className="flex items-center gap-1">
+              {role === 'SUPERADMIN' && task.status === 'COMPLETED' && (
+                <button 
+                  onClick={() => {
+                    openConfirm(
+                      'Batalkan Verifikasi & Tarik Poin',
+                      `Apakah Anda yakin ingin membatalkan verifikasi tugas "${task.title}"? Poin dan skill yang telah diberikan kepada petugas akan ditarik kembali.`,
+                      async () => {
+                        setIsLoading(true);
+                        try {
+                          await revokeTaskPoints(task, currentUser);
+                          toast.success("Verifikasi dibatalkan dan poin telah ditarik kembali!");
+                        } catch (err) {
+                          console.error("Error revoking points:", err);
+                          toast.error("Gagal membatalkan verifikasi.");
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }
+                    );
+                  }}
+                  disabled={isLoading}
+                  className="p-2 text-amber-500/70 hover:text-amber-500 transition-colors"
+                  title="Batalkan Verifikasi & Tarik Poin"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                </button>
+              )}
+              <button onClick={() => handleDelete('tasks', task.id)} className="p-2 text-red-500/70 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+            </div>
           </div>
         ))}
       </div>
@@ -682,7 +776,65 @@ export const AdminDataManagement: React.FC<{
           </div>
         </div>
       )}
-      <ConfirmationModal 
+        {/* Point Adjustment Modal */}
+        {isPointModalOpen && selectedUserForPoints && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-[#151b2b] w-full max-w-md rounded-3xl border border-gray-800 p-6 shadow-2xl">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Award className="text-amber-500" /> Sesuaikan Poin: {selectedUserForPoints.displayName}
+              </h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Poin Saat Ini</label>
+                  <div className="bg-[#0a0f18] p-3 rounded-xl border border-gray-800 text-white font-bold">
+                    {selectedUserForPoints.points || 0} Poin
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Jumlah Penyesuaian (Gunakan minus untuk mengurangi)</label>
+                  <input 
+                    type="number"
+                    value={pointAdjustment}
+                    onChange={(e) => setPointAdjustment(parseInt(e.target.value) || 0)}
+                    className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                    placeholder="Contoh: -50 atau 100"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Alasan (Opsional)</label>
+                  <textarea 
+                    value={pointReason}
+                    onChange={(e) => setPointReason(e.target.value)}
+                    className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 resize-none"
+                    rows={3}
+                    placeholder="Alasan penyesuaian poin..."
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={() => setIsPointModalOpen(false)}
+                    className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-800/50 hover:bg-gray-800 transition-all"
+                  >
+                    Batal
+                  </button>
+                  <button 
+                    onClick={handleUpdatePoints}
+                    disabled={isLoading || pointAdjustment === 0}
+                    className="flex-1 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
+                  >
+                    {isLoading ? 'Memproses...' : 'Simpan'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <ConfirmationModal 
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
         message={confirmModal.message}
