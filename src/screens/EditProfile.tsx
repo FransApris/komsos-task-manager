@@ -68,7 +68,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
           let width = img.width;
           let height = img.height;
 
-          const MAX_SIZE = 400;
+          const MAX_SIZE = 300;
           if (width > height) {
             if (width > MAX_SIZE) {
               height *= MAX_SIZE / width;
@@ -86,8 +86,8 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
 
-          // Konversi ke Base64 (JPEG 0.5)
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
+          // Konversi ke Base64 (JPEG 0.4) - Lebih cepat dan hemat data
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.4);
           
           setPreviewImage(compressedBase64);
           setIsUploading(false);
@@ -130,7 +130,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
 
     setIsSaving(true);
     try {
-      const userRef = doc(db, 'users', user.id);
+      const userRef = doc(db, 'users', user.id || (user as any).uid);
       
       const updateData: any = {
         displayName: displayName.trim(),
@@ -148,9 +148,11 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
         // Gunakan field 'img' agar sinkron dengan getAvatarUrl dan bagian lain aplikasi
         updateData.img = previewImage;
         
+        // Update Auth Profile secara asinkron (tidak memblokir Firestore update)
         if (auth?.currentUser) {
-          await updateProfile(auth.currentUser, { photoURL: previewImage })
-            .catch(e => console.log('Auth profile update warning:', e));
+          updateProfile(auth.currentUser, { 
+            photoURL: previewImage.length < 2000 ? previewImage : 'data:image/jpeg;base64,PLACEHOLDER' 
+          }).catch(e => console.log('Auth profile update warning:', e));
         }
       }
 
@@ -191,6 +193,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
                   src={previewImage || getAvatarUrl(user)} 
                   alt="Profile" 
                   className="w-full h-full object-cover group-hover:opacity-60 transition-opacity"
+                  referrerPolicy="no-referrer"
                 />
               )}
             </div>

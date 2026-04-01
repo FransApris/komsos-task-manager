@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircle2, PlayCircle, Plus, Upload, Award, FileText, Send, MessageSquare, Image as ImageIcon, Crown, Briefcase, Camera, Activity, UserX, Trash2, Edit2, RefreshCw } from 'lucide-react';
+import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircle2, PlayCircle, Plus, Upload, Award, FileText, Send, MessageSquare, Image as ImageIcon, Crown, Briefcase, Camera, Activity, UserX, Trash2, Edit2, RefreshCw, AlertCircle } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Inventory, TaskType } from '../types';
 import { db, doc, updateDoc, serverTimestamp, collection, addDoc, auth } from '../firebase';
 import { TaskChat } from './TaskChat';
@@ -151,17 +151,51 @@ export const TaskDetail: React.FC<{
     }
   };
 
+  const getTaskTimes = (dateStr: string, timeStr: string) => {
+    const parts = timeStr.split('-').map(p => p.trim());
+    const startStr = parts[0];
+    const endStr = parts[1] || parts[0];
+    
+    let start = new Date(`${dateStr}T${startStr}`);
+    if (isNaN(start.getTime())) start = new Date(`${dateStr} ${startStr}`);
+    
+    let end = new Date(`${dateStr}T${endStr}`);
+    if (isNaN(end.getTime())) end = new Date(`${dateStr} ${endStr}`);
+    
+    // If end time is same as start and it's just "08:00", assume at least 1 hour duration for "ongoing" check
+    if (start.getTime() === end.getTime() && !timeStr.includes('-')) {
+      end = new Date(start.getTime() + 60 * 60 * 1000);
+    }
+    
+    return { start, end };
+  };
+
+  const getTimingStatus = () => {
+    if (!task.date || !task.time) return 'NORMAL';
+    const { start, end } = getTaskTimes(task.date, task.time);
+    const now = new Date();
+    
+    if (now < start) return 'NOT_STARTED';
+    if (now <= end) return 'ONGOING';
+    return 'NORMAL';
+  };
+
   const handleSubmitProof = async () => {
     setIsLoading(true);
     try {
+      const timingStatus = getTimingStatus();
       const taskRef = doc(db, 'tasks', task.id);
       await updateDoc(taskRef, {
         status: 'WAITING_VERIFICATION',
         proofNotes: proofNotes,
+        earlyCompletion: timingStatus !== 'NORMAL',
+        completionTiming: timingStatus,
         updatedAt: serverTimestamp()
       });
       setShowProofModal(false);
-      toast.success("Bukti berhasil dikirim untuk verifikasi!");
+      toast.success(timingStatus === 'NOT_STARTED' 
+        ? "Bukti dikirim! (Peringatan: Acara belum dimulai)" 
+        : "Bukti berhasil dikirim untuk verifikasi!");
     } catch (err) {
       console.error("Error submitting proof:", err);
       toast.error("Gagal mengirim bukti.");
@@ -233,6 +267,7 @@ export const TaskDetail: React.FC<{
           src="/background.jpg" 
           alt="Latar Belakang Tugas"
           className="w-full h-full object-cover opacity-50" 
+          referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0f18] to-transparent"></div>
         <div className="absolute bottom-4 left-5">
@@ -458,6 +493,7 @@ export const TaskDetail: React.FC<{
                               alt={`Bukti Progress ${i + 1}`} 
                               className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
                               onClick={() => window.open(img, '_blank')}
+                              referrerPolicy="no-referrer"
                             />
                           </div>
                         ))}
@@ -469,6 +505,7 @@ export const TaskDetail: React.FC<{
                           alt="Bukti Progress" 
                           className="w-full max-h-60 object-contain cursor-pointer"
                           onClick={() => window.open(progress.img, '_blank')}
+                          referrerPolicy="no-referrer"
                         />
                       </div>
                     )}
@@ -559,6 +596,20 @@ export const TaskDetail: React.FC<{
             <h3 className="text-lg font-extrabold text-white mb-2">Selesaikan Tugas</h3>
             <p className="text-sm text-gray-400 mb-6">Kirimkan bukti atau catatan penyelesaian tugas untuk diverifikasi oleh Admin.</p>
             
+            {getTimingStatus() !== 'NORMAL' && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6 flex gap-3 items-start">
+                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1">
+                    {getTimingStatus() === 'NOT_STARTED' ? 'Acara Belum Dimulai' : 'Acara Masih Berlangsung'}
+                  </p>
+                  <p className="text-[10px] text-amber-200/70 leading-relaxed">
+                    Anda mencoba menyelesaikan tugas sebelum waktu pelaksanaan berakhir. Pastikan semua pekerjaan benar-benar telah tuntas.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4 mb-6">
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 block">Catatan Penyelesaian</label>

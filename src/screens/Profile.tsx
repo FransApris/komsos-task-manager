@@ -87,7 +87,7 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
 
       <div className="p-5 flex flex-col items-center">
         <div className="w-24 h-24 rounded-full bg-gray-800 overflow-hidden ring-4 ring-blue-500/20 mb-4">
-          <img src={getAvatarUrl(user)} alt="Profile" className="w-full h-full object-cover" />
+          <img src={getAvatarUrl(user)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         </div>
         <h2 className="text-xl font-extrabold mb-1 text-white">{user?.displayName || 'User'}</h2>
         <p className="text-sm text-gray-400 font-medium mb-6">{user?.email || 'user@komsos.org'}</p>

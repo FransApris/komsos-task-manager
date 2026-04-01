@@ -208,7 +208,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden ring-2 ring-blue-500/30">
-            <img src={getAvatarUrl(user)} alt="Profile" className="w-full h-full object-cover" />
+            <img src={getAvatarUrl(user)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
           </div>
           <div>
             <h1 className="text-sm font-extrabold tracking-tight text-white leading-tight">Halo, {user?.displayName?.split(' ')[0] || 'Admin'}</h1>

@@ -267,7 +267,7 @@ export const UserDashboard: React.FC<{
       <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
         <div className="flex items-center gap-3">
           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden ring-2 ring-gray-700">
-            <img src={getAvatarUrl(user)} alt="Profile" className="w-full h-full object-cover" />
+            <img src={getAvatarUrl(user)} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
           </motion.div>
           <h1 className="text-lg font-extrabold tracking-tight text-white">Tugas Komsos</h1>
         </div>
@@ -373,7 +373,7 @@ export const UserDashboard: React.FC<{
                 .map((u) => (
               <div key={u.uid || u.id} className="flex items-center gap-2 bg-[#0a0f18] border border-gray-800 pl-1 pr-3 py-1 rounded-full ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/5">
                 <div className="w-6 h-6 rounded-full overflow-hidden border border-emerald-500/30">
-                  <img src={getAvatarUrl(u)} className="w-full h-full object-cover" />
+                  <img src={getAvatarUrl(u)} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 </div>
                 <span className="text-[10px] font-bold text-gray-300 truncate max-w-[80px]">{u.displayName?.split(' ')[0]}</span>
               </div>
@@ -640,7 +640,7 @@ export const UserDashboard: React.FC<{
                 )}
 
                 <div className="h-32 bg-gray-800 relative">
-                  <img src={getTaskImage(task.type)} className="w-full h-full object-cover opacity-60 mix-blend-overlay" alt={task.title} />
+                  <img src={getTaskImage(task.type)} className="w-full h-full object-cover opacity-60 mix-blend-overlay" alt={task.title} referrerPolicy="no-referrer" />
                   <div className="absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5 shadow-md">
                     <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span> Sedang Berlangsung
                   </div>
@@ -665,7 +665,7 @@ export const UserDashboard: React.FC<{
                         return (
                           <div key={i} className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 overflow-hidden shadow-sm relative">
                             {user && uid?.trim() === user.uid?.trim() && <div className="absolute inset-0 border-2 border-emerald-500 rounded-full z-10 pointer-events-none"></div>}
-                            <img src={getAvatarUrl(u)} alt="Avatar" className="w-full h-full object-cover" />
+                            <img src={getAvatarUrl(u)} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           </div>
                         );
                       })}
