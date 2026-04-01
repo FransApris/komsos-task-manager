@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { ChevronLeft, Camera, Loader2, Save, User, Phone, FileText } from 'lucide-react';
-import { Screen, UserAccount } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronLeft, Camera, Loader2, Save, User, Phone, FileText, Check, Plus, X, Trash2, Award, Briefcase, Calendar, Shield } from 'lucide-react';
+import { Screen, UserAccount, Role, AvailabilityStatus, PortfolioLink } from '../types';
 import { db, auth, doc, updateDoc, serverTimestamp } from '../firebase';
-import { updateProfile } from 'firebase/auth'; // Tambahan untuk update sistem Auth
+import { updateProfile } from 'firebase/auth';
 import { toast } from 'sonner';
 import { getAvatarUrl } from '../lib/avatar';
 
@@ -11,16 +11,48 @@ interface EditProfileProps {
   user: UserAccount | null;
 }
 
+const AVAILABLE_SKILLS = [
+  'Fotografi', 
+  'Videografi', 
+  'Editing Video', 
+  'Desain Grafis', 
+  'Copywriting / Jurnalistik', 
+  'OBS / Live Streaming', 
+  'Audio / Soundman', 
+  'Master of Ceremony (MC)',
+  'Web / IT Support'
+];
+
 export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) => {
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [bio, setBio] = useState(user?.bio || '');
+  const [role, setRole] = useState<Role>(user?.role || 'USER');
+  const [availability, setAvailability] = useState<AvailabilityStatus>(user?.availability || 'AVAILABLE');
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER'>(user?.gender || 'OTHER');
+  const [skills, setSkills] = useState<string[]>(user?.skills || []);
+  const [portfolioLinks, setPortfolioLinks] = useState<PortfolioLink[]>(user?.portfolioLinks || []);
+  
+  const [newLinkPlatform, setNewLinkPlatform] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
   
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName || '');
+      setPhone(user.phone || '');
+      setBio(user.bio || '');
+      setRole(user.role || 'USER');
+      setAvailability(user.availability || 'AVAILABLE');
+      setGender(user.gender || 'OTHER');
+      setSkills(user.skills || []);
+      setPortfolioLinks(user.portfolioLinks || []);
+    }
+  }, [user]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -54,11 +86,9 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
 
-          // Konversi ke Base64
+          // Konversi ke Base64 (JPEG 0.5)
           const compressedBase64 = canvas.toDataURL('image/jpeg', 0.5);
           
-          // HANYA SET PREVIEW. Jangan simpan ke database dulu.
-          // Database baru akan diupdate saat tombol "Simpan Perubahan" ditekan.
           setPreviewImage(compressedBase64);
           setIsUploading(false);
         };
@@ -66,10 +96,29 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
       };
       reader.readAsDataURL(file);
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error processing image:', error);
       toast.error('Gagal memproses foto.');
       setIsUploading(false);
     }
+  };
+
+  const toggleSkill = (skillName: string) => {
+    setSkills(prev => 
+      prev.includes(skillName) 
+        ? prev.filter(s => s !== skillName)
+        : [...prev, skillName]
+    );
+  };
+
+  const addPortfolioLink = () => {
+    if (!newLinkPlatform || !newLinkUrl) return;
+    setPortfolioLinks(prev => [...prev, { platform: newLinkPlatform, url: newLinkUrl }]);
+    setNewLinkPlatform('');
+    setNewLinkUrl('');
+  };
+
+  const removePortfolioLink = (index: number) => {
+    setPortfolioLinks(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
@@ -83,26 +132,28 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
     try {
       const userRef = doc(db, 'users', user.id);
       
-      // Siapkan paket data untuk Firestore
       const updateData: any = {
         displayName: displayName.trim(),
         phone: phone.trim(),
         bio: bio.trim(),
+        role: role,
+        availability: availability,
+        gender: gender,
+        skills: skills,
+        portfolioLinks: portfolioLinks,
         updatedAt: serverTimestamp()
       };
 
-      // Jika ada gambar baru di preview, gabungkan ke paket data
       if (previewImage) {
-        updateData.photoURL = previewImage;
+        // Gunakan field 'img' agar sinkron dengan getAvatarUrl dan bagian lain aplikasi
+        updateData.img = previewImage;
         
-        // SINKRONISASI KE FIREBASE AUTH (Ini kunci agar foto tidak kembali ke semula)
         if (auth?.currentUser) {
           await updateProfile(auth.currentUser, { photoURL: previewImage })
             .catch(e => console.log('Auth profile update warning:', e));
         }
       }
 
-      // Kirim semuanya sekaligus ke Firestore
       await updateDoc(userRef, updateData);
       
       toast.success('Profil berhasil diperbarui!');
@@ -202,6 +253,118 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
               placeholder="Tulis sedikit tentang peran Anda di Komsos..."
               className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none transition-all text-white placeholder-gray-600"
             ></textarea>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5 ml-1">
+              <Shield className="w-3.5 h-3.5" /> Peran Tim
+            </label>
+            {user?.role === 'SUPERADMIN' ? (
+              <select 
+                value={role || 'USER'} 
+                onChange={(e) => setRole(e.target.value as Role)} 
+                className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-white appearance-none"
+              >
+                <option value="SUPERADMIN">Superadmin</option>
+                <option value="ADMIN_MULTIMEDIA">Koord. Multimedia</option>
+                <option value="ADMIN_PHOTO_VIDEO">Koord. Photo & Video</option>
+                <option value="ADMIN_PUBLICATION">Koord. Publikasi</option>
+                <option value="USER">Petugas</option>
+              </select>
+            ) : (
+              <div className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-500">
+                {user?.role || 'USER'}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5 ml-1">
+              <Calendar className="w-3.5 h-3.5" /> Status Ketersediaan
+            </label>
+            <select 
+              value={availability} 
+              onChange={(e) => setAvailability(e.target.value as AvailabilityStatus)} 
+              className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-white appearance-none"
+            >
+              <option value="AVAILABLE">Tersedia (Available)</option>
+              <option value="BUSY">Sibuk (Busy)</option>
+              <option value="AWAY">Tidak di Tempat (Away)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5 ml-1">
+              <Award className="w-3.5 h-3.5" /> Keahlian & Kemampuan
+            </label>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {AVAILABLE_SKILLS.map((skillName) => {
+                const isSelected = skills.includes(skillName);
+                return (
+                  <button
+                    key={skillName}
+                    type="button"
+                    onClick={() => toggleSkill(skillName)}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all duration-200 border ${
+                      isSelected 
+                        ? 'bg-blue-600/20 border-blue-500 text-blue-400' 
+                        : 'bg-[#0a0f18] border-gray-800 text-gray-400 hover:border-gray-700'
+                    }`}
+                  >
+                    {isSelected && <Check className="w-3 h-3 text-blue-500" />}
+                    {skillName}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5 ml-1">
+              <Briefcase className="w-3.5 h-3.5" /> Portofolio & Link Karya
+            </label>
+            <div className="space-y-3 mt-2">
+              {portfolioLinks.map((link, idx) => (
+                <div key={idx} className="flex items-center gap-2 p-3 bg-[#0a0f18] border border-gray-800 rounded-xl">
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-white">{link.platform}</p>
+                    <p className="text-[10px] text-gray-500 truncate">{link.url}</p>
+                  </div>
+                  <button onClick={() => removePortfolioLink(idx)} className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg">
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              
+              <div className="grid grid-cols-2 gap-2">
+                <select 
+                  value={newLinkPlatform}
+                  onChange={(e) => setNewLinkPlatform(e.target.value)}
+                  className="bg-[#0a0f18] border border-gray-800 rounded-xl px-3 py-2 text-xs text-white"
+                >
+                  <option value="">Pilih Platform</option>
+                  <option value="YouTube">YouTube</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="Google Drive">Google Drive</option>
+                  <option value="Website/Blog">Website/Blog</option>
+                  <option value="Lainnya">Lainnya</option>
+                </select>
+                <input 
+                  type="text"
+                  value={newLinkUrl}
+                  onChange={(e) => setNewLinkUrl(e.target.value)}
+                  placeholder="URL Link"
+                  className="bg-[#0a0f18] border border-gray-800 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              </div>
+              <button 
+                onClick={addPortfolioLink}
+                disabled={!newLinkPlatform || !newLinkUrl}
+                className="w-full flex items-center justify-center gap-2 p-2 bg-blue-600/10 text-blue-500 text-[10px] font-bold rounded-xl border border-blue-500/20 hover:bg-blue-600/20 transition-colors disabled:opacity-50"
+              >
+                <Plus size={14} /> Tambah Link
+              </button>
+            </div>
           </div>
         </div>
 

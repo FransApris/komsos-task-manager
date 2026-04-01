@@ -49,6 +49,7 @@ export interface UserAccount {
   lastSeen?: any;
   divisions?: string[]; // Fitur Multi-Divisi
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  phone?: string;
 }
 
 export interface SubTask {
