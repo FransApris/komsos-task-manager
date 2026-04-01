@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronLeft, Plus, Calendar, Clock, MapPin, CheckCircle2, UserPlus, Trash2, Edit2, Tag, FileText, Users, Activity, Video, Image as ImageIcon, X } from 'lucide-react';
 import { Screen, Role, UserAccount, MassSchedule, Task, TaskType } from '../types';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from '../firebase';
@@ -41,6 +41,32 @@ export const MassScheduleScreen: React.FC<{
   };
 
   const isAdmin = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
+
+  const { upcomingSchedules, pastSchedules } = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    
+    const upcoming: MassSchedule[] = [];
+    const past: MassSchedule[] = [];
+    
+    schedules.forEach(s => {
+      const scheduleDate = new Date(s.date);
+      scheduleDate.setHours(0, 0, 0, 0);
+      
+      if (scheduleDate >= now) {
+        upcoming.push(s);
+      } else {
+        past.push(s);
+      }
+    });
+    
+    // Sort upcoming by date ascending
+    upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // Sort past by date descending
+    past.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    return { upcomingSchedules: upcoming, pastSchedules: past };
+  }, [schedules]);
 
   // FUNGSI BARU: Menangani Simpan (Bisa untuk Tambah Baru atau Update Edit)
   const handleSave = async () => {
@@ -158,92 +184,149 @@ export const MassScheduleScreen: React.FC<{
         )}
       </header>
 
-      <div className="p-5 space-y-4">
-        {schedules.length > 0 ? schedules.map((s) => {
-          const relatedTasks = tasksDb.filter(t => (t as any).linkedScheduleId === s.id);
-          const completedTasks = relatedTasks.filter(t => t.status === 'COMPLETED').length;
+      <div className="p-5 space-y-8">
+        {/* AGENDA MENDATANG */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
+            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+              Agenda Mendatang <span className="bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-md text-[10px]">{upcomingSchedules.length}</span>
+            </h2>
+          </div>
+          
+          {upcomingSchedules.length > 0 ? upcomingSchedules.map((s) => {
+            const relatedTasks = tasksDb.filter(t => (t as any).linkedScheduleId === s.id);
+            const completedTasks = relatedTasks.filter(t => t.status === 'COMPLETED').length;
 
-          return (
-            <div key={s.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 shadow-xl relative overflow-hidden group">
-              {relatedTasks.length > 0 && relatedTasks.length === completedTasks && (
-                <div className="absolute -right-10 -top-10 opacity-5">
-                  <CheckCircle2 size={120} className="text-emerald-500" />
-                </div>
-              )}
-
-              <div className="flex justify-between items-start mb-4 relative z-10">
-                <div>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${getTypeColor((s as any).type || 'Lainnya')}`}>
-                      {(s as any).type || 'Agenda'}
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">{s.title}</h3>
-                  <div className="flex items-center gap-4 text-gray-400 text-xs">
-                    <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-blue-400" /> {s.date}</span>
-                    <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /> {s.time}</span>
-                  </div>
-                </div>
-                {isAdmin && (
-                  <div className="flex gap-1 shrink-0">
-                    <button onClick={() => openEditModal(s)} className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Edit Agenda">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(s.id)} className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" title="Hapus Agenda">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+            return (
+              <div key={s.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 shadow-xl relative overflow-hidden group">
+                {relatedTasks.length > 0 && relatedTasks.length === completedTasks && (
+                  <div className="absolute -right-10 -top-10 opacity-5">
+                    <CheckCircle2 size={120} className="text-emerald-500" />
                   </div>
                 )}
-              </div>
 
-              <div className="flex items-center gap-2 text-gray-400 text-xs mb-6 bg-gray-800/50 p-2.5 rounded-lg border border-gray-800 relative z-10">
-                <MapPin className="w-4 h-4 text-emerald-400 shrink-0" /> <span className="truncate">{s.location}</span>
-              </div>
-
-              <div className="flex flex-col gap-3 pt-4 border-t border-gray-800 relative z-10">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-gray-500" />
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      {relatedTasks.length} Tugas Terkait
-                    </span>
+                <div className="flex justify-between items-start mb-4 relative z-10">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider ${getTypeColor((s as any).type || 'Lainnya')}`}>
+                        {(s as any).type || 'Agenda'}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-2">{s.title}</h3>
+                    <div className="flex items-center gap-4 text-gray-400 text-xs">
+                      <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-blue-400" /> {s.date}</span>
+                      <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-amber-400" /> {s.time}</span>
+                    </div>
                   </div>
-                  {relatedTasks.length > 0 && (
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${completedTasks === relatedTasks.length ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                      {completedTasks}/{relatedTasks.length} Selesai
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  {!(s.assignedUsers || []).includes(currentUser?.uid || '') ? (
-                    <button 
-                      onClick={() => handleJoin(s)}
-                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-3 rounded-xl text-xs font-bold transition-all border border-gray-700 flex items-center justify-center gap-2"
-                    >
-                      <UserPlus className="w-3.5 h-3.5" /> Hadir
-                    </button>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center gap-1.5 text-emerald-500 text-xs font-bold bg-emerald-500/10 py-3 rounded-xl border border-emerald-500/20">
-                      <CheckCircle2 className="w-4 h-4" /> Hadir
+                  {isAdmin && (
+                    <div className="flex gap-1 shrink-0">
+                      <button onClick={() => openEditModal(s)} className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Edit Agenda">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(s.id)} className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors" title="Hapus Agenda">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   )}
+                </div>
 
-                  <button 
-                    onClick={() => setSelectedReport(s)}
-                    className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-500/20"
-                  >
-                    <FileText className="w-3.5 h-3.5" /> Laporan Event
-                  </button>
+                <div className="flex items-center gap-2 text-gray-400 text-xs mb-6 bg-gray-800/50 p-2.5 rounded-lg border border-gray-800 relative z-10">
+                  <MapPin className="w-4 h-4 text-emerald-400 shrink-0" /> <span className="truncate">{s.location}</span>
+                </div>
+
+                <div className="flex flex-col gap-3 pt-4 border-t border-gray-800 relative z-10">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-gray-500" />
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        {relatedTasks.length} Tugas Terkait
+                      </span>
+                    </div>
+                    {relatedTasks.length > 0 && (
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${completedTasks === relatedTasks.length ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                        {completedTasks}/{relatedTasks.length} Selesai
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    {!(s.assignedUsers || []).includes(currentUser?.uid || '') ? (
+                      <button 
+                        onClick={() => handleJoin(s)}
+                        className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-3 rounded-xl text-xs font-bold transition-all border border-gray-700 flex items-center justify-center gap-2"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" /> Hadir
+                      </button>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center gap-1.5 text-emerald-500 text-xs font-bold bg-emerald-500/10 py-3 rounded-xl border border-emerald-500/20">
+                        <CheckCircle2 className="w-4 h-4" /> Hadir
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={() => setSelectedReport(s)}
+                      className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-500/20"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Laporan Event
+                    </button>
+                  </div>
                 </div>
               </div>
+            );
+          }) : (
+            <div className="text-center py-10 bg-[#151b2b] rounded-3xl border border-gray-800 border-dashed">
+              <Calendar className="w-10 h-10 text-gray-700 mx-auto mb-3 opacity-20" />
+              <p className="text-gray-500 text-sm">Belum ada agenda mendatang.</p>
             </div>
-          );
-        }) : (
-          <div className="text-center py-20 bg-[#151b2b] rounded-3xl border border-gray-800 border-dashed">
-            <Calendar className="w-12 h-12 text-gray-700 mx-auto mb-4 opacity-20" />
-            <p className="text-gray-500 font-medium">Belum ada agenda yang dibuat.</p>
-          </div>
+          )}
+        </section>
+
+        {/* RIWAYAT AGENDA */}
+        {pastSchedules.length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-1 h-4 bg-gray-600 rounded-full"></div>
+              <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                Riwayat Agenda <span className="bg-gray-800 text-gray-500 px-1.5 py-0.5 rounded-md text-[10px]">{pastSchedules.length}</span>
+              </h2>
+            </div>
+            
+            <div className="space-y-3 opacity-60">
+              {pastSchedules.map((s) => {
+                const relatedTasks = tasksDb.filter(t => (t as any).linkedScheduleId === s.id);
+                const completedTasks = relatedTasks.filter(t => t.status === 'COMPLETED').length;
+
+                return (
+                  <div key={s.id} className="bg-[#151b2b]/50 p-4 rounded-xl border border-gray-800/50 flex justify-between items-center">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-gray-800 text-gray-500 border border-gray-700 uppercase tracking-wider">
+                          {(s as any).type || 'Agenda'}
+                        </span>
+                        <span className="text-[10px] text-gray-500">{s.date}</span>
+                      </div>
+                      <h3 className="text-sm font-bold text-gray-400 truncate">{s.title}</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setSelectedReport(s)}
+                        className="p-2 bg-gray-800 text-gray-400 hover:text-white rounded-lg transition-colors"
+                        title="Lihat Laporan"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
+                      {isAdmin && (
+                        <button onClick={() => handleDelete(s.id)} className="p-2 text-gray-600 hover:text-red-500 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         )}
       </div>
 

@@ -31,13 +31,24 @@ export const CreateTaskScreen: React.FC<{
   const [showUserModal, setShowUserModal] = useState(false);
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
 
+  // FILTER AGENDA: Hanya tampilkan agenda hari ini atau mendatang
+  const upcomingMassSchedules = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return (massSchedules || []).filter((s: any) => {
+      const scheduleDate = new Date(s.date);
+      scheduleDate.setHours(0, 0, 0, 0);
+      return scheduleDate >= now;
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [massSchedules]);
+
   // === LOGIKA AUTO-FILL JIKA AGENDA DIPILIH ===
   const handleScheduleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedId = e.target.value;
     setLinkedScheduleId(selectedId);
 
     if (selectedId) {
-      const schedule = massSchedules?.find((s: any) => s.id === selectedId);
+      const schedule = upcomingMassSchedules?.find((s: any) => s.id === selectedId);
       if (schedule) {
         // Mengisi otomatis form di bawahnya agar Admin tidak perlu mengetik ulang
         setTitle(schedule.title || '');
@@ -200,7 +211,7 @@ export const CreateTaskScreen: React.FC<{
               className="w-full bg-[#0a0f18] border border-blue-500/30 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-all appearance-none"
             >
               <option value="">-- Tidak Ditautkan (Tugas Bebas) --</option>
-              {massSchedules?.map((s: any) => (
+              {upcomingMassSchedules?.map((s: any) => (
                 <option key={s.id} value={s.id}>
                   {s.date} | {s.title}
                 </option>

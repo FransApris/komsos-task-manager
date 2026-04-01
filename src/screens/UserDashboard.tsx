@@ -58,7 +58,26 @@ export const UserDashboard: React.FC<{
     return 'Petugas';
   };
 
-  const allActiveTasks = (tasksDb || []).filter(t => t.status === 'IN_PROGRESS' || t.status === 'OPEN');
+  const getStartTime = (timeString?: string) => {
+    if (!timeString) return '00:00';
+    if (timeString.includes('-')) {
+      return timeString.split('-')[0].trim();
+    }
+    return timeString.trim();
+  };
+
+  const allActiveTasks = (tasksDb || [])
+    .filter(t => t.status === 'IN_PROGRESS' || t.status === 'OPEN')
+    .sort((a, b) => {
+      const startTimeA = getStartTime(a.time);
+      const startTimeB = getStartTime(b.time);
+      let dateA = new Date(`${a.date}T${startTimeA}`).getTime();
+      if (isNaN(dateA)) dateA = new Date(`${a.date} ${startTimeA}`).getTime();
+      let dateB = new Date(`${b.date}T${startTimeB}`).getTime();
+      if (isNaN(dateB)) dateB = new Date(`${b.date} ${startTimeB}`).getTime();
+      return (dateA || Number.MAX_SAFE_INTEGER) - (dateB || Number.MAX_SAFE_INTEGER);
+    });
+
   const myActiveTasks = allActiveTasks.filter(t => {
     if (!user || !user.uid) return false;
     const assigned = t.assignedUsers || [];
@@ -83,37 +102,12 @@ export const UserDashboard: React.FC<{
 
   // --- HITUNG MUNDUR (TANPA DETIK) ---
   useEffect(() => {
-    const validTasks = (tasksDb || []).filter(t => 
-      (t.status === 'IN_PROGRESS' || t.status === 'OPEN') && 
-      t.date && 
-      t.time &&
-      user && user.uid && (t.assignedUsers || []).some(id => id?.trim() === user.uid?.trim() || id?.trim() === user.id?.trim())
-    );
-
-    if (validTasks.length === 0) {
+    if (myActiveTasks.length === 0) {
       setCountdown('Tidak ada tugas terdekat');
       return;
     }
 
-    const getStartTime = (timeString: string) => {
-      if (timeString.includes('-')) {
-        return timeString.split('-')[0].trim();
-      }
-      return timeString;
-    };
-
-    const nextTask = validTasks.sort((a, b) => {
-      const startTimeA = getStartTime(a.time);
-      const startTimeB = getStartTime(b.time);
-      const timeA = new Date(`${a.date}T${startTimeA}`).getTime() || new Date(`${a.date} ${startTimeA}`).getTime();
-      const timeB = new Date(`${b.date}T${startTimeB}`).getTime() || new Date(`${b.date} ${startTimeB}`).getTime();
-      return timeA - timeB;
-    })[0];
-
-    if (!nextTask) {
-      setCountdown('Tidak ada tugas terdekat');
-      return;
-    }
+    const nextTask = myActiveTasks[0];
 
     const timer = setInterval(() => {
       const now = new Date().getTime();

@@ -31,6 +31,18 @@ export const EditTaskScreen: React.FC<{
   const [showUserModal, setShowUserModal] = useState(false);
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
 
+  // FILTER AGENDA: Hanya tampilkan agenda hari ini atau mendatang
+  // TAPI tetap sertakan agenda yang saat ini ditautkan meskipun sudah lampau
+  const filteredMassSchedules = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return (massSchedules || []).filter((s: any) => {
+      const scheduleDate = new Date(s.date);
+      scheduleDate.setHours(0, 0, 0, 0);
+      return scheduleDate >= now || s.id === task.linkedScheduleId;
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [massSchedules, task.linkedScheduleId]);
+
   // Parse time from task.time (e.g., "08:00 - 10:00")
   useEffect(() => {
     if (task.time) {
@@ -185,8 +197,10 @@ export const EditTaskScreen: React.FC<{
                   className="w-full bg-[#0a0f18] border border-gray-800 rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white focus:border-blue-500 outline-none transition-colors appearance-none"
                 >
                   <option value="">-- Pilih Agenda --</option>
-                  {massSchedules?.map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.title} ({s.date})</option>
+                  {filteredMassSchedules?.map((s: any) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title} ({s.date}) {s.id === task.linkedScheduleId && new Date(s.date).getTime() < new Date().setHours(0,0,0,0) ? '- Agenda Lampau' : ''}
+                    </option>
                   ))}
                 </select>
               </div>

@@ -122,7 +122,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return 'Admin';
   };
 
-  const activeTasks = tasksDb.filter(t => t.status === 'IN_PROGRESS' || t.status === 'OPEN');
+  const getStartTime = (timeString?: string) => {
+    if (!timeString) return '00:00';
+    if (timeString.includes('-')) {
+      return timeString.split('-')[0].trim();
+    }
+    return timeString.trim();
+  };
+
+  const activeTasks = tasksDb
+    .filter(t => t.status === 'IN_PROGRESS' || t.status === 'OPEN')
+    .sort((a, b) => {
+      const startTimeA = getStartTime(a.time);
+      const startTimeB = getStartTime(b.time);
+      let dateA = new Date(`${a.date}T${startTimeA}`).getTime();
+      if (isNaN(dateA)) dateA = new Date(`${a.date} ${startTimeA}`).getTime();
+      let dateB = new Date(`${b.date}T${startTimeB}`).getTime();
+      if (isNaN(dateB)) dateB = new Date(`${b.date} ${startTimeB}`).getTime();
+      return (dateA || Number.MAX_SAFE_INTEGER) - (dateB || Number.MAX_SAFE_INTEGER);
+    });
   const pendingVerifications = tasksDb.filter(t => t.status === 'WAITING_VERIFICATION');
   const pendingUsers = usersDb.filter(u => u.status === 'PENDING');
   const pendingSwaps = swapRequestsDb.filter(r => r.status === 'PENDING_APPROVAL');
@@ -246,70 +264,109 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         {/* SIAPA YANG ONLINE */}
-        <div className="bg-[#151b2b]/50 border border-gray-800 p-4 rounded-3xl">
-          <div className="flex justify-between items-center mb-3">
+        <div className="bg-[#151b2b]/50 border border-gray-800 p-4 rounded-3xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl -mr-16 -mt-16 rounded-full group-hover:bg-emerald-500/10 transition-all duration-700" />
+          <div className="flex justify-between items-center mb-3 relative z-10">
             <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-               <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" /> Anggota Aktif ({onlineUsers.length})
+               <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500 animate-pulse" /> Anggota Aktif ({onlineUsers.length})
             </h3>
-            <div className="flex items-center gap-1">
-              <span className="relative flex h-2 w-2">
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
               </span>
-              <span className="text-[8px] font-bold text-emerald-500/50 uppercase tracking-tighter">Live Update</span>
+              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">Live</span>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 relative z-10">
             {onlineUsers.length > 0 ? onlineUsers.map((u) => (
-              <div key={u.uid} className="flex items-center gap-2 bg-[#0a0f18] border border-gray-800 pl-1 pr-3 py-1 rounded-full ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/5">
-                <div className="w-6 h-6 rounded-full overflow-hidden border border-emerald-500/30">
+              <motion.div 
+                key={u.uid} 
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-2 bg-[#0a0f18]/80 backdrop-blur-sm border border-gray-800 pl-1 pr-3 py-1 rounded-full ring-1 ring-emerald-500/10 shadow-lg hover:ring-emerald-500/30 transition-all cursor-default group/user"
+              >
+                <div className="w-6 h-6 rounded-full overflow-hidden border border-emerald-500/30 group-hover/user:scale-110 transition-transform">
                   <img src={getAvatarUrl(u)} className="w-full h-full object-cover" />
                 </div>
                 <span className="text-[10px] font-bold text-gray-300 truncate max-w-[80px]">{u.displayName?.split(' ')[0]}</span>
-              </div>
+              </motion.div>
             )) : (
-              <p className="text-[10px] text-gray-600 font-medium italic">Hanya Anda yang sedang aktif saat ini.</p>
+              <div className="flex items-center gap-2 text-[10px] text-gray-600 font-medium italic py-1">
+                <Activity className="w-3 h-3 opacity-30" />
+                <span>Hanya Anda yang sedang aktif saat ini.</span>
+              </div>
             )}
           </div>
         </div>
 
         {/* STATISTIK UTAMA */}
         <div className="grid grid-cols-2 gap-3">
-          <motion.div whileTap={{ scale: 0.95 }} onClick={() => onNavigate('TASKS')} className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 rounded-2xl shadow-lg shadow-blue-500/20 relative overflow-hidden group cursor-pointer hover:opacity-90 transition-opacity">
-            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><ClipboardList size={60} /></div>
-            <p className="text-3xl font-black text-white mb-1">{activeTasks.length}</p>
-            <p className="text-[9px] text-blue-100 font-bold uppercase tracking-wider">Tugas Aktif</p>
+          <motion.div 
+            whileTap={{ scale: 0.95 }} 
+            onClick={() => onNavigate('TASKS')} 
+            className="bg-gradient-to-br from-blue-600 to-blue-800 p-4 rounded-2xl shadow-lg shadow-blue-500/20 relative overflow-hidden group cursor-pointer hover:opacity-90 transition-all border border-blue-400/20"
+          >
+            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500"><ClipboardList size={80} /></div>
+            <div className="relative z-10">
+              <p className="text-3xl font-black text-white mb-1 drop-shadow-sm">{activeTasks.length}</p>
+              <p className="text-[9px] text-blue-100 font-bold uppercase tracking-widest">Tugas Aktif</p>
+            </div>
           </motion.div>
-          <motion.div whileTap={{ scale: 0.95 }} onClick={() => onNavigate('TEAM')} className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-gray-800/50 transition-colors">
-            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform"><Users size={60} /></div>
-            <p className="text-3xl font-black text-white mb-1">{usersDb.length}</p>
-            <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Total Anggota</p>
+          
+          <motion.div 
+            whileTap={{ scale: 0.95 }} 
+            onClick={() => onNavigate('TEAM')} 
+            className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-gray-800/50 transition-all"
+          >
+            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-500"><Users size={80} /></div>
+            <div className="relative z-10">
+              <p className="text-3xl font-black text-white mb-1">{usersDb.length}</p>
+              <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Total Anggota</p>
+            </div>
           </motion.div>
-          <motion.div whileTap={{ scale: 0.95 }} onClick={() => onNavigate('TASK_VERIFICATION')} className="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/20 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-amber-500/20 transition-colors">
-            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform text-amber-500"><CheckCircle2 size={60} /></div>
-            <p className="text-3xl font-black text-amber-500 mb-1">{pendingVerifications.length}</p>
-            <p className="text-[9px] text-amber-500/70 font-bold uppercase tracking-wider">Verifikasi Tugas</p>
+          
+          <motion.div 
+            whileTap={{ scale: 0.95 }} 
+            onClick={() => onNavigate('TASK_VERIFICATION')} 
+            className="bg-amber-500/5 p-4 rounded-2xl border border-amber-500/20 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-amber-500/10 transition-all"
+          >
+            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-all duration-500 text-amber-500"><CheckCircle2 size={80} /></div>
+            <div className="relative z-10">
+              <p className="text-3xl font-black text-amber-500 mb-1">{pendingVerifications.length}</p>
+              <p className="text-[9px] text-amber-500/70 font-bold uppercase tracking-widest">Verifikasi Tugas</p>
+            </div>
           </motion.div>
-          <motion.div whileTap={{ scale: 0.95 }} onClick={() => onNavigate('USER_VERIFICATION')} className="bg-red-500/10 p-4 rounded-2xl border border-red-500/20 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-red-500/20 transition-colors">
-            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform text-red-500"><UserCheck size={60} /></div>
-            <p className="text-3xl font-black text-red-500 mb-1">{pendingUsers.length}</p>
-            <p className="text-[9px] text-red-500/70 font-bold uppercase tracking-wider">Pendaftar Baru</p>
+          
+          <motion.div 
+            whileTap={{ scale: 0.95 }} 
+            onClick={() => onNavigate('USER_VERIFICATION')} 
+            className="bg-red-500/5 p-4 rounded-2xl border border-red-500/20 shadow-lg relative overflow-hidden group cursor-pointer hover:bg-red-500/10 transition-all"
+          >
+            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-all duration-500 text-red-500"><UserCheck size={80} /></div>
+            <div className="relative z-10">
+              <p className="text-3xl font-black text-red-500 mb-1">{pendingUsers.length}</p>
+              <p className="text-[9px] text-red-500/70 font-bold uppercase tracking-widest">Pendaftar Baru</p>
+            </div>
           </motion.div>
         </div>
 
         {/* MENU CEPAT (QUICK ACTIONS) */}
         <div>
           {isAdminRole && (
-            <div className="mb-6">
-              <h3 className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                <Shield className="w-4 h-4" /> Otoritas Pengurus Komsos
-              </h3>
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-[10px] font-bold text-red-400 uppercase tracking-widest flex items-center gap-2">
+                  <Shield className="w-4 h-4" /> Otoritas Pengurus Komsos
+                </h3>
+                <span className="text-[8px] font-bold text-gray-600 uppercase tracking-tighter">Admin Only</span>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <QuickActionBtn icon={<UserCheck className="w-5 h-5 text-white" />} label="Verifikasi Pendaftar" color="bg-red-600 shadow-red-500/30" onClick={() => onNavigate('USER_VERIFICATION')} />
                 <div className="relative">
                   <QuickActionBtn icon={<LifeBuoy className="w-5 h-5 text-amber-500" />} label="Laporan (Helpdesk)" color="bg-amber-500/10" onClick={() => onNavigate('HELPDESK')} />
                   {pendingHelpdesk.length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f18] animate-bounce">
+                    <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-amber-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f18] shadow-lg animate-bounce">
                       {pendingHelpdesk.length}
                     </span>
                   )}
@@ -317,7 +374,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="relative">
                   <QuickActionBtn icon={<MessageSquare className="w-5 h-5 text-blue-500" />} label="Live Chat Admin" color="bg-blue-500/10" onClick={() => onNavigate('LIVE_CHAT')} />
                   {unreadChatCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f18] animate-bounce">
+                    <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f18] shadow-lg animate-bounce">
                       {unreadChatCount}
                     </span>
                   )}
@@ -330,7 +387,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="relative">
                       <QuickActionBtn icon={<RefreshCw className="w-5 h-5 text-blue-500" />} label="Bursa Pertukaran" color="bg-blue-500/10" onClick={() => onNavigate('SWAP_REQUEST')} />
                       {pendingSwaps.length > 0 && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f18] animate-pulse">
+                        <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-blue-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-[#0a0f18] shadow-lg animate-pulse">
                           {pendingSwaps.length}
                         </span>
                       )}
@@ -340,8 +397,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
           )}
-          <div>
-            <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+          
+          <div className="mb-6">
+            <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Activity className="w-4 h-4" /> Operasional Komsos
             </h3>
             <div className="grid grid-cols-2 gap-3">
@@ -379,13 +437,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="space-y-3">
             {activeTasks.length > 0 ? activeTasks.slice(0, 3).map((task) => (
               <motion.div key={task.id} whileHover={{ x: 5 }} onClick={() => { setSelectedTaskId(task.id); onNavigate('TASK_DETAIL'); }} className="bg-[#151b2b] p-4 rounded-2xl border-l-4 border-l-blue-500 flex justify-between items-center cursor-pointer transition-all hover:bg-gray-800/50 shadow-sm">
-                <div>
+                <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-sm text-white mb-1 line-clamp-1">{task.title}</h4>
-                  <div className="flex items-center gap-2 text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-2 text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-2">
                     <Calendar size={10} /> {task.date} • <Clock size={10} className="ml-1" /> {task.time}
                   </div>
+                  
+                  {/* Assigned Users Avatars */}
+                  <div className="flex -space-x-2 overflow-hidden">
+                    {(task.assignedUsers || []).slice(0, 5).map((uId, idx) => {
+                      const u = usersDb.find(user => user.uid === uId || user.id === uId);
+                      return (
+                        <div key={idx} className="inline-block h-5 w-5 rounded-full ring-2 ring-[#151b2b] bg-gray-800 overflow-hidden">
+                          <img src={getAvatarUrl(u)} alt="Avatar" className="h-full w-full object-cover" />
+                        </div>
+                      );
+                    })}
+                    {(task.assignedUsers || []).length > 5 && (
+                      <div className="flex items-center justify-center h-5 w-5 rounded-full ring-2 ring-[#151b2b] bg-gray-700 text-[8px] font-bold text-gray-300">
+                        +{(task.assignedUsers || []).length - 5}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="bg-gray-800 p-2 rounded-lg">
+                <div className="bg-gray-800 p-2 rounded-lg ml-3">
                   <ChevronRight size={16} className="text-gray-400" />
                 </div>
               </motion.div>
