@@ -142,6 +142,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return (dateA || Number.MAX_SAFE_INTEGER) - (dateB || Number.MAX_SAFE_INTEGER);
     });
   const pendingVerifications = tasksDb.filter(t => t.status === 'WAITING_VERIFICATION');
+  const completedTasks = tasksDb
+    .filter(t => t.status === 'COMPLETED')
+    .sort((a, b) => {
+      const dateA = new Date(a.updatedAt?.seconds * 1000 || 0).getTime();
+      const dateB = new Date(b.updatedAt?.seconds * 1000 || 0).getTime();
+      return dateB - dateA;
+    });
   const pendingUsers = usersDb.filter(u => u.status === 'PENDING');
   const pendingSwaps = swapRequestsDb.filter(r => r.status === 'PENDING_APPROVAL');
   const pendingHelpdesk = (helpdeskTicketsDb || []).filter(t => t.status === 'OPEN');
@@ -468,6 +475,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="text-center py-10 bg-[#151b2b] rounded-2xl border border-dashed border-gray-800">
                 <CheckCircle2 className="w-8 h-8 text-gray-700 mx-auto mb-2 opacity-50" />
                 <p className="text-gray-500 text-xs font-medium">Bagus! Tidak ada tugas mendesak saat ini.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* --- TUGAS SELESAI TERBARU --- */}
+        <div>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Tugas Selesai Terbaru</h3>
+            <button onClick={() => onNavigate('TASK_VERIFICATION')} className="text-[10px] font-bold text-emerald-500 hover:text-emerald-400 uppercase tracking-wider">Riwayat</button>
+          </div>
+          <div className="space-y-3">
+            {completedTasks.length > 0 ? completedTasks.slice(0, 2).map((task) => (
+              <motion.div key={task.id} whileHover={{ x: 5 }} onClick={() => { setSelectedTaskId(task.id); onNavigate('TASK_DETAIL'); }} className="bg-[#151b2b] p-4 rounded-2xl border-l-4 border-l-emerald-500 flex justify-between items-center cursor-pointer transition-all hover:bg-gray-800/50 shadow-sm">
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold text-sm text-white mb-1 line-clamp-1">{task.title}</h4>
+                  <div className="flex items-center gap-2 text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-2">
+                    <CheckCircle2 size={10} className="text-emerald-500" /> Selesai pada {task.date}
+                  </div>
+                  <div className="flex -space-x-2 overflow-hidden">
+                    {(task.assignedUsers || []).slice(0, 3).map((uId, idx) => {
+                      const u = usersDb.find(user => user.uid === uId || user.id === uId);
+                      return (
+                        <div key={idx} className="inline-block h-4 w-4 rounded-full ring-2 ring-[#151b2b] bg-gray-800 overflow-hidden">
+                          <img src={getAvatarUrl(u)} alt="Avatar" className="h-full w-full object-cover" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="bg-emerald-500/10 p-2 rounded-lg ml-3">
+                  <CheckCircle2 size={16} className="text-emerald-500" />
+                </div>
+              </motion.div>
+            )) : (
+              <div className="text-center py-6 bg-[#151b2b] rounded-2xl border border-dashed border-gray-800">
+                <p className="text-gray-600 text-[10px] font-medium">Belum ada riwayat tugas selesai.</p>
               </div>
             )}
           </div>

@@ -29,7 +29,7 @@ export const UserDashboard: React.FC<{
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
   const [countdown, setCountdown] = useState<string>('');
   
-  const [taskTab, setTaskTab] = useState<'MINE' | 'ALL'>('MINE');
+  const [taskTab, setTaskTab] = useState<'MINE' | 'ALL' | 'COMPLETED'>('MINE');
   const [announcement, setAnnouncement] = useState('Selamat datang di Sistem Manajemen Tugas Komsos St. Paulus Juanda!');
 
   // Sync quickNotes when user prop changes
@@ -83,7 +83,21 @@ export const UserDashboard: React.FC<{
     const assigned = t.assignedUsers || [];
     return assigned.some(id => id?.trim() === user.uid?.trim() || id?.trim() === user.id?.trim());
   });
-  const displayedTasks = taskTab === 'MINE' ? myActiveTasks : allActiveTasks;
+
+  const myCompletedTasks = (tasksDb || [])
+    .filter(t => t.status === 'COMPLETED')
+    .filter(t => {
+      if (!user || !user.uid) return false;
+      const assigned = t.assignedUsers || [];
+      return assigned.some(id => id?.trim() === user.uid?.trim() || id?.trim() === user.id?.trim());
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.updatedAt?.seconds * 1000 || 0).getTime();
+      const dateB = new Date(b.updatedAt?.seconds * 1000 || 0).getTime();
+      return dateB - dateA;
+    });
+
+  const displayedTasks = taskTab === 'MINE' ? myActiveTasks : taskTab === 'ALL' ? allActiveTasks : myCompletedTasks;
 
   const unreadCount = (notificationsDb || []).filter(n => !n.read).length;
   const repliedHelpdeskCount = (helpdeskTicketsDb || []).filter(t => t.userId === user?.uid && t.status === 'REPLIED').length;
@@ -613,22 +627,28 @@ export const UserDashboard: React.FC<{
         </motion.div>
 
         <motion.div variants={itemVariants} className="flex justify-between items-center mb-4">
-          <div className="flex gap-2 bg-[#151b2b] p-1.5 rounded-xl border border-gray-800">
+          <div className="flex gap-2 bg-[#151b2b] p-1.5 rounded-xl border border-gray-800 overflow-x-auto no-scrollbar">
             <button 
               onClick={() => setTaskTab('MINE')}
-              className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${taskTab === 'MINE' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${taskTab === 'MINE' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}
             >
               Tugas Saya
             </button>
             <button 
               onClick={() => setTaskTab('ALL')}
-              className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${taskTab === 'ALL' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${taskTab === 'ALL' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}
             >
               Semua Tugas
             </button>
+            <button 
+              onClick={() => setTaskTab('COMPLETED')}
+              className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${taskTab === 'COMPLETED' ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              Selesai
+            </button>
           </div>
-          <span className="text-blue-500 text-[10px] font-bold bg-blue-500/10 px-2 py-1 rounded-md uppercase tracking-wider">
-            {displayedTasks.length} Tugas
+          <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${taskTab === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
+            {displayedTasks.length} {taskTab === 'COMPLETED' ? 'Riwayat' : 'Tugas'}
           </span>
         </motion.div>
 
@@ -637,12 +657,13 @@ export const UserDashboard: React.FC<{
             const customTypeObj = taskTypes.find(tt => tt.name.toLowerCase() === (task.type ? task.type.toLowerCase() : ''));
             const customColor = customTypeObj ? customTypeObj.color : null;
             const customStyle = customColor ? { backgroundColor: `${customColor}20` } : {};
+            const isCompleted = task.status === 'COMPLETED';
 
             return (
               <motion.div 
                 variants={itemVariants}
                 key={task.id}
-                className="bg-[#151b2b] rounded-2xl overflow-hidden border border-gray-800 shadow-lg cursor-pointer transition-all hover:border-blue-500/50 relative" 
+                className={`bg-[#151b2b] rounded-2xl overflow-hidden border border-gray-800 shadow-lg cursor-pointer transition-all hover:border-${isCompleted ? 'emerald' : 'blue'}-500/50 relative`} 
                 onClick={() => { setSelectedTaskId(task.id); onNavigate('TASK_DETAIL'); }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -652,8 +673,8 @@ export const UserDashboard: React.FC<{
 
                 <div className="h-32 bg-gray-800 relative">
                   <img src={getTaskImage(task.type)} className="w-full h-full object-cover opacity-60 mix-blend-overlay" alt={task.title} referrerPolicy="no-referrer" />
-                  <div className="absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5 shadow-md">
-                    <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span> Sedang Berlangsung
+                  <div className={`absolute top-3 left-3 ${isCompleted ? 'bg-emerald-600' : 'bg-blue-600'} text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5 shadow-md`}>
+                    <span className={`w-1.5 h-1.5 bg-white rounded-full ${!isCompleted ? 'animate-pulse' : ''}`}></span> {isCompleted ? 'Selesai & Terverifikasi' : 'Sedang Berlangsung'}
                   </div>
                 </div>
                 <div className="p-4">

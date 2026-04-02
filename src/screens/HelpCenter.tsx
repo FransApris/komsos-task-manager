@@ -44,7 +44,15 @@ const faqData = [
       },
       {
         q: "Tugas saya sudah selesai, apa yang harus dilakukan selanjutnya?",
-        a: "Masuk ke Detail Tugas dan klik 'Selesaikan Tugas'. Berikan catatan akhir Anda. Status tugas akan berubah menjadi 'Menunggu Verifikasi' hingga Admin mengecek dan mengesahkannya."
+        a: "1. Masuk ke Detail Tugas: Klik pada kartu tugas yang sedang Anda kerjakan.\n2. Klik 'Selesaikan Tugas': Tombol ini berada di bagian bawah layar.\n3. Isi Bukti Kerja: Tuliskan catatan singkat mengenai hasil kerja Anda (misal: 'Video sudah diupload ke Drive').\n4. Kirim: Klik 'Kirim Bukti'. Status tugas akan berubah menjadi 'Menunggu Verifikasi'.\n5. Tunggu Verifikasi: Admin atau Koordinator akan meninjau laporan Anda. Jika sudah sesuai, mereka akan menekan tombol 'Verifikasi' dan poin serta XP akan otomatis masuk ke akun Anda."
+      },
+      {
+        q: "Di mana saya bisa melihat daftar tugas yang sudah selesai?",
+        a: "• Untuk Petugas: Di Dashboard, buka tab 'Selesai'. Anda akan melihat riwayat tugas yang pernah Anda kerjakan dan sudah diverifikasi.\n• Untuk Admin/Koordinator: Di Dashboard Admin, terdapat bagian 'Tugas Selesai Terbaru'. Anda juga bisa melihat riwayat lengkap di menu 'Verifikasi Tugas' pada tab 'Selesai'."
+      },
+      {
+        q: "Bagaimana alur verifikasi tugas bagi Admin/Koordinator?",
+        a: "1. Notifikasi: Admin akan menerima notifikasi jika ada petugas yang mengirimkan bukti penyelesaian tugas.\n2. Buka Menu Verifikasi: Klik stat card 'Verifikasi Tugas' di Dashboard Admin.\n3. Tinjau & Sahkan: Klik 'Tinjau Laporan' untuk melihat detail bukti, lalu klik 'Verifikasi' untuk memberikan poin. Jika ada kesalahan, Admin bisa membatalkan verifikasi melalui Detail Tugas (khusus Superadmin)."
       }
     ]
   },

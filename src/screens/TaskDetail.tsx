@@ -21,6 +21,7 @@ export const TaskDetail: React.FC<{
   const task = (tasksDb || []).find(t => t.id === taskId);
   const [proofNotes, setProofNotes] = useState('');
   const [showProofModal, setShowProofModal] = useState(false);
+  const [showAdminCompleteModal, setShowAdminCompleteModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'DETAIL' | 'CHAT'>('DETAIL');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -143,6 +144,7 @@ export const TaskDetail: React.FC<{
       }
 
       toast.success("Tugas disahkan dan poin telah diagihkan!");
+      setShowAdminCompleteModal(false);
     } catch (err) {
       console.error("Error verifying task:", err);
       toast.error("Gagal mengesahkan tugas.");
@@ -611,7 +613,15 @@ export const TaskDetail: React.FC<{
           >
             Update Progress
           </button>
-          {!isAdminRole && (
+          {isAdminRole ? (
+            <button 
+              onClick={() => setShowAdminCompleteModal(true)}
+              className="flex-1 bg-emerald-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 className="w-5 h-5" />
+              Selesaikan Tugas
+            </button>
+          ) : (
             <button 
               onClick={() => setShowProofModal(true)}
               className="flex-1 bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-transform"
@@ -619,6 +629,36 @@ export const TaskDetail: React.FC<{
               Selesaikan Tugas
             </button>
           )}
+        </div>
+      )}
+
+      {showAdminCompleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#151b2b] w-full max-w-sm rounded-3xl border border-gray-800 p-6 shadow-2xl text-center">
+            <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
+              <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+            </div>
+            <h3 className="text-xl font-black text-white mb-2">Konfirmasi Selesai</h3>
+            <p className="text-xs text-gray-400 leading-relaxed mb-8">
+              Anda akan menandai tugas ini sebagai <span className="text-emerald-500 font-bold">SELESAI</span> secara instan. 
+              Poin dan XP akan langsung dibagikan ke seluruh petugas yang terdaftar.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowAdminCompleteModal(false)}
+                className="flex-1 py-4 bg-gray-800 text-gray-400 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={handleVerify}
+                disabled={isLoading}
+                className="flex-1 py-4 bg-emerald-500 text-black rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-colors disabled:opacity-50"
+              >
+                {isLoading ? 'Memproses...' : 'Ya, Selesaikan'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

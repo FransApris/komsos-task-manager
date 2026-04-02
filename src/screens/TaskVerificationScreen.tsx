@@ -13,9 +13,19 @@ export const TaskVerificationScreen: React.FC<{
   usersDb?: UserAccount[]
 }> = ({ onNavigate, setSelectedTaskId, tasksDb = [], usersDb = [] }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'PENDING' | 'COMPLETED'>('PENDING');
   const { taskTypes } = useData();
 
   const pendingTasks = tasksDb.filter(t => t.status === 'WAITING_VERIFICATION');
+  const completedTasks = tasksDb
+    .filter(t => t.status === 'COMPLETED')
+    .sort((a, b) => {
+      const dateA = new Date(a.updatedAt?.seconds * 1000 || 0).getTime();
+      const dateB = new Date(b.updatedAt?.seconds * 1000 || 0).getTime();
+      return dateB - dateA;
+    });
+
+  const displayedTasks = activeTab === 'PENDING' ? pendingTasks : completedTasks;
 
   const handleApproveTask = async (e: React.MouseEvent, task: Task) => {
     e.preventDefault();
@@ -103,32 +113,64 @@ export const TaskVerificationScreen: React.FC<{
       </header>
 
       <div className="p-5 flex-1 overflow-y-auto pb-20">
-        <div className="flex items-center gap-3 bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 mb-6 shadow-lg shadow-amber-500/5">
-          <div className="p-3 bg-amber-500 rounded-xl"><CheckCircle2 className="w-6 h-6 text-black" /></div>
-          <div>
-            <h2 className="text-2xl font-black text-amber-500">{pendingTasks.length}</h2>
-            <p className="text-xs text-amber-500/70 font-bold uppercase tracking-wider">Tugas Menunggu Verifikasi</p>
-          </div>
+        <div className="flex gap-2 bg-[#151b2b] p-1.5 rounded-2xl border border-gray-800 mb-6">
+          <button 
+            onClick={() => setActiveTab('PENDING')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'PENDING' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            Menunggu ({pendingTasks.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab('COMPLETED')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'COMPLETED' ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            Selesai ({completedTasks.length})
+          </button>
         </div>
 
-        {pendingTasks.length === 0 ? (
+        {activeTab === 'PENDING' && (
+          <div className="flex items-center gap-3 bg-amber-500/10 p-4 rounded-xl border border-amber-500/20 mb-6 shadow-lg shadow-amber-500/5">
+            <div className="p-3 bg-amber-500 rounded-xl"><CheckCircle2 className="w-6 h-6 text-black" /></div>
+            <div>
+              <h2 className="text-2xl font-black text-amber-500">{pendingTasks.length}</h2>
+              <p className="text-xs text-amber-500/70 font-bold uppercase tracking-wider">Tugas Menunggu Verifikasi</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'COMPLETED' && (
+          <div className="flex items-center gap-3 bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 mb-6 shadow-lg shadow-emerald-500/5">
+            <div className="p-3 bg-emerald-500 rounded-xl"><CheckCircle2 className="w-6 h-6 text-black" /></div>
+            <div>
+              <h2 className="text-2xl font-black text-emerald-500">{completedTasks.length}</h2>
+              <p className="text-xs text-emerald-500/70 font-bold uppercase tracking-wider">Tugas Telah Disahkan</p>
+            </div>
+          </div>
+        )}
+
+        {displayedTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-10 text-center bg-[#151b2b] rounded-xl border border-gray-800 mt-10">
             <div className="p-4 bg-gray-800 rounded-full mb-4"><CheckCircle2 className="w-8 h-8 text-gray-500" /></div>
-            <p className="text-sm text-gray-400 font-bold">Semua tugas beres!</p>
-            <p className="text-xs text-gray-500 leading-relaxed">Saat ini tidak ada tugas yang memerlukan verifikasi.</p>
+            <p className="text-sm text-gray-400 font-bold">
+              {activeTab === 'PENDING' ? 'Semua tugas beres!' : 'Belum ada riwayat tugas.'}
+            </p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              {activeTab === 'PENDING' ? 'Saat ini tidak ada tugas yang memerlukan verifikasi.' : 'Tugas yang telah diverifikasi akan muncul di sini.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
-            {pendingTasks.map(task => {
+            {displayedTasks.map(task => {
               const customColor = getIconColor(task.type);
               
               return (
                 <motion.div 
                   key={task.id}
                   whileTap={{ scale: 0.98 }}
-                  className="bg-[#151b2b] p-4 rounded-xl border border-gray-800 hover:border-amber-500/50 relative overflow-hidden group transition-all cursor-pointer"
+                  onClick={() => { setSelectedTaskId(task.id); onNavigate('TASK_DETAIL'); }}
+                  className={`bg-[#151b2b] p-4 rounded-xl border border-gray-800 hover:border-${activeTab === 'PENDING' ? 'amber' : 'emerald'}-500/50 relative overflow-hidden group transition-all cursor-pointer`}
                 >
-                  <div className="absolute -right-6 -top-6 text-amber-500/10 group-hover:scale-110 transition-transform"><CheckCircle2 size={80} /></div>
+                  <div className={`absolute -right-6 -top-6 text-${activeTab === 'PENDING' ? 'amber' : 'emerald'}-500/10 group-hover:scale-110 transition-transform`}><CheckCircle2 size={80} /></div>
                   
                   <div className="flex items-center gap-3 mb-3 pb-3 border-b border-gray-800/50 relative z-10">
                     <div 
@@ -141,6 +183,11 @@ export const TaskVerificationScreen: React.FC<{
                       <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{task.type}</p>
                       <p className="font-bold text-sm text-white truncate max-w-[200px]">{task.title}</p>
                     </div>
+                    {activeTab === 'COMPLETED' && (
+                      <div className="ml-auto bg-emerald-500/20 text-emerald-500 text-[8px] font-black px-2 py-1 rounded uppercase tracking-tighter">
+                        Verified
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mb-4 relative z-10">
@@ -154,25 +201,27 @@ export const TaskVerificationScreen: React.FC<{
                     </div>
                   </div>
 
-                  <div className="flex gap-2 relative z-10">
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setSelectedTaskId(task.id); 
-                        onNavigate('TASK_DETAIL'); 
-                      }}
-                      className="flex-1 py-3 text-xs font-bold text-gray-400 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      Tinjau Laporan
-                    </button>
-                    <button 
-                      onClick={(e) => handleApproveTask(e, task)}
-                      disabled={isLoading}
-                      className="flex-1 py-3 text-xs font-bold text-black bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50"
-                    >
-                      {isLoading ? 'Memproses...' : 'Verifikasi'}
-                    </button>
-                  </div>
+                  {activeTab === 'PENDING' && (
+                    <div className="flex gap-2 relative z-10">
+                      <button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setSelectedTaskId(task.id); 
+                          onNavigate('TASK_DETAIL'); 
+                        }}
+                        className="flex-1 py-3 text-xs font-bold text-gray-400 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
+                      >
+                        Tinjau Laporan
+                      </button>
+                      <button 
+                        onClick={(e) => handleApproveTask(e, task)}
+                        disabled={isLoading}
+                        className="flex-1 py-3 text-xs font-bold text-black bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50"
+                      >
+                        {isLoading ? 'Memproses...' : 'Verifikasi'}
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               );
             })}

@@ -60,7 +60,7 @@ export interface SubTask {
 
 export interface TaskHistory {
   id: string;
-  type: 'SWAP' | 'STATUS_CHANGE' | 'ASSIGNMENT' | 'SYSTEM';
+  type: 'SWAP' | 'STATUS_CHANGE' | 'ASSIGNMENT' | 'SYSTEM' | 'COMPLETED';
   message: string;
   userId: string;
   userName: string;
@@ -87,6 +87,7 @@ export interface Task {
   linkedScheduleId?: string;
   linkedScheduleTitle?: string;
   history?: TaskHistory[];
+  updatedAt?: any;
 }
 
 export interface Notification {

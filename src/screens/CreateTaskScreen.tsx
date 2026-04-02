@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, Calendar, Clock, MapPin, Users, FileText, CheckCircle2, AlertCircle, X, Camera, Crown, Briefcase, Sparkles, Link, PlayCircle } from 'lucide-react';
 import { Screen, UserAccount, Inventory, TaskType } from '../types';
-import { db, collection, addDoc, serverTimestamp } from '../firebase';
+import { db, collection, addDoc, serverTimestamp, doc, updateDoc, increment } from '../firebase';
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
+import { AnimatePresence, motion } from 'motion/react';
 
 export const CreateTaskScreen: React.FC<{ 
   onNavigate: (s: Screen) => void,
@@ -26,9 +27,11 @@ export const CreateTaskScreen: React.FC<{
   const [teamLeaderId, setTeamLeaderId] = useState<string>('');
   const [requiredEquipment, setRequiredEquipment] = useState<string[]>([]);
   const [linkedScheduleId, setLinkedScheduleId] = useState<string>(''); // STATE BARU UNTUK ID AGENDA
+  const [markAsCompleted, setMarkAsCompleted] = useState(false); // STATE BARU UNTUK TANDAI SELESAI INSTAN
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showConfirmComplete, setShowConfirmComplete] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
 
@@ -101,6 +104,16 @@ export const CreateTaskScreen: React.FC<{
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
+
+    if (!title.trim()) {
+      toast.error("Judul tugas harus diisi!");
+      return;
+    }
+
+    if (markAsCompleted && !showConfirmComplete) {
+      setShowConfirmComplete(true);
+      return;
+    }
     
     setIsSubmitting(true);
     
@@ -110,23 +123,27 @@ export const CreateTaskScreen: React.FC<{
       : '';
 
     try {
+      const status = markAsCompleted ? 'COMPLETED' : 'IN_PROGRESS';
+      
       const historyEntry = {
         id: Math.random().toString(36).substr(2, 9),
-        type: 'ASSIGNMENT',
-        message: `Tugas dibuat dan ditugaskan kepada ${assignedUsers.length} petugas.`,
+        type: markAsCompleted ? 'COMPLETED' : 'ASSIGNMENT',
+        message: markAsCompleted 
+          ? `Tugas dibuat dan langsung ditandai selesai oleh ${currentUser.displayName}.`
+          : `Tugas dibuat dan ditugaskan kepada ${assignedUsers.length} petugas.`,
         userId: currentUser.uid,
         userName: currentUser.displayName,
         createdAt: new Date().toISOString()
       };
 
-      await addDoc(collection(db, 'tasks'), {
+      const taskDoc = {
         title,
         type: taskType,
         date,
         time: `${timeStart} - ${timeEnd}`,
         location,
         description,
-        status: 'IN_PROGRESS',
+        status,
         assignedUsers,
         teamLeaderId,
         requiredEquipment,
@@ -136,7 +153,44 @@ export const CreateTaskScreen: React.FC<{
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         history: [historyEntry]
-      });
+      };
+
+      if (markAsCompleted) {
+        (taskDoc as any).completedAt = serverTimestamp();
+        (taskDoc as any).verifiedBy = currentUser.uid;
+        (taskDoc as any).verifiedAt = serverTimestamp();
+        (taskDoc as any).completionNote = "Diselesaikan secara instan oleh Admin.";
+      }
+
+      const taskRef = await addDoc(collection(db, 'tasks'), taskDoc);
+
+      // --- JIKA LANGSUNG SELESAI, UPDATE POIN PETUGAS ---
+      if (markAsCompleted && assignedUsers.length > 0) {
+        for (const uid of assignedUsers) {
+          const isLeader = teamLeaderId === uid;
+          const earnedPoints = isLeader ? 75 : 50;
+          
+          const userRef = doc(db, 'users', uid);
+          const userUpdate: any = {
+            points: increment(earnedPoints),
+            xp: increment(earnedPoints),
+            completedTasksCount: increment(1)
+          };
+
+          const typeLower = taskType.toLowerCase();
+          if (typeLower.includes('dokumentasi') || typeLower.includes('foto')) {
+            userUpdate['stats.photography'] = increment(10);
+          } else if (typeLower.includes('peliputan') || typeLower.includes('video') || typeLower.includes('obs')) {
+            userUpdate['stats.videography'] = increment(10);
+          } else if (typeLower.includes('publikasi') || typeLower.includes('nulis') || typeLower.includes('artikel')) {
+            userUpdate['stats.writing'] = increment(10);
+          } else if (typeLower.includes('desain') || typeLower.includes('design')) {
+            userUpdate['stats.design'] = increment(10);
+          }
+
+          await updateDoc(userRef, userUpdate);
+        }
+      }
 
       await addDoc(collection(db, 'notifications'), {
         userId: 'ALL',
@@ -446,6 +500,31 @@ export const CreateTaskScreen: React.FC<{
             </div>
           </div>
 
+          {/* INSTANT COMPLETE TOGGLE (HANYA UNTUK ADMIN) */}
+          {(currentUser?.role === 'SUPERADMIN' || currentUser?.role?.startsWith('ADMIN_')) && (
+            <div 
+              onClick={() => setMarkAsCompleted(!markAsCompleted)}
+              className={`p-5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                markAsCompleted 
+                  ? 'bg-emerald-500/10 border-emerald-500/50 shadow-lg shadow-emerald-500/5' 
+                  : 'bg-[#151b2b] border-gray-800'
+              }`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl transition-colors ${markAsCompleted ? 'bg-emerald-500 text-black' : 'bg-gray-800 text-gray-500'}`}>
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className={`text-sm font-bold ${markAsCompleted ? 'text-emerald-500' : 'text-white'}`}>Langsung Tandai Selesai</h4>
+                  <p className="text-[10px] text-gray-500 font-medium">Poin & XP akan langsung diberikan ke petugas.</p>
+                </div>
+              </div>
+              <div className={`w-12 h-6 rounded-full p-1 transition-colors ${markAsCompleted ? 'bg-emerald-500' : 'bg-gray-700'}`}>
+                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${markAsCompleted ? 'translate-x-6' : 'translate-x-0'}`}></div>
+              </div>
+            </div>
+          )}
+
           {/* Submit Button */}
           <button 
             type="submit" 
@@ -624,6 +703,50 @@ export const CreateTaskScreen: React.FC<{
           </div>
         </div>
       )}
+
+      {/* MODAL KONFIRMASI SELESAI INSTAN */}
+      <AnimatePresence>
+        {showConfirmComplete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-5 bg-black/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#151b2b] w-full max-w-sm rounded-3xl border border-gray-800 p-6 shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/30">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+              </div>
+              <h3 className="text-xl font-black text-white mb-2">Konfirmasi Selesai</h3>
+              <p className="text-xs text-gray-400 leading-relaxed mb-8">
+                Tugas ini akan langsung ditandai <span className="text-emerald-500 font-bold">SELESAI</span>. 
+                Poin dan XP akan langsung dibagikan ke petugas yang ditunjuk. Tindakan ini tidak dapat dibatalkan.
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowConfirmComplete(false)}
+                  className="flex-1 py-4 bg-gray-800 text-gray-400 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowConfirmComplete(false);
+                    // Trigger submit again, but this time it will pass the check
+                    const form = document.querySelector('form');
+                    if (form) form.requestSubmit();
+                  }}
+                  className="flex-1 py-4 bg-emerald-500 text-black rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-colors"
+                >
+                  Ya, Selesaikan
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
