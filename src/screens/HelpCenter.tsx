@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronDown, MessageSquare, LifeBuoy, ClipboardList, RefreshCw, Trophy, Settings, Search } from 'lucide-react';
+import { ChevronLeft, ChevronDown, MessageSquare, LifeBuoy, ClipboardList, RefreshCw, Trophy, Settings, Search, Video } from 'lucide-react';
 import { Screen } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -8,6 +8,26 @@ interface HelpCenterProps {
 }
 
 const faqData = [
+  {
+    category: "Alur Kerja V-Cast",
+    icon: <Video className="w-5 h-5" />,
+    color: "text-indigo-500",
+    bg: "bg-indigo-500/10",
+    items: [
+      {
+        q: "Bagaimana alur kerja (Pipeline) produksi konten V-Cast?",
+        a: "Alur produksi konten di aplikasi ini menggunakan sistem Kanban dengan 5 tahapan utama:\n\n💡 Ide Konten (IDEA): Tahap awal di mana ide-ide baru dikumpulkan dan didiskusikan.\n📝 Pra-Produksi (PRE_PROD): Tahap penyusunan skrip, persiapan alat, dan penentuan jadwal syuting.\n🎥 Syuting / Taping (RECORDING): Proses pengambilan gambar atau rekaman audio/video di lapangan atau studio.\n✂️ Proses Editing (EDITING): Tahap pasca-produksi, termasuk pemotongan video, pemberian efek, dan penyelarasan audio.\n✅ Siap Tayang (PUBLISHED): Konten telah selesai direview dan siap untuk diunggah ke platform media sosial Komsos."
+      },
+      {
+        q: "Bagaimana cara mengubah Ide Konten menjadi Tugas Tim?",
+        a: "1. Buka Pipeline V-Cast: Dari Dashboard Admin, klik menu 'Pipeline V-Cast'.\n2. Pilih Ide Konten: Klik pada kartu konten yang ingin Anda jadikan tugas (biasanya di kolom Ide Konten atau Pra-Produksi).\n3. Klik 'Jadikan Tugas Tim': Di dalam modal aksi kartu, klik tombol berwarna ungu.\n4. Formulir Terisi Otomatis: Anda akan diarahkan ke layar Buat Tugas Baru dengan data (Judul, Deskripsi, Tanggal, Jenis Tugas) yang sudah terisi otomatis.\n5. Lengkapi & Publikasikan: Pilih petugas dan peralatan, lalu klik 'Simpan & Publikasikan Tugas'."
+      },
+      {
+        q: "Apa keuntungan integrasi V-Cast dengan sistem Tugas?",
+        a: "• Efisiensi: Admin tidak perlu mengetik ulang detail konten saat ingin menugaskan tim.\n• Konektivitas: Terdapat indikator visual di layar pembuatan tugas yang menunjukkan sumber data dari Ide Konten V-Cast.\n• Transparansi: Anggota tim mendapatkan notifikasi tugas baru yang detailnya sesuai dengan rencana di pipeline."
+      }
+    ]
+  },
   {
     category: "Penugasan & Laporan",
     icon: <ClipboardList className="w-5 h-5" />,

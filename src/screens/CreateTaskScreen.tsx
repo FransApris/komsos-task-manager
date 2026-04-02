@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, Calendar, Clock, MapPin, Users, FileText, CheckCircle2, AlertCircle, X, Camera, Crown, Briefcase, Sparkles, Link } from 'lucide-react';
+import { ChevronLeft, Calendar, Clock, MapPin, Users, FileText, CheckCircle2, AlertCircle, X, Camera, Crown, Briefcase, Sparkles, Link, PlayCircle } from 'lucide-react';
 import { Screen, UserAccount, Inventory, TaskType } from '../types';
 import { db, collection, addDoc, serverTimestamp } from '../firebase';
 import { useData } from '../contexts/DataContext';
@@ -9,18 +9,19 @@ export const CreateTaskScreen: React.FC<{
   onNavigate: (s: Screen) => void,
   currentUser: UserAccount | null,
   usersDb?: UserAccount[],
-  inventoryDb?: Inventory[]
-}> = ({ onNavigate, currentUser, usersDb = [], inventoryDb = [] }) => {
+  inventoryDb?: Inventory[],
+  prefillData?: any
+}> = ({ onNavigate, currentUser, usersDb = [], inventoryDb = [], prefillData }) => {
   // MENGAMBIL DATA AGENDA (massSchedules) DARI CONTEXT
   const { taskTypes, massSchedules } = useData();
   
-  const [taskType, setTaskType] = useState(taskTypes[0]?.name || 'Peliputan');
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState('');
+  const [taskType, setTaskType] = useState(prefillData?.type || taskTypes[0]?.name || 'Peliputan');
+  const [title, setTitle] = useState(prefillData?.title || '');
+  const [date, setDate] = useState(prefillData?.date || '');
   const [timeStart, setTimeStart] = useState('');
   const [timeEnd, setTimeEnd] = useState('');
-  const [location, setLocation] = useState('');
-  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState(prefillData?.location || '');
+  const [description, setDescription] = useState(prefillData?.description || '');
   const [assignedUsers, setAssignedUsers] = useState<string[]>([]);
   const [teamLeaderId, setTeamLeaderId] = useState<string>('');
   const [requiredEquipment, setRequiredEquipment] = useState<string[]>([]);
@@ -200,6 +201,19 @@ export const CreateTaskScreen: React.FC<{
       <div className="p-5">
         <form onSubmit={handleSubmit} className="space-y-6">
           
+          {/* PRE-FILL INDICATOR FROM V-CAST */}
+          {prefillData && (
+            <div className="bg-indigo-600/20 p-4 rounded-2xl border border-indigo-500/30 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+              <div className="p-2 bg-indigo-500/20 rounded-xl">
+                <PlayCircle className="w-5 h-5 text-indigo-400" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Sumber: Ide Konten V-Cast</p>
+                <p className="text-[10px] text-indigo-200/60">Formulir diisi otomatis dari ide konten yang dipilih.</p>
+              </div>
+            </div>
+          )}
+
           {/* TAUTKAN KE AGENDA (DROP LIST BARU) */}
           <div className="bg-blue-600/10 p-5 rounded-2xl border border-blue-500/20 space-y-2">
             <label className="text-xs font-bold text-blue-400 uppercase tracking-wider block flex items-center gap-2">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone, RefreshCw, Circle, HelpCircle } from 'lucide-react';
+import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone, RefreshCw, Circle, HelpCircle, PlayCircle } from 'lucide-react';
 import { Screen, UserAccount, Task, Notification, TaskType, AvailabilityStatus } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -571,6 +571,17 @@ export const UserDashboard: React.FC<{
               <p className="text-xs font-bold text-white">Presensi</p>
               <p className="text-[10px] text-gray-500">Check In Tugas</p>
             </div>
+          </motion.button>
+        </motion.div>
+
+        <motion.div variants={itemVariants} className="grid grid-cols-1 mb-3">
+          <motion.button whileTap={{ scale: 0.95 }} onClick={() => onNavigate('VCAST_MANAGER')} className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 p-4 rounded-2xl border border-indigo-500/30 flex items-center gap-3 hover:from-indigo-600/30 hover:to-purple-600/30 transition-all group">
+            <div className="p-2 bg-indigo-500/20 rounded-xl group-hover:scale-110 transition-transform"><PlayCircle className="w-5 h-5 text-indigo-500" /></div>
+            <div className="text-left">
+              <p className="text-xs font-extrabold text-indigo-500 uppercase tracking-wider">Pipeline V-Cast</p>
+              <p className="text-[10px] text-indigo-200/60">Pantau Progress Produksi Konten</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-indigo-500/50 ml-auto" />
           </motion.button>
         </motion.div>
 

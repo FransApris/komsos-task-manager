@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, MoreVertical, Mic, Video, Edit3, CheckCircle2, Calendar, User, Trash2, X, Save, Loader2, PlayCircle } from 'lucide-react';
+import { ChevronLeft, Plus, MoreVertical, Mic, Video, Edit3, CheckCircle2, Calendar, User, Trash2, X, Save, Loader2, PlayCircle, ClipboardList } from 'lucide-react';
 import { Screen, UserAccount, Role } from '../types';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from '../firebase';
 import { toast } from 'sonner';
@@ -24,10 +24,11 @@ const COLUMNS = [
 ];
 
 export const VCastManagerScreen: React.FC<{ 
-  onNavigate: (s: Screen) => void,
+  onNavigate: (s: Screen, prefill?: any) => void,
   role?: Role,
   usersDb?: UserAccount[]
 }> = ({ onNavigate, role, usersDb = [] }) => {
+  const isAdmin = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
   const [contents, setContents] = useState<VCastContent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -68,6 +69,7 @@ export const VCastManagerScreen: React.FC<{
   }, []);
 
   const handleSave = async () => {
+    if (!isAdmin) return;
     if (!formData.title.trim()) return;
     setIsSaving(true);
     try {
@@ -96,6 +98,7 @@ export const VCastManagerScreen: React.FC<{
   };
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
+    if (!isAdmin) return;
     try {
       await updateDoc(doc(db, 'vcast', id), { status: newStatus, updatedAt: serverTimestamp() });
       toast.success("Status konten diperbarui");
@@ -107,6 +110,7 @@ export const VCastManagerScreen: React.FC<{
   };
 
   const handleDelete = async (id: string) => {
+    if (!isAdmin) return;
     openConfirm(
       'Hapus Konten',
       "Hapus kartu konten ini secara permanen?",
@@ -124,9 +128,19 @@ export const VCastManagerScreen: React.FC<{
   };
 
   const openEdit = (content: VCastContent) => {
+    if (!isAdmin) return;
     setFormData(content);
     setShowActionModal(null);
     setShowAddModal(true);
+  };
+
+  const handleConvertToTask = (content: VCastContent) => {
+    onNavigate('CREATE_TASK', {
+      title: content.title,
+      description: content.description,
+      date: content.targetDate,
+      type: 'Peliputan'
+    });
   };
 
   if (isLoading) {
@@ -141,19 +155,23 @@ export const VCastManagerScreen: React.FC<{
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] text-white h-screen">
       <header className="p-5 flex justify-between items-center bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50 shrink-0">
-        <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800" onClick={() => onNavigate('ADMIN_DASHBOARD')}>
+        <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800" onClick={() => onNavigate(isAdmin ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD')}>
           <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
         <div className="text-center">
           <h1 className="text-sm font-extrabold tracking-widest uppercase text-gray-200">V-CAST & KONTEN</h1>
           <p className="text-[9px] text-blue-400 font-bold tracking-wider">PAPAN KANBAN KOMSOS</p>
         </div>
-        <button className="p-2 bg-blue-600 rounded-full shadow-lg shadow-blue-500/20" onClick={() => {
-          setFormData({ title: '', description: '', status: 'IDEA', targetDate: '', pic: '' });
-          setShowAddModal(true);
-        }}>
-          <Plus className="w-5 h-5 text-white" />
-        </button>
+        {isAdmin ? (
+          <button className="p-2 bg-blue-600 rounded-full shadow-lg shadow-blue-500/20" onClick={() => {
+            setFormData({ title: '', description: '', status: 'IDEA', targetDate: '', pic: '' });
+            setShowAddModal(true);
+          }}>
+            <Plus className="w-5 h-5 text-white" />
+          </button>
+        ) : (
+          <div className="w-9" /> // Placeholder to keep header centered
+        )}
       </header>
 
       {/* KANBAN BOARD (Horizontal Scroll) */}
@@ -176,12 +194,14 @@ export const VCastManagerScreen: React.FC<{
                   colItems.map(item => (
                     <div 
                       key={item.id} 
-                      onClick={() => setShowActionModal(item)}
-                      className="bg-[#0a0f18] p-4 rounded-xl border border-gray-800 shadow-lg cursor-pointer hover:border-blue-500/50 transition-colors group relative"
+                      onClick={() => isAdmin && setShowActionModal(item)}
+                      className={`bg-[#0a0f18] p-4 rounded-xl border border-gray-800 shadow-lg transition-colors group relative ${isAdmin ? 'cursor-pointer hover:border-blue-500/50' : 'cursor-default'}`}
                     >
-                      <button className="absolute top-3 right-3 text-gray-600 group-hover:text-blue-400">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      {isAdmin && (
+                        <button className="absolute top-3 right-3 text-gray-600 group-hover:text-blue-400">
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      )}
                       <h3 className="text-sm font-bold text-white pr-6 leading-tight mb-2">{item.title}</h3>
                       {item.description && <p className="text-[10px] text-gray-500 line-clamp-2 mb-3">{item.description}</p>}
                       
@@ -239,13 +259,18 @@ export const VCastManagerScreen: React.FC<{
               ))}
             </div>
 
-            <div className="flex gap-2 pt-4 border-t border-gray-800">
-              <button onClick={() => handleDelete(showActionModal.id)} className="flex-1 py-3 bg-red-500/10 text-red-500 rounded-xl text-sm font-bold hover:bg-red-500/20 flex items-center justify-center gap-2">
-                <Trash2 className="w-4 h-4" /> Hapus
+            <div className="flex flex-col gap-2 pt-4 border-t border-gray-800">
+              <button onClick={() => handleConvertToTask(showActionModal)} className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 flex items-center justify-center gap-2 mb-2">
+                <ClipboardList className="w-4 h-4" /> Jadikan Tugas Tim
               </button>
-              <button onClick={() => openEdit(showActionModal)} className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 flex items-center justify-center gap-2">
-                <Edit3 className="w-4 h-4" /> Edit Detail
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => handleDelete(showActionModal.id)} className="flex-1 py-3 bg-red-500/10 text-red-500 rounded-xl text-sm font-bold hover:bg-red-500/20 flex items-center justify-center gap-2">
+                  <Trash2 className="w-4 h-4" /> Hapus
+                </button>
+                <button onClick={() => openEdit(showActionModal)} className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 flex items-center justify-center gap-2">
+                  <Edit3 className="w-4 h-4" /> Edit Detail
+                </button>
+              </div>
             </div>
           </div>
         </div>

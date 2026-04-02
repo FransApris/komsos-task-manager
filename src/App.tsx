@@ -54,6 +54,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [taskPrefill, setTaskPrefill] = useState<any>(null);
   const currentUserRef = useRef(currentUser);
 
   // State Database Global
@@ -71,8 +72,11 @@ export default function App() {
   }, [currentUser]);
 
   // Routing Browser
-  const handleNavigate = (screen: Screen) => {
+  const handleNavigate = (screen: Screen, prefill: any = null) => {
     if (screen !== currentScreen) {
+      if (prefill) setTaskPrefill(prefill);
+      else if (screen !== 'CREATE_TASK') setTaskPrefill(null);
+      
       window.history.pushState({ screen }, '', `?menu=${screen.toLowerCase()}`);
       setCurrentScreen(screen);
       window.scrollTo(0, 0);
@@ -322,7 +326,7 @@ export default function App() {
       case 'USER_DASHBOARD':
         return <UserDashboard onNavigate={handleNavigate} onLogout={handleLogout} user={currentUser} tasksDb={tasksDb} notificationsDb={notificationsDb} usersDb={usersDb} setSelectedTaskId={setSelectedTaskId} isOnline={isOnline} helpdeskTicketsDb={helpdeskTicketsDb} />;
       case 'CREATE_TASK':
-        return <CreateTaskScreen onNavigate={handleNavigate} currentUser={currentUser} usersDb={usersDb} inventoryDb={inventoryDb} />;
+        return <CreateTaskScreen onNavigate={handleNavigate} currentUser={currentUser} usersDb={usersDb} inventoryDb={inventoryDb} prefillData={taskPrefill} />;
       case 'INVENTORY':
         return <InventoryScreen onNavigate={handleNavigate} role={currentUser?.role} usersDb={usersDb} inventoryDb={inventoryDb} currentUser={currentUser} />;
       case 'ATTENDANCE':

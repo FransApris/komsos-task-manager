@@ -17,7 +17,7 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
   const [isLoading, setIsLoading] = useState(true);
   
   // State untuk Navigasi & Tampilan
-  const [activeTab, setActiveTab] = useState<'LIST' | 'CREATE'>('LIST');
+  const [activeTab, setActiveTab] = useState<'LIST' | 'CREATE' | 'GUIDE'>('LIST');
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
 
   // State untuk Form Tiket Baru (Hanya User)
@@ -242,6 +242,21 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
         ) : <div className="w-9" />}
       </header>
 
+      <div className="px-5 mb-4 flex gap-2">
+        <button 
+          onClick={() => setActiveTab('LIST')}
+          className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all border ${activeTab === 'LIST' ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-[#151b2b] border-gray-800 text-gray-500'}`}
+        >
+          Daftar Tiket
+        </button>
+        <button 
+          onClick={() => setActiveTab('GUIDE')}
+          className={`flex-1 py-2 rounded-xl text-[10px] font-bold transition-all border ${activeTab === 'GUIDE' ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-[#151b2b] border-gray-800 text-gray-500'}`}
+        >
+          Panduan V-Cast
+        </button>
+      </div>
+
       <div className="p-5">
         {activeTab === 'CREATE' && !isAdmin && (
           <form onSubmit={handleCreateTicket} className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
@@ -273,6 +288,110 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
               </button>
             </div>
           </form>
+        )}
+
+        {activeTab === 'GUIDE' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-6 rounded-3xl relative overflow-hidden shadow-lg shadow-indigo-500/20">
+              <div className="absolute -right-4 -bottom-4 opacity-10"><Wrench size={100} /></div>
+              <h2 className="text-xl font-black text-white mb-2 relative z-10">Panduan Alur V-Cast</h2>
+              <p className="text-[10px] text-indigo-100 font-medium relative z-10">Pelajari cara kerja sistem produksi konten V-Cast di aplikasi ini.</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-[#151b2b] p-5 rounded-3xl border border-gray-800">
+                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4" /> Alur Kerja (Pipeline) V-Cast
+                </h3>
+                <div className="space-y-4 text-sm text-gray-300 leading-relaxed">
+                  <p className="text-xs text-gray-400 italic">Alur produksi konten menggunakan sistem Kanban dengan 5 tahapan utama:</p>
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
+                      <span className="shrink-0">💡</span>
+                      <div>
+                        <p className="font-bold text-white text-xs">Ide Konten (IDEA)</p>
+                        <p className="text-[11px] text-gray-400">Tahap awal di mana ide-ide baru dikumpulkan dan didiskusikan.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="shrink-0">📝</span>
+                      <div>
+                        <p className="font-bold text-white text-xs">Pra-Produksi (PRE_PROD)</p>
+                        <p className="text-[11px] text-gray-400">Tahap penyusunan skrip, persiapan alat, dan penentuan jadwal syuting.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="shrink-0">🎥</span>
+                      <div>
+                        <p className="font-bold text-white text-xs">Syuting / Taping (RECORDING)</p>
+                        <p className="text-[11px] text-gray-400">Proses pengambilan gambar atau rekaman audio/video di lapangan atau studio.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="shrink-0">✂️</span>
+                      <div>
+                        <p className="font-bold text-white text-xs">Proses Editing (EDITING)</p>
+                        <p className="text-[11px] text-gray-400">Tahap pasca-produksi, termasuk pemotongan video, pemberian efek, dan penyelarasan audio.</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="shrink-0">✅</span>
+                      <div>
+                        <p className="font-bold text-white text-xs">Siap Tayang (PUBLISHED)</p>
+                        <p className="text-[11px] text-gray-400">Konten telah selesai direview dan siap untuk diunggah ke platform media sosial Komsos.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[#151b2b] p-5 rounded-3xl border border-gray-800">
+                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" /> Cara Mengubah Ide Menjadi Tugas
+                </h3>
+                <div className="space-y-4 text-[11px] text-gray-400 leading-relaxed">
+                  <div className="flex gap-3">
+                    <div className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px] font-bold shrink-0">1</div>
+                    <p><span className="text-white font-bold">Buka Pipeline V-Cast:</span> Dari Dashboard Admin, klik menu "Pipeline V-Cast".</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px] font-bold shrink-0">2</div>
+                    <p><span className="text-white font-bold">Pilih Ide Konten:</span> Klik pada kartu konten di kolom <span className="text-indigo-300">Ide Konten</span> atau <span className="text-indigo-300">Pra-Produksi</span>.</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px] font-bold shrink-0">3</div>
+                    <p><span className="text-white font-bold">Klik "Jadikan Tugas Tim":</span> Di dalam modal aksi kartu, klik tombol berwarna ungu.</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px] font-bold shrink-0">4</div>
+                    <p><span className="text-white font-bold">Formulir Terisi Otomatis:</span> Anda akan diarahkan ke layar Buat Tugas Baru dengan data yang sudah terisi otomatis (Judul, Deskripsi, Tanggal, Jenis Tugas).</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px] font-bold shrink-0">5</div>
+                    <p><span className="text-white font-bold">Lengkapi & Publikasikan:</span> Pilih petugas dan peralatan, lalu klik "Simpan & Publikasikan Tugas".</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-indigo-600/10 p-5 rounded-3xl border border-indigo-500/20">
+                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-3">Keuntungan Alur Ini:</h3>
+                <ul className="space-y-2">
+                  <li className="text-[11px] text-gray-300 flex items-start gap-2">
+                    <span className="text-indigo-500 font-bold">•</span>
+                    <span><span className="text-white font-bold">Efisiensi:</span> Admin tidak perlu mengetik ulang detail konten saat ingin menugaskan tim.</span>
+                  </li>
+                  <li className="text-[11px] text-gray-300 flex items-start gap-2">
+                    <span className="text-indigo-500 font-bold">•</span>
+                    <span><span className="text-white font-bold">Konektivitas:</span> Terdapat indikator visual di layar pembuatan tugas yang menunjukkan sumber data.</span>
+                  </li>
+                  <li className="text-[11px] text-gray-300 flex items-start gap-2">
+                    <span className="text-indigo-500 font-bold">•</span>
+                    <span><span className="text-white font-bold">Transparansi:</span> Anggota tim mendapatkan notifikasi tugas yang detailnya sesuai rencana pipeline.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === 'LIST' && (
