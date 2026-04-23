@@ -24,6 +24,7 @@ export const InventoryScreen: React.FC<{
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<Inventory | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
@@ -155,7 +156,7 @@ export const InventoryScreen: React.FC<{
       'Hapus Barang',
       'Apakah Anda yakin ingin menghapus barang ini dari inventaris?',
       async () => {
-        setIsLoading(true);
+        setDeletingId(id);
         try {
           await deleteDoc(doc(db, 'inventory', id));
           toast.success('Barang berhasil dihapus');
@@ -164,7 +165,7 @@ export const InventoryScreen: React.FC<{
           handleFirestoreError(error, OperationType.DELETE, `inventory/${id}`);
           toast.error(`Gagal menghapus barang: ${error.message || 'Terjadi kesalahan.'}`);
         } finally {
-          setIsLoading(false);
+          setDeletingId(null);
         }
       }
     );
@@ -332,7 +333,7 @@ export const InventoryScreen: React.FC<{
                     <>
                       <User className="w-3 h-3 text-blue-400" />
                       <span className="text-[10px] text-gray-400">
-                        Dipinjam: {(usersDb || []).find(u => u.uid === item.assignedTo)?.displayName || 'Petugas'}
+                        Dipinjam: {(usersDb || []).find(u => u.uid === item.assignedTo || u.id === item.assignedTo)?.displayName || 'Petugas'}
                       </span>
                     </>
                   ) : (
@@ -347,7 +348,7 @@ export const InventoryScreen: React.FC<{
                     <button onClick={() => openEditModal(item)} className="p-1.5 text-gray-400 hover:text-blue-400 transition-colors bg-gray-800 rounded-lg">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => handleDelete(item.id)} disabled={isLoading} className="p-1.5 text-gray-400 hover:text-red-400 transition-colors bg-gray-800 rounded-lg disabled:opacity-50">
+                    <button onClick={() => handleDelete(item.id)} disabled={deletingId === item.id} className="p-1.5 text-gray-400 hover:text-red-400 transition-colors bg-gray-800 rounded-lg disabled:opacity-50">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -444,7 +445,7 @@ export const InventoryScreen: React.FC<{
             <div className="space-y-4">
               {/* === KOLOM BARU: BARCODE ID === */}
               <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-xl mb-2">
-                <label className="block text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-2 flex items-center justify-between">
+                <label className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-2 flex items-center justify-between">
                   <span>ID Barcode (Unik)</span>
                   <div className="flex gap-2">
                     <button onClick={() => setIsCameraScanning(true)} className="flex items-center gap-1 text-[9px] bg-emerald-500/20 px-2 py-1 rounded">
