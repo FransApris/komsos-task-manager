@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { 
-  getFirestore, collection, doc, setDoc, getDoc, onSnapshot, query, where, 
+  getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, doc, setDoc, getDoc, onSnapshot, query, where, 
   orderBy, serverTimestamp, Timestamp, getDocs, addDoc, updateDoc, deleteDoc, 
   arrayUnion, arrayRemove, getDocFromServer, writeBatch, limit, increment 
 } from 'firebase/firestore';
@@ -11,7 +12,10 @@ import firebaseConfig from "./services/firebase-applet-config.json";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Firestore dengan offline persistence (IndexedDB cache multi-tab)
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+}, firebaseConfig.firestoreDatabaseId);
 export const storage = getStorage(app);
 
 // FCM Messaging — lazily initialized to avoid errors in non-browser / unsupported environments

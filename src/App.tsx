@@ -131,8 +131,14 @@ export default function App() {
   }, [currentScreen]);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.success('Koneksi pulih', { description: 'Anda kembali online. Data disinkronkan.' });
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning('Tidak ada koneksi', { description: 'Mode offline aktif. Data tersimpan lokal.' });
+    };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -456,6 +462,12 @@ export default function App() {
             >
               {renderScreen()}
             </Suspense>
+            {!isOnline && (
+              <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500/95 text-black text-center text-[11px] font-bold py-1.5 px-4 flex items-center justify-center gap-2 backdrop-blur-sm">
+                <span className="w-2 h-2 rounded-full bg-black/50 inline-block animate-pulse" />
+                Mode Offline — Data tersimpan lokal, perubahan akan disinkronkan saat online
+              </div>
+            )}
             <BottomNav 
               currentScreen={currentScreen} 
               onNavigate={handleNavigate} 
