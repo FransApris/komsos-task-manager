@@ -17,6 +17,7 @@ export const MassScheduleScreen: React.FC<{
   const { massSchedules: schedules } = useData();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState<MassSchedule | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   // STATE BARU: Menyimpan ID agenda yang sedang diedit
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -70,7 +71,19 @@ export const MassScheduleScreen: React.FC<{
 
   // FUNGSI BARU: Menangani Simpan (Bisa untuk Tambah Baru atau Update Edit)
   const handleSave = async () => {
-    if (!newSchedule.title || !newSchedule.date || !newSchedule.time) return;
+    if (!newSchedule.title.trim()) {
+      toast.error('Nama agenda tidak boleh kosong');
+      return;
+    }
+    if (!newSchedule.date) {
+      toast.error('Tanggal agenda harus diisi');
+      return;
+    }
+    if (!newSchedule.time) {
+      toast.error('Waktu agenda harus diisi');
+      return;
+    }
+    setIsSaving(true);
     try {
       if (editingId) {
         // PROSES UPDATE/EDIT
@@ -98,6 +111,8 @@ export const MassScheduleScreen: React.FC<{
     } catch (e) {
       console.error(e);
       toast.error(editingId ? 'Gagal memperbarui agenda' : 'Gagal menambahkan agenda');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -108,7 +123,8 @@ export const MassScheduleScreen: React.FC<{
     const updatedUsers = [...(schedule.assignedUsers || []), currentUser.uid];
     try {
       await updateDoc(doc(db, 'massSchedules', schedule.id), {
-        assignedUsers: updatedUsers
+        assignedUsers: updatedUsers,
+        updatedAt: serverTimestamp()
       });
       toast.success('Berhasil bergabung ke panitia agenda');
     } catch (e) {
@@ -399,8 +415,8 @@ export const MassScheduleScreen: React.FC<{
             </div>
             <div className="flex gap-3 mt-8">
               <button onClick={closeModal} className="flex-1 py-3 bg-gray-800 text-gray-300 font-bold rounded-xl text-sm hover:bg-gray-700 transition-colors">Batal</button>
-              <button onClick={handleSave} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors">
-                {editingId ? 'Simpan Perubahan' : 'Simpan Agenda'}
+              <button onClick={handleSave} disabled={isSaving} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors disabled:opacity-50">
+                {isSaving ? 'Menyimpan...' : (editingId ? 'Simpan Perubahan' : 'Simpan Agenda')}
               </button>
             </div>
           </div>
@@ -464,7 +480,7 @@ export const MassScheduleScreen: React.FC<{
                         <div className="flex flex-wrap gap-1">
                           {task.assignedUsers && task.assignedUsers.length > 0 ? (
                             task.assignedUsers.map(uid => {
-                              const u = usersDb.find(user => user.uid === uid);
+                              const u = usersDb.find(user => user.uid === uid || user.id === uid);
                               return (
                                 <span key={uid} className="text-[10px] font-medium bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md">
                                   {u?.displayName.split(' ')[0] || 'Petugas'}
