@@ -17,7 +17,8 @@ export const ScheduleScreen: React.FC<{
   const [filter, setFilter] = useState('Semua');
 
   // State untuk Fitur Edit & Hapus
-  const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [editForm, setEditForm] = useState({ title: '', date: '', time: '', location: '', type: '' });
 
@@ -51,9 +52,9 @@ export const ScheduleScreen: React.FC<{
     });
   }
 
+  const selectedFullDate = dates.find(d => d.date === selectedDate)?.fullDate ?? '';
   const filteredTasks = tasksDb.filter(task => {
-    const taskDate = new Date(task.date).getDate();
-    const dateMatch = taskDate === selectedDate;
+    const dateMatch = task.date === selectedFullDate;
     const typeMatch = filter === 'Semua' || task.type === filter;
     return dateMatch && typeMatch;
   });
@@ -82,7 +83,7 @@ export const ScheduleScreen: React.FC<{
       'Hapus Jadwal',
       'Apakah Anda yakin ingin menghapus jadwal tugas ini? Tindakan ini tidak dapat dibatalkan.',
       async () => {
-        setIsLoading(true);
+        setIsDeleting(true);
         try {
           await deleteDoc(doc(db, 'tasks', id));
           toast.success("Jadwal tugas berhasil dihapus");
@@ -90,7 +91,7 @@ export const ScheduleScreen: React.FC<{
           console.error("Gagal menghapus tugas:", error);
           toast.error("Gagal menghapus tugas. Periksa koneksi Anda atau pastikan Anda adalah Admin.");
         } finally {
-          setIsLoading(false);
+          setIsDeleting(false);
         }
       }
     );
@@ -111,7 +112,7 @@ export const ScheduleScreen: React.FC<{
   // --- FUNGSI SIMPAN PERUBAHAN EDIT ---
   const handleSaveEdit = async () => {
     if (!editingTask || !editForm.title.trim()) return;
-    setIsLoading(true);
+    setIsSaving(true);
     try {
       await updateDoc(doc(db, 'tasks', editingTask.id), {
         title: editForm.title.trim(),
@@ -126,7 +127,7 @@ export const ScheduleScreen: React.FC<{
       console.error("Gagal memperbarui tugas:", error);
       toast.error("Gagal memperbarui tugas.");
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -248,7 +249,7 @@ export const ScheduleScreen: React.FC<{
                         <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2">Detail Penugasan</p>
                         <div className="space-y-2">
                           {task.assignedUsers.map((uid, idx) => {
-                            const user = usersDb.find(u => u.uid === uid);
+                            const user = usersDb.find(u => u.uid === uid || u.id === uid);
                             return (
                               <div key={idx} className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -269,13 +270,14 @@ export const ScheduleScreen: React.FC<{
                   <div className="flex items-center justify-between">
                     <div className="flex -space-x-2">
                       {task.assignedUsers?.slice(0, 3).map((uid, i) => {
-                        const user = usersDb.find(u => u.uid === uid);
+                        const user = usersDb.find(u => u.uid === uid || u.id === uid);
                         return (
                           <div key={i} className="w-7 h-7 rounded-full border-2 border-[#151b2b] bg-blue-500 flex items-center justify-center text-[8px] font-bold text-white overflow-hidden shadow-sm">
                             <img 
                               src={getAvatarUrl(user)} 
                               alt="Avatar" 
-                              className="w-full h-full object-cover" 
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
                             />
                           </div>
                         );
@@ -298,7 +300,7 @@ export const ScheduleScreen: React.FC<{
                           </button>
                           <button 
                             onClick={() => handleDelete(task.id)}
-                            disabled={isLoading}
+                            disabled={isDeleting}
                             className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl transition-colors border border-red-500/20 active:scale-95 disabled:opacity-50"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -412,11 +414,11 @@ export const ScheduleScreen: React.FC<{
               </button>
               <button
                 onClick={handleSaveEdit}
-                disabled={isLoading || !editForm.title.trim()}
+                disabled={isSaving || !editForm.title.trim()}
                 className="flex-1 py-3.5 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {isLoading ? 'Menyimpan...' : 'Simpan Perubahan'}
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
               </button>
             </div>
           </div>

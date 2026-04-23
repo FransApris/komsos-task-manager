@@ -42,19 +42,21 @@ export const Notifications: React.FC<{
     }
   };
 
-  // FUNGSI 2: Tandai SEMUA notifikasi sebagai sudah dibaca menggunakan Batch Write
+  // FUNGSI 2: Tandai SEMUA notifikasi sebagai sudah dibaca menggunakan Batch Write (chunked 500)
   const handleMarkAllAsRead = async () => {
     if (unreadCount === 0) return;
     setIsMarking(true);
     try {
-      const batch = writeBatch(db);
-      notificationsDb.forEach(notif => {
-        if (!notif.read && notif.id) {
-          const notifRef = doc(db, 'notifications', notif.id);
-          batch.update(notifRef, { read: true });
-        }
-      });
-      await batch.commit();
+      const unread = notificationsDb.filter(n => !n.read && n.id);
+      // Chunk per 500 (Firestore batch limit)
+      for (let i = 0; i < unread.length; i += 500) {
+        const chunk = unread.slice(i, i + 500);
+        const batch = writeBatch(db);
+        chunk.forEach(notif => {
+          batch.update(doc(db, 'notifications', notif.id!), { read: true });
+        });
+        await batch.commit();
+      }
     } catch (error) {
       console.error("Error marking all as read:", error);
       toast.error("Gagal menandai notifikasi. Periksa koneksi Anda.");

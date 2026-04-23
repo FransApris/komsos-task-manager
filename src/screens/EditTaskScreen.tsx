@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, Calendar, Clock, MapPin, Users, FileText, CheckCircle2, AlertCircle, X, Camera, Crown, Briefcase, Sparkles, Link, Save, Loader2 } from 'lucide-react';
 import { Screen, UserAccount, Inventory, Task, TaskType } from '../types';
-import { db, doc, updateDoc, serverTimestamp } from '../firebase';
+import { db, doc, updateDoc, serverTimestamp, arrayUnion } from '../firebase';
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
 import { getAvatarUrl } from '../lib/avatar';
@@ -103,8 +103,6 @@ export const EditTaskScreen: React.FC<{
       : '';
 
     try {
-      const { arrayUnion } = await import('../firebase');
-      
       const historyEntry = {
         id: Math.random().toString(36).substr(2, 9),
         type: 'SYSTEM',
@@ -389,7 +387,7 @@ export const EditTaskScreen: React.FC<{
 
       {/* User Selection Modal */}
       {showUserModal && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-5 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center p-0 sm:p-5 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151b2b] w-full max-w-md rounded-t-3xl sm:rounded-3xl border-t sm:border border-gray-800 max-h-[85vh] flex flex-col overflow-hidden">
             <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-[#151b2b] sticky top-0 z-10">
               <h3 className="text-lg font-extrabold text-white">Pilih Tim</h3>
@@ -470,7 +468,7 @@ export const EditTaskScreen: React.FC<{
 
       {/* Equipment Selection Modal */}
       {showEquipmentModal && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-5 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center p-0 sm:p-5 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#151b2b] w-full max-w-md rounded-t-3xl sm:rounded-3xl border-t sm:border border-gray-800 max-h-[85vh] flex flex-col overflow-hidden">
             <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-[#151b2b] sticky top-0 z-10">
               <h3 className="text-lg font-extrabold text-white">Pilih Peralatan</h3>
