@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft, CheckCircle2, Video, FileText, Activity, Users, Briefcase, Image as ImageIcon } from 'lucide-react';
 import { Screen, Task, UserAccount } from '../types';
-import { db, doc, updateDoc, serverTimestamp, increment } from '../firebase';
+import { db, auth, doc, updateDoc, serverTimestamp, increment } from '../firebase';
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
 
@@ -12,18 +12,21 @@ export const TaskVerificationScreen: React.FC<{
   tasksDb?: Task[],
   usersDb?: UserAccount[]
 }> = ({ onNavigate, setSelectedTaskId, tasksDb = [], usersDb = [] }) => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingTaskId, setLoadingTaskId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'PENDING' | 'COMPLETED'>('PENDING');
   const { taskTypes } = useData();
 
   const pendingTasks = tasksDb.filter(t => t.status === 'WAITING_VERIFICATION');
+  const getTimestampMs = (ts: any): number => {
+    if (!ts) return 0;
+    if (ts?.toDate) return ts.toDate().getTime();
+    if (ts?.seconds) return ts.seconds * 1000;
+    return new Date(ts).getTime() || 0;
+  };
+
   const completedTasks = tasksDb
     .filter(t => t.status === 'COMPLETED')
-    .sort((a, b) => {
-      const dateA = new Date(a.updatedAt?.seconds * 1000 || 0).getTime();
-      const dateB = new Date(b.updatedAt?.seconds * 1000 || 0).getTime();
-      return dateB - dateA;
-    });
+    .sort((a, b) => getTimestampMs(b.updatedAt) - getTimestampMs(a.updatedAt));
 
   const displayedTasks = activeTab === 'PENDING' ? pendingTasks : completedTasks;
 
@@ -31,12 +34,14 @@ export const TaskVerificationScreen: React.FC<{
     e.preventDefault();
     e.stopPropagation(); 
     
-    setIsLoading(true);
+    setLoadingTaskId(task.id);
     try {
       // 1. Kemas kini status tugas kepada COMPLETED
       const taskRef = doc(db, 'tasks', task.id);
       await updateDoc(taskRef, {
         status: 'COMPLETED',
+        verifiedBy: auth.currentUser?.uid || null,
+        verifiedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
@@ -74,7 +79,7 @@ export const TaskVerificationScreen: React.FC<{
       console.error("Ralat mengesahkan tugas:", err);
       toast.error("Gagal mengesahkan tugas.");
     } finally {
-      setIsLoading(false);
+      setLoadingTaskId(null);
     }
   };
 
@@ -215,10 +220,10 @@ export const TaskVerificationScreen: React.FC<{
                       </button>
                       <button 
                         onClick={(e) => handleApproveTask(e, task)}
-                        disabled={isLoading}
+                        disabled={loadingTaskId === task.id}
                         className="flex-1 py-3 text-xs font-bold text-black bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50"
                       >
-                        {isLoading ? 'Memproses...' : 'Verifikasi'}
+                        {loadingTaskId === task.id ? 'Memproses...' : 'Verifikasi'}
                       </button>
                     </div>
                   )}

@@ -188,6 +188,7 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
                         src={getAvatarUrl(u)} 
                         alt={u.displayName} 
                         className="w-full h-full object-cover" 
+                        referrerPolicy="no-referrer"
                       />
                     </div>
                     <div className="flex-1">
