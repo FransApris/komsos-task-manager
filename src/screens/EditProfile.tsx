@@ -112,6 +112,11 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
 
   const addPortfolioLink = () => {
     if (!newLinkPlatform || !newLinkUrl) return;
+    // Security: only allow http/https URLs to prevent XSS via javascript: scheme
+    if (!newLinkUrl.startsWith('https://') && !newLinkUrl.startsWith('http://')) {
+      toast.error('URL harus diawali dengan https:// atau http://');
+      return;
+    }
     setPortfolioLinks(prev => [...prev, { platform: newLinkPlatform, url: newLinkUrl }]);
     setNewLinkPlatform('');
     setNewLinkUrl('');

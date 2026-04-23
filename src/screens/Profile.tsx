@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronLeft, LogOut, Settings2, User, Activity, Bell, Award, Camera, Edit3, Heart, Star, Zap, Shield, Target, Globe, Youtube, Instagram, ExternalLink, CheckCircle2, AlertCircle, Clock, Flame } from 'lucide-react';
 import { Screen, UserAccount, Badge, Task } from '../types';
-import { db, collection, query, where, onSnapshot, addDoc } from '../firebase';
+import { db, collection, query, where, onSnapshot, addDoc, serverTimestamp } from '../firebase';
 import { getAvatarUrl } from '../lib/avatar';
 
 const badgeIcons: Record<string, any> = {
@@ -10,6 +10,7 @@ const badgeIcons: Record<string, any> = {
 
 export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () => void, user?: UserAccount | null }> = ({ onNavigate, onLogout, user }) => {
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [isClaiming, setIsClaiming] = useState(false);
   const [userTasks, setUserTasks] = useState<Task[]>([]);
 
   useEffect(() => {
@@ -45,7 +46,10 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
   }, [user?.uid]);
 
   const claimStarterBadges = async () => {
-    if (!user?.uid) return;
+    if (!user?.uid || isClaiming) return;
+    // Guard: jangan beri badge jika sudah punya badge apapun
+    if (badges.length > 0) return;
+    setIsClaiming(true);
     const starterBadges = [
       { title: 'Anggota Baru', icon: 'Award', color: '#3b82f6', description: 'Selamat bergabung di Komsos Juanda!', status: 'earned' as const },
       { title: 'Fotografer', icon: 'Camera', color: '#10b981', description: 'Telah mendokumentasikan 5 acara.', status: 'earned' as const },
@@ -59,9 +63,10 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
         approvals: 1,
         requiredApprovals: 1,
         approvedBy: ['System'],
-        createdAt: new Date().toISOString()
+        createdAt: serverTimestamp()
       });
     }
+    setIsClaiming(false);
   };
 
   const getRoleLabel = (r?: string | null) => {
@@ -240,9 +245,10 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
             <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-3">Belum ada badge</p>
             <button 
               onClick={claimStarterBadges}
-              className="text-[10px] font-black text-blue-500 hover:text-blue-400 transition-colors uppercase tracking-widest"
+              disabled={isClaiming}
+              className="text-[10px] font-black text-blue-500 hover:text-blue-400 transition-colors uppercase tracking-widest disabled:opacity-50"
             >
-              Klaim Badge Awal →
+              {isClaiming ? 'Mengklaim...' : 'Klaim Badge Awal →'}
             </button>
           </div>
         )}
