@@ -294,7 +294,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 className="flex items-center gap-2 bg-[#0a0f18]/80 backdrop-blur-sm border border-gray-800 pl-1 pr-3 py-1 rounded-full ring-1 ring-emerald-500/10 shadow-lg hover:ring-emerald-500/30 transition-all cursor-default group/user"
               >
                 <div className="w-6 h-6 rounded-full overflow-hidden border border-emerald-500/30 group-hover/user:scale-110 transition-transform">
-                  <img src={getAvatarUrl(u)} className="w-full h-full object-cover" />
+                  <img src={getAvatarUrl(u)} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 </div>
                 <span className="text-[10px] font-bold text-gray-300 truncate max-w-20">{u.displayName?.split(' ')[0]}</span>
               </motion.div>

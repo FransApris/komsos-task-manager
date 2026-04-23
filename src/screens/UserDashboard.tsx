@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone, RefreshCw, Circle, HelpCircle, PlayCircle } from 'lucide-react';
 import { Screen, UserAccount, Task, Notification, TaskType, AvailabilityStatus } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
@@ -102,6 +102,19 @@ export const UserDashboard: React.FC<{
   const unreadCount = (notificationsDb || []).filter(n => !n.read).length;
   const repliedHelpdeskCount = (helpdeskTicketsDb || []).filter(t => t.userId === user?.uid && t.status === 'REPLIED').length;
   const totalHelpdeskUnread = unreadChatCount + repliedHelpdeskCount;
+
+  const onlineUsers = useMemo(() =>
+    usersDb.filter(u => u.isOnline === true && u.uid !== user?.uid)
+      .sort((a, b) => {
+        const roleWeights: Record<string, number> = {
+          'SUPERADMIN': 1, 'ADMIN_MULTIMEDIA': 2, 'ADMIN_PHOTO_VIDEO': 3, 'ADMIN_PUBLICATION': 4, 'USER': 5
+        };
+        const weightA = roleWeights[a.role || 'USER'] || 99;
+        const weightB = roleWeights[b.role || 'USER'] || 99;
+        if (weightA !== weightB) return weightA - weightB;
+        return (a.displayName || '').localeCompare(b.displayName || '');
+      }),
+  [usersDb, user?.uid]);
 
   const currentXp = (user && user.xp) ? user.xp : 0;
   const xpPerLevel = 1000;
@@ -362,7 +375,7 @@ export const UserDashboard: React.FC<{
         <motion.div variants={itemVariants} className="bg-[#151b2b]/50 border border-gray-800 p-4 rounded-3xl mb-6">
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
-               <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" /> Anggota Aktif ({usersDb.filter(u => u.isOnline === true && u.uid !== user?.uid).length})
+               <Circle className="w-2 h-2 fill-emerald-500 text-emerald-500" /> Anggota Aktif ({onlineUsers.length})
             </h3>
             <div className="flex items-center gap-1">
               <span className="relative flex h-2 w-2">
@@ -373,18 +386,7 @@ export const UserDashboard: React.FC<{
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            {usersDb.filter(u => u.isOnline === true && u.uid !== user?.uid).length > 0 ? 
-              usersDb.filter(u => u.isOnline === true && u.uid !== user?.uid)
-                .sort((a, b) => {
-                  const roleWeights: Record<string, number> = {
-                    'SUPERADMIN': 1, 'ADMIN_MULTIMEDIA': 2, 'ADMIN_PHOTO_VIDEO': 3, 'ADMIN_PUBLICATION': 4, 'USER': 5
-                  };
-                  const weightA = roleWeights[a.role || 'USER'] || 99;
-                  const weightB = roleWeights[b.role || 'USER'] || 99;
-                  if (weightA !== weightB) return weightA - weightB;
-                  return (a.displayName || '').localeCompare(b.displayName || '');
-                })
-                .map((u) => (
+            {onlineUsers.length > 0 ? onlineUsers.map((u) => (
               <div key={u.uid || u.id} className="flex items-center gap-2 bg-[#0a0f18] border border-gray-800 pl-1 pr-3 py-1 rounded-full ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/5">
                 <div className="w-6 h-6 rounded-full overflow-hidden border border-emerald-500/30">
                   <img src={getAvatarUrl(u)} className="w-full h-full object-cover" referrerPolicy="no-referrer" />

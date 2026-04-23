@@ -160,21 +160,26 @@ export default function App() {
     setStatus(true);
 
     const handleVisibilityChange = () => {
-      setStatus(document.visibilityState === 'visible');
+      // Only set online when tab becomes visible again; switching away should NOT
+      // mark the user as offline (would cause false-offline on simple tab switches).
+      if (document.visibilityState === 'visible') {
+        setStatus(true);
+      }
     };
 
-    const handleBeforeUnload = () => {
-      // Use a synchronous-like update if possible, but Firestore is async.
-      // We'll just try our best here.
+    // pagehide is more reliable than beforeunload for marking offline because it
+    // fires for bfcache navigations and tab closes, and browsers are more likely
+    // to let async work finish when triggered from pagehide.
+    const handlePageHide = () => {
       setStatus(false);
     };
 
     window.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handlePageHide);
 
     return () => {
       window.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handlePageHide);
       setStatus(false);
     };
   }, [currentUser?.uid]);
