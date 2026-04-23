@@ -145,9 +145,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const completedTasks = tasksDb
     .filter(t => t.status === 'COMPLETED')
     .sort((a, b) => {
-      const dateA = new Date(a.updatedAt?.seconds * 1000 || 0).getTime();
-      const dateB = new Date(b.updatedAt?.seconds * 1000 || 0).getTime();
-      return dateB - dateA;
+      const getMs = (ts: any) => {
+        if (!ts) return 0;
+        if (ts?.toDate) return ts.toDate().getTime();
+        if (ts?.seconds) return ts.seconds * 1000;
+        return new Date(ts).getTime() || 0;
+      };
+      return getMs(b.updatedAt) - getMs(a.updatedAt);
     });
   const pendingUsers = usersDb.filter(u => u.status === 'PENDING');
   const pendingSwaps = swapRequestsDb.filter(r => r.status === 'PENDING_APPROVAL');
@@ -499,7 +503,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       const u = usersDb.find(user => user.uid === uId || user.id === uId);
                       return (
                         <div key={idx} className="inline-block h-4 w-4 rounded-full ring-2 ring-[#151b2b] bg-gray-800 overflow-hidden">
-                          <img src={getAvatarUrl(u)} alt="Avatar" className="h-full w-full object-cover" />
+                          <img src={getAvatarUrl(u)} alt="Avatar" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                         </div>
                       );
                     })}
