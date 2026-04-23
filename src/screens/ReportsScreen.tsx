@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ChevronLeft, FileText, Download, Plus, BarChart, CheckCircle2, Users } from 'lucide-react';
+import { ChevronLeft, FileText, Plus, BarChart, CheckCircle2, Users } from 'lucide-react';
 import { Screen, Role, UserAccount, Task } from '../types';
-import { db, collection, addDoc, serverTimestamp } from '../firebase';
+import { db, collection, addDoc, serverTimestamp, query, where, getDocs } from '../firebase';
 import { useData } from '../contexts/DataContext';
 
 export const ReportsScreen: React.FC<{ 
@@ -22,6 +22,17 @@ export const ReportsScreen: React.FC<{
     try {
       const now = new Date();
       const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+      // Cek duplikat: jangan buat laporan jika periode ini sudah ada
+      const existingQ = query(collection(db, 'reports'), where('period', '==', period));
+      const existingSnap = await getDocs(existingQ);
+      if (!existingSnap.empty) {
+        const { toast } = await import('sonner');
+        toast.error(`Laporan periode ${period} sudah ada.`);
+        setLoading(false);
+        return;
+      }
+
       const completedTasks = tasksDb.filter(t => t.status === 'COMPLETED').length;
       
       await addDoc(collection(db, 'reports'), {
@@ -36,8 +47,12 @@ export const ReportsScreen: React.FC<{
         generatedBy: currentUser.uid,
         createdAt: serverTimestamp()
       });
+      const { toast } = await import('sonner');
+      toast.success(`Laporan ${period} berhasil dibuat!`);
     } catch (e) {
       console.error(e);
+      const { toast } = await import('sonner');
+      toast.error('Gagal membuat laporan.');
     } finally {
       setLoading(false);
     }
@@ -95,19 +110,7 @@ export const ReportsScreen: React.FC<{
                     <p className="text-[10px] text-gray-500 font-medium">{report.period}</p>
                   </div>
                 </div>
-                <button className="p-2 text-gray-500 hover:text-white transition-colors">
-                  <Download className="w-4 h-4" />
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-800/50">
-                <div className="text-center">
-                  <p className="text-xs font-bold text-white">{report.stats.totalTasks}</p>
-                  <p className="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Tugas</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs font-bold text-emerald-500">{report.stats.completedTasks}</p>
-                  <p className="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Selesai</p>
+
                 </div>
                 <div className="text-center">
                   <p className="text-xs font-bold text-blue-500">{report.stats.activeUsers}</p>

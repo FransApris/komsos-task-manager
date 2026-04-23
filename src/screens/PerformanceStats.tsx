@@ -31,7 +31,8 @@ export const PerformanceStats: React.FC<{
   }
 
   // Hitung statistik dengan pengamanan nilai default (0)
-  const myTasks = tasksDb.filter(t => t.assignedUsers?.includes(currentUser.uid));
+  const myUid = currentUser.uid || (currentUser as any).id || '';
+  const myTasks = tasksDb.filter(t => t.assignedUsers?.includes(myUid));
   const completedTasks = myTasks.filter(t => t.status === 'COMPLETED');
   
   // Mencegah Invalid Array Length pada perhitungan progres
