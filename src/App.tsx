@@ -47,6 +47,7 @@ const NewTaskAlertScreen = React.lazy(() => import('./screens/NewTaskAlertScreen
 const HelpdeskScreen = React.lazy(() => import('./screens/HelpdeskScreen'));
 
 import { ReminderService } from './services/ReminderService';
+import { registerFCMToken, clearFCMToken, initForegroundMessaging } from './services/fcmService';
 
 // Komponen pemantau reminder — harus berada di dalam DataProvider untuk akses attendances
 const ReminderRunner: React.FC<{
@@ -229,6 +230,9 @@ export default function App() {
           }
 
           setCurrentUser(userData);
+
+          // Daftarkan FCM token setelah login berhasil
+          registerFCMToken(firebaseUser.uid).catch(() => {});
           
           if (currentScreen === 'SPLASH' || currentScreen === 'LOGIN' || currentScreen === 'REGISTER') {
             if (userData.role === 'SUPERADMIN' || userData.role?.startsWith('ADMIN_')) {
@@ -242,6 +246,10 @@ export default function App() {
           handleNavigate('LOGIN');
         }
       } else {
+        // Hapus FCM token dari Firestore saat logout
+        if (currentUser?.uid) {
+          clearFCMToken(currentUser.uid).catch(() => {});
+        }
         setCurrentUser(null);
         if (currentScreen !== 'REGISTER' && currentScreen !== 'SPLASH') {
           handleNavigate('LOGIN');
@@ -251,6 +259,15 @@ export default function App() {
 
     return () => unsubscribe();
   }, [currentScreen]);
+
+  // Foreground FCM — tampilkan toast saat app terbuka
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubFCM = initForegroundMessaging((title, body) => {
+      toast(body, { description: title, icon: '🔔', duration: 6000 });
+    });
+    return () => unsubFCM();
+  }, [currentUser?.uid]);
 
   // Sinkronisasi Database
   useEffect(() => {

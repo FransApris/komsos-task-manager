@@ -6,12 +6,28 @@ import {
   arrayUnion, arrayRemove, getDocFromServer, writeBatch, limit, increment 
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import firebaseConfig from "./services/firebase-applet-config.json";
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const storage = getStorage(app);
+
+// FCM Messaging — lazily initialized to avoid errors in non-browser / unsupported environments
+let _messaging: ReturnType<typeof getMessaging> | null = null;
+export const getMessagingInstance = () => {
+  if (_messaging) return _messaging;
+  try {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      _messaging = getMessaging(app);
+    }
+  } catch (_) {
+    // FCM not supported in this environment
+  }
+  return _messaging;
+};
+export { getToken, onMessage };
 
 export const googleProvider = new GoogleAuthProvider();
 
