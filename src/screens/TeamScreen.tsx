@@ -110,6 +110,10 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
           role: editRole,
           status: 'ACTIVE',
           img: Math.floor(Math.random() * 20).toString(),
+          points: 0,
+          xp: 0,
+          completedTasksCount: 0,
+          divisions: editDivisions,
           createdAt: serverTimestamp()
         });
         setIsAdding(false);
@@ -181,6 +185,7 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
                 setEditingUserId(null);
                 setEditName('');
                 setEditRole('USER');
+                setEditDivisions([]);
               }}
               className="p-2 bg-blue-600 rounded-full hover:bg-blue-700 transition-colors"
             >
@@ -242,7 +247,7 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 flex-1 overflow-hidden">
                   <div className="w-12 h-12 rounded-full bg-gray-800 overflow-hidden shrink-0 border border-gray-700">
-                    <img src={getAvatarUrl(member)} alt={member.displayName} className="w-full h-full object-cover" />
+                    <img src={getAvatarUrl(member)} alt={member.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   </div>
                   <div className="flex-1 min-w-0">
                     {editingUserId === member.id ? (
@@ -297,7 +302,9 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
                   {!isSuperAdmin && editingUserId !== member.id && (
                     <div className="flex gap-2">
                       <a href={`mailto:${member.email}`} className="p-2 bg-gray-800 rounded-full hover:bg-blue-600 transition-colors shadow-sm"><Mail className="w-4 h-4 text-gray-300 hover:text-white" /></a>
-                      <a href={`tel:${(member as any).phone || '+6281234567890'}`} className="p-2 bg-gray-800 rounded-full hover:bg-emerald-600 transition-colors shadow-sm"><Phone className="w-4 h-4 text-gray-300 hover:text-white" /></a>
+                      {(member as any).phone && (
+                        <a href={`tel:${(member as any).phone}`} className="p-2 bg-gray-800 rounded-full hover:bg-emerald-600 transition-colors shadow-sm"><Phone className="w-4 h-4 text-gray-300 hover:text-white" /></a>
+                      )}
                     </div>
                   )}
                 </div>
