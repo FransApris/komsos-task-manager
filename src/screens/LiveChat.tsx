@@ -154,13 +154,23 @@ export const LiveChat: React.FC<{
             </div>
             <div className={`max-w-[80%] rounded-2xl overflow-hidden ${isCurrentUser(msg.senderId) ? 'bg-blue-600 rounded-tr-sm' : 'bg-[#151b2b] border border-gray-800 rounded-tl-sm'}`}>
               {msg.replyTo && (
-                <div className={`px-3 pt-2.5 pb-1.5 border-b ${isCurrentUser(msg.senderId) ? 'border-blue-500/40 bg-blue-700/40' : 'border-gray-700 bg-[#0a0f18]/60'}`}>
-                  <p className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${isCurrentUser(msg.senderId) ? 'text-blue-200' : 'text-blue-400'}`}>
-                    ↩ {msg.replyTo.senderName}
-                  </p>
-                  <p className={`text-[11px] line-clamp-2 ${isCurrentUser(msg.senderId) ? 'text-blue-100/70' : 'text-gray-400'}`}>
-                    {msg.replyTo.text}
-                  </p>
+                <div className={`flex gap-0 border-b ${
+                  isCurrentUser(msg.senderId) ? 'border-blue-500/30 bg-[#1a2a4a]' : 'border-gray-700/60 bg-[#0d1117]'
+                }`}>
+                  {/* Accent bar */}
+                  <div className={`w-1 shrink-0 rounded-none ${
+                    isCurrentUser(msg.senderId) ? 'bg-amber-400' : 'bg-emerald-500'
+                  }`} />
+                  <div className="px-2.5 pt-2 pb-2">
+                    <p className={`text-[9px] font-black uppercase tracking-wider mb-0.5 ${
+                      isCurrentUser(msg.senderId) ? 'text-amber-400' : 'text-emerald-400'
+                    }`}>
+                      ↩ {msg.replyTo.senderName}
+                    </p>
+                    <p className="text-[11px] line-clamp-2 text-gray-400 italic">
+                      {msg.replyTo.text}
+                    </p>
+                  </div>
                 </div>
               )}
               <div className="p-3">
