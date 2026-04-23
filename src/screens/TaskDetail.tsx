@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, MoreHorizontal, Video, MapPin, Calendar, Clock, CheckCircle2, PlayCircle, Plus, Upload, Award, FileText, Send, MessageSquare, Image as ImageIcon, Crown, Briefcase, Camera, Activity, UserX, Trash2, Edit2, RefreshCw, AlertCircle } from 'lucide-react';
 import { Screen, Role, UserAccount, Task, Inventory, TaskType } from '../types';
-import { db, doc, updateDoc, serverTimestamp, collection, addDoc, auth, arrayUnion, arrayRemove, increment } from '../firebase';
+import { db, doc, updateDoc, serverTimestamp, collection, addDoc, arrayUnion, arrayRemove, increment } from '../firebase';
 import { TaskChat } from './TaskChat';
 import { getAvatarUrl } from '../lib/avatar';
 import { toast } from 'sonner';
@@ -338,7 +338,7 @@ export const TaskDetail: React.FC<{
             <div className="p-2 bg-purple-500/10 rounded-xl"><MapPin className="w-5 h-5 text-purple-500"/></div>
             <div>
               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Lokasi</p>
-              <p className="font-bold text-sm text-white">Gereja Pusat</p>
+              <p className="font-bold text-sm text-white">{task.location || 'Gereja Pusat'}</p>
             </div>
           </div>
         </div>
@@ -456,7 +456,7 @@ export const TaskDetail: React.FC<{
                     <p className="text-xs text-gray-200 font-medium">{h.message}</p>
                     <div className="flex justify-between items-center mt-2">
                       <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Oleh: {h.userName}</span>
-                      <span className="text-[10px] text-gray-500">{new Date(h.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-[10px] text-gray-500">{(h.createdAt?.toDate ? h.createdAt.toDate() : new Date(h.createdAt)).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
                 </div>
@@ -474,7 +474,7 @@ export const TaskDetail: React.FC<{
             <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Riwayat Progress</h3>
             <div className="space-y-4">
               {(task as any).progressHistory.slice().reverse().map((progress: any, index: number) => {
-                const isMyProgress = progress.userId === auth.currentUser?.uid;
+                const isMyProgress = progress.userId === currentUser?.uid;
                 const canDelete = isMyProgress || isAdminRole;
 
                 return (
@@ -485,7 +485,7 @@ export const TaskDetail: React.FC<{
                       <div>
                         <span className="text-xs font-bold text-blue-400 block">{progress.userName}</span>
                         <span className="text-[10px] text-gray-500">
-                          {new Date(progress.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {(progress.date?.toDate ? progress.date.toDate() : new Date(progress.date)).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       

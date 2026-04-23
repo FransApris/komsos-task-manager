@@ -36,7 +36,7 @@ export const TasksScreen: React.FC<{
   const filteredTasks = tasksDb
     .filter(task => {
       if (filter === 'ALL') return true;
-      if (filter === 'ACTIVE') return task.status === 'IN_PROGRESS' || task.status === 'WAITING_VERIFICATION';
+      if (filter === 'ACTIVE') return task.status === 'OPEN' || task.status === 'IN_PROGRESS' || task.status === 'WAITING_VERIFICATION';
       if (filter === 'COMPLETED') return task.status === 'COMPLETED';
       return true;
     })
@@ -62,7 +62,7 @@ export const TasksScreen: React.FC<{
 
   const counts = {
     all: tasksDb.length,
-    active: tasksDb.filter(t => t.status === 'IN_PROGRESS' || t.status === 'WAITING_VERIFICATION').length,
+    active: tasksDb.filter(t => t.status === 'OPEN' || t.status === 'IN_PROGRESS' || t.status === 'WAITING_VERIFICATION').length,
     completed: tasksDb.filter(t => t.status === 'COMPLETED').length
   };
 
