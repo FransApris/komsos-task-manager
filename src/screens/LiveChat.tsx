@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, Send, Paperclip, Trash2, Eraser } from 'lucide-react';
+import { ChevronLeft, Send, Paperclip, Trash2, Eraser, CornerUpLeft, X } from 'lucide-react';
 import { Screen, Role, UserAccount } from '../types';
-import { useChat } from '../contexts/ChatContext';
+import { useChat, ChatMessage } from '../contexts/ChatContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const LiveChat: React.FC<{ 
@@ -13,7 +13,9 @@ export const LiveChat: React.FC<{
   const { messages, sendMessage, setTaskId, markAsRead, setIsChatActive, deleteMessage, clearChat } = useChat();
   const [message, setMessage] = useState('');
   const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const isSuperAdmin = role === 'SUPERADMIN';
 
@@ -39,11 +41,20 @@ export const LiveChat: React.FC<{
   const handleSend = async () => {
     if (!message.trim() || !currentUser) return;
     
-    const senderName = currentUser.displayName;
+    const senderName = currentUser.displayName || 'Pengguna';
     const senderRole = role || 'USER';
-    
-    await sendMessage(message, currentUser.uid, senderName, senderRole, currentTaskId);
+    const replyData = replyingTo
+      ? { id: replyingTo.id, text: replyingTo.text, senderName: replyingTo.senderName }
+      : undefined;
+
+    await sendMessage(message, currentUser.uid, senderName, senderRole, currentTaskId, replyData);
     setMessage('');
+    setReplyingTo(null);
+  };
+
+  const handleReply = (msg: ChatMessage) => {
+    setReplyingTo(msg);
+    inputRef.current?.focus();
   };
 
   const isCurrentUser = (senderId: string) => senderId === currentUser?.uid;
@@ -132,11 +143,30 @@ export const LiveChat: React.FC<{
                   <Trash2 className="w-3 h-3" />
                 </button>
               )}
+              <button
+                onClick={() => handleReply(msg)}
+                className="opacity-0 group-hover:opacity-100 p-1 text-blue-400/60 hover:text-blue-400 transition-all"
+                title="Balas"
+              >
+                <CornerUpLeft className="w-3.5 h-3.5" />
+              </button>
               {isCurrentUser(msg.senderId) && <span className="text-[10px] text-gray-500 font-bold">{msg.senderName}</span>}
             </div>
-            <div className={`max-w-[80%] p-3 rounded-2xl ${isCurrentUser(msg.senderId) ? 'bg-blue-600 text-white rounded-tr-sm' : 'bg-[#151b2b] border border-gray-800 text-gray-200 rounded-tl-sm'}`}>
-              <p className="text-sm">{msg.text}</p>
-              <p className={`text-[10px] mt-1 ${isCurrentUser(msg.senderId) ? 'text-blue-200 text-right' : 'text-gray-500'}`}>{formatTime(msg.createdAt)}</p>
+            <div className={`max-w-[80%] rounded-2xl overflow-hidden ${isCurrentUser(msg.senderId) ? 'bg-blue-600 rounded-tr-sm' : 'bg-[#151b2b] border border-gray-800 rounded-tl-sm'}`}>
+              {msg.replyTo && (
+                <div className={`px-3 pt-2.5 pb-1.5 border-b ${isCurrentUser(msg.senderId) ? 'border-blue-500/40 bg-blue-700/40' : 'border-gray-700 bg-[#0a0f18]/60'}`}>
+                  <p className={`text-[9px] font-bold uppercase tracking-wider mb-0.5 ${isCurrentUser(msg.senderId) ? 'text-blue-200' : 'text-blue-400'}`}>
+                    ↩ {msg.replyTo.senderName}
+                  </p>
+                  <p className={`text-[11px] line-clamp-2 ${isCurrentUser(msg.senderId) ? 'text-blue-100/70' : 'text-gray-400'}`}>
+                    {msg.replyTo.text}
+                  </p>
+                </div>
+              )}
+              <div className="p-3">
+                <p className={`text-sm ${isCurrentUser(msg.senderId) ? 'text-white' : 'text-gray-200'}`}>{msg.text}</p>
+                <p className={`text-[10px] mt-1 ${isCurrentUser(msg.senderId) ? 'text-blue-200 text-right' : 'text-gray-500'}`}>{formatTime(msg.createdAt)}</p>
+              </div>
             </div>
           </div>
         ))}
@@ -144,16 +174,35 @@ export const LiveChat: React.FC<{
       </div>
 
       <div className="p-4 bg-[#151b2b] border-t border-gray-800 shrink-0 mb-safe">
+        <AnimatePresence>
+          {replyingTo && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex items-start gap-2 bg-[#0a0f18] border border-blue-500/30 rounded-xl px-3 py-2 mb-2"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-blue-400 mb-0.5">↩ Membalas {replyingTo.senderName}</p>
+                <p className="text-[11px] text-gray-400 line-clamp-1">{replyingTo.text}</p>
+              </div>
+              <button onClick={() => setReplyingTo(null)} className="p-0.5 text-gray-500 hover:text-white transition-colors shrink-0 mt-0.5">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div className="flex items-center gap-2">
           <button className="p-2 text-gray-400 hover:text-white transition-colors">
             <Paperclip className="w-5 h-5" />
           </button>
           <input 
+            ref={inputRef}
             type="text" 
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ketik pesan..." 
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            placeholder={replyingTo ? `Balas ${replyingTo.senderName}...` : 'Ketik pesan...'} 
             className="flex-1 bg-[#0a0f18] border border-gray-800 rounded-full px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
           />
           <button 

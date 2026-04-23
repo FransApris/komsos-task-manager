@@ -12,12 +12,17 @@ export interface ChatMessage {
   senderRole: string;
   taskId: string;
   createdAt: any;
+  replyTo?: {
+    id: string;
+    text: string;
+    senderName: string;
+  };
 }
 
 interface ChatContextType {
   messages: ChatMessage[];
   unreadCount: number;
-  sendMessage: (text: string, senderId: string, senderName: string, senderRole: string, taskId: string) => Promise<void>;
+  sendMessage: (text: string, senderId: string, senderName: string, senderRole: string, taskId: string, replyTo?: ChatMessage['replyTo']) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   clearChat: (taskId: string) => Promise<void>;
   setTaskId: (id: string) => void;
@@ -51,12 +56,14 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return;
     }
 
-    // Gunakan limit untuk performa lebih baik
+    // Fetch latest 100 messages (desc) then reverse for chronological display.
+    // Using asc+limit would show the oldest messages and new messages would
+    // never appear once the chat exceeds the limit.
     const q = query(
       collection(db, 'chatMessages'),
       where('taskId', '==', taskId),
-      orderBy('createdAt', 'asc'),
-      limit(50)
+      orderBy('createdAt', 'desc'),
+      limit(100)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -64,7 +71,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       snapshot.forEach((doc) => {
         msgs.push({ id: doc.id, ...doc.data() } as ChatMessage);
       });
-      setMessages(msgs);
+      setMessages(msgs.reverse());
     }, (error) => handleFirestoreError(error, OperationType.GET, 'chatMessages'));
 
     return () => unsubscribe();
@@ -119,16 +126,18 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUnreadCount(0);
   }, []);
 
-  const sendMessage = useCallback(async (text: string, senderId: string, senderName: string, senderRole: string, currentTaskId: string) => {
+  const sendMessage = useCallback(async (text: string, senderId: string, senderName: string, senderRole: string, currentTaskId: string, replyTo?: ChatMessage['replyTo']) => {
     try {
-      await addDoc(collection(db, 'chatMessages'), {
+      const payload: any = {
         text,
         senderId,
         senderName,
         senderRole,
         taskId: currentTaskId,
         createdAt: serverTimestamp()
-      });
+      };
+      if (replyTo) payload.replyTo = replyTo;
+      await addDoc(collection(db, 'chatMessages'), payload);
       // If sending a message, we've effectively read the chat
       if (currentTaskId === 'support') {
         markAsRead();
@@ -152,13 +161,16 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const q = query(collection(db, 'chatMessages'), where('taskId', '==', currentTaskId));
       const snapshot = await getDocs(q);
-      const batch = writeBatch(db);
       
-      snapshot.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
+      // Firestore batch is limited to 500 operations — split into chunks
+      const BATCH_SIZE = 500;
+      const docs = snapshot.docs;
+      for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+        const batch = writeBatch(db);
+        docs.slice(i, i + BATCH_SIZE).forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
       
-      await batch.commit();
       toast.success('Percakapan dibersihkan');
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, 'chatMessages (bulk)');
