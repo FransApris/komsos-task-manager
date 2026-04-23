@@ -16,9 +16,9 @@ export const SwapRequestScreen: React.FC<{
   const [showModal, setShowModal] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState('');
   const [reason, setReason] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
-  const [showDebug, setShowDebug] = useState(false); // State untuk mode diagnosis
 
   // Gunakan user prop yang sudah reaktif dari onAuthStateChanged di App.tsx
   const currentUserId = user?.uid || user?.id || "";
@@ -61,7 +61,7 @@ export const SwapRequestScreen: React.FC<{
       toast.error('Mohon lengkapi data pertukaran.');
       return;
     }
-    setIsLoading(true);
+    setIsCreating(true);
     try {
       const task = tasksDb.find(t => t.id === selectedTaskId);
       if (!task) return;
@@ -85,13 +85,13 @@ export const SwapRequestScreen: React.FC<{
     } catch (error) {
       toast.error('Gagal mengirim permintaan.');
     } finally {
-      setIsLoading(false);
+      setIsCreating(false);
     }
   };
 
   const handleAcceptSwap = async (req: any) => {
     if (!currentUserId) return;
-    setIsLoading(true);
+    setLoadingId(req.id);
     try {
       await updateDoc(doc(db, 'swapRequests', req.id), {
         status: 'PENDING_APPROVAL',
@@ -103,37 +103,40 @@ export const SwapRequestScreen: React.FC<{
     } catch (error) {
       toast.error('Gagal memproses pertukaran.');
     } finally {
-      setIsLoading(false);
+      setLoadingId(null);
     }
   };
 
   const handleAdminApprove = async (req: any) => {
-    setIsLoading(true);
+    setLoadingId(req.id);
     try {
       // 1. Update Task
       const taskRef = doc(db, 'tasks', req.taskId);
       const task = tasksDb.find(t => t.id === req.taskId);
       
-      if (task) {
-        let newAssignedUsers = [...(task.assignedUsers || [])];
-        // Ganti requester dengan accepter
-        newAssignedUsers = newAssignedUsers.filter(uid => uid !== req.requesterId);
-        if (req.accepterId) {
-          newAssignedUsers.push(req.accepterId);
-        }
-
-        const taskUpdate: any = {
-          assignedUsers: newAssignedUsers,
-          updatedAt: serverTimestamp()
-        };
-
-        // Jika requester adalah leader, ganti leader ke accepter
-        if (task.teamLeaderId === req.requesterId) {
-          taskUpdate.teamLeaderId = req.accepterId;
-        }
-
-        await updateDoc(taskRef, taskUpdate);
+      if (!task) {
+        toast.error('Data tugas tidak ditemukan. Refresh dan coba lagi.');
+        setLoadingId(null);
+        return;
       }
+      let newAssignedUsers = [...(task.assignedUsers || [])];
+      // Ganti requester dengan accepter
+      newAssignedUsers = newAssignedUsers.filter(uid => uid !== req.requesterId);
+      if (req.accepterId) {
+        newAssignedUsers.push(req.accepterId);
+      }
+
+      const taskUpdate: any = {
+        assignedUsers: newAssignedUsers,
+        updatedAt: serverTimestamp()
+      };
+
+      // Jika requester adalah leader, ganti leader ke accepter
+      if (task.teamLeaderId === req.requesterId) {
+        taskUpdate.teamLeaderId = req.accepterId;
+      }
+
+      await updateDoc(taskRef, taskUpdate);
 
       // 2. Update Swap Request
       await updateDoc(doc(db, 'swapRequests', req.id), {
@@ -141,33 +144,62 @@ export const SwapRequestScreen: React.FC<{
         updatedAt: serverTimestamp()
       });
 
+      // 3. Kirim notifikasi ke requester dan accepter
+      const notifPromises = [];
+      if (req.requesterId) {
+        notifPromises.push(addDoc(collection(db, 'notifications'), {
+          userId: req.requesterId,
+          title: 'Pertukaran Tugas Disetujui',
+          message: `Permintaan pertukaran tugas "${req.taskTitle}" telah disetujui oleh koordinator.`,
+          type: 'TASK', read: false, createdAt: serverTimestamp()
+        }));
+      }
+      if (req.accepterId) {
+        notifPromises.push(addDoc(collection(db, 'notifications'), {
+          userId: req.accepterId,
+          title: 'Tugas Baru Diterima',
+          message: `Anda kini ditugaskan pada tugas "${req.taskTitle}" setelah pertukaran disetujui.`,
+          type: 'TASK', read: false, createdAt: serverTimestamp()
+        }));
+      }
+      await Promise.all(notifPromises);
+
       toast.success("Pertukaran disetujui!");
     } catch (err) {
       console.error("Ralat meluluskan pertukaran:", err);
       toast.error("Gagal meluluskan pertukaran.");
     } finally {
-      setIsLoading(false);
+      setLoadingId(null);
     }
   };
 
   const handleAdminReject = async (req: any) => {
-    setIsLoading(true);
+    setLoadingId(req.id);
     try {
       await updateDoc(doc(db, 'swapRequests', req.id), {
         status: 'REJECTED',
         updatedAt: serverTimestamp()
       });
+      // Kirim notifikasi ke requester
+      if (req.requesterId) {
+        await addDoc(collection(db, 'notifications'), {
+          userId: req.requesterId,
+          title: 'Pertukaran Tugas Ditolak',
+          message: `Permintaan pertukaran tugas "${req.taskTitle}" ditolak oleh koordinator.`,
+          type: 'TASK', read: false, createdAt: serverTimestamp()
+        });
+      }
       toast.success("Pertukaran ditolak.");
     } catch (err) {
       console.error("Ralat menolak pertukaran:", err);
       toast.error("Gagal menolak pertukaran.");
     } finally {
-      setIsLoading(false);
+      setLoadingId(null);
     }
   };
 
   const handleCancelRequest = async (reqId: string) => {
-    setIsLoading(true);
+    setLoadingId(reqId);
     try {
       await updateDoc(doc(db, 'swapRequests', reqId), {
         status: 'CANCELLED',
@@ -177,7 +209,7 @@ export const SwapRequestScreen: React.FC<{
     } catch (error) {
       toast.error('Gagal membatalkan permintaan.');
     } finally {
-      setIsLoading(false);
+      setLoadingId(null);
     }
   };
 
@@ -196,7 +228,7 @@ export const SwapRequestScreen: React.FC<{
           }}
           className="p-2 text-gray-400 hover:text-white transition-colors"
         >
-          <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className="w-5 h-5" />
         </button>
       </header>
 
@@ -227,7 +259,7 @@ export const SwapRequestScreen: React.FC<{
                       {req.status === 'OPEN' && (
                         <button 
                           onClick={() => handleCancelRequest(req.id)}
-                          disabled={isLoading}
+                          disabled={loadingId === req.id}
                           className="text-[10px] font-bold text-red-500 hover:underline"
                         >
                           Batalkan
@@ -271,7 +303,7 @@ export const SwapRequestScreen: React.FC<{
                   </div>
                   <h4 className="font-extrabold text-white text-lg mb-2">{req.taskTitle}</h4>
                   <div className="bg-[#0a0f18] p-3 rounded-xl border border-gray-800 mb-4"><p className="text-sm text-gray-300 italic">"{req.reason}"</p></div>
-                  <button onClick={() => handleAcceptSwap(req)} disabled={isLoading} className="w-full py-3 bg-amber-500 text-black font-bold rounded-xl active:scale-95 disabled:opacity-50">Ambil Alih Tugas</button>
+                  <button onClick={() => handleAcceptSwap(req)} disabled={loadingId === req.id} className="w-full py-3 bg-amber-500 text-black font-bold rounded-xl active:scale-95 disabled:opacity-50">Ambil Alih Tugas</button>
                 </div>
               ))
             )}
@@ -303,8 +335,8 @@ export const SwapRequestScreen: React.FC<{
                     <p className="text-sm text-gray-300 italic">"{req.reason}"</p>
                   </div>
                   <div className="flex gap-3">
-                    <button onClick={() => handleAdminReject(req)} disabled={isLoading} className="flex-1 py-3 bg-red-500/10 text-red-500 font-bold rounded-xl border border-red-500/20 active:scale-95 disabled:opacity-50">Tolak</button>
-                    <button onClick={() => handleAdminApprove(req)} disabled={isLoading} className="flex-1 py-3 bg-emerald-500 text-black font-bold rounded-xl active:scale-95 disabled:opacity-50">Setujui</button>
+                    <button onClick={() => handleAdminReject(req)} disabled={loadingId === req.id} className="flex-1 py-3 bg-red-500/10 text-red-500 font-bold rounded-xl border border-red-500/20 active:scale-95 disabled:opacity-50">Tolak</button>
+                    <button onClick={() => handleAdminApprove(req)} disabled={loadingId === req.id} className="flex-1 py-3 bg-emerald-500 text-black font-bold rounded-xl active:scale-95 disabled:opacity-50">Setujui</button>
                   </div>
                 </div>
               ))
@@ -351,7 +383,7 @@ export const SwapRequestScreen: React.FC<{
                       {mySwappableTasks.map(t => <option key={t.id} value={t.id}>{t.title} ({t.date})</option>)}
                     </select>
                     <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Alasan pertukaran..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white h-28 resize-none focus:border-amber-500 outline-none" />
-                    <button onClick={handleCreateRequest} disabled={isLoading || !selectedTaskId || !reason.trim()} className="w-full py-4 font-bold text-black bg-amber-500 rounded-xl disabled:opacity-50 transition-all">Kirim ke Bursa</button>
+                    <button onClick={handleCreateRequest} disabled={isCreating || !selectedTaskId || !reason.trim()} className="w-full py-4 font-bold text-black bg-amber-500 rounded-xl disabled:opacity-50 transition-all">Kirim ke Bursa</button>
                   </>
                 )}
               </div>
