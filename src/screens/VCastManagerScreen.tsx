@@ -36,6 +36,7 @@ export const VCastManagerScreen: React.FC<{
   const [showAddModal, setShowAddModal] = useState(false);
   const [showActionModal, setShowActionModal] = useState<VCastContent | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState({
@@ -70,13 +71,18 @@ export const VCastManagerScreen: React.FC<{
 
   const handleSave = async () => {
     if (!isAdmin) return;
-    if (!formData.title.trim()) return;
+    if (!formData.title.trim()) {
+      toast.error('Judul konten tidak boleh kosong');
+      return;
+    }
     setIsSaving(true);
     try {
-      if ((formData as any).id) {
-        // Mode Edit
-        await updateDoc(doc(db, 'vcast', (formData as any).id), {
-          ...formData,
+      const contentId = (formData as any).id;
+      if (contentId) {
+        // Mode Edit — exclude id field from Firestore document
+        const { id: _id, ...dataToSave } = formData as any;
+        await updateDoc(doc(db, 'vcast', contentId), {
+          ...dataToSave,
           updatedAt: serverTimestamp()
         });
       } else {
@@ -99,6 +105,7 @@ export const VCastManagerScreen: React.FC<{
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     if (!isAdmin) return;
+    setUpdatingId(id + newStatus);
     try {
       await updateDoc(doc(db, 'vcast', id), { status: newStatus, updatedAt: serverTimestamp() });
       toast.success("Status konten diperbarui");
@@ -106,6 +113,8 @@ export const VCastManagerScreen: React.FC<{
     } catch (error) {
       console.error(error);
       toast.error("Gagal memindahkan kartu.");
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -135,6 +144,7 @@ export const VCastManagerScreen: React.FC<{
   };
 
   const handleConvertToTask = (content: VCastContent) => {
+    setShowActionModal(null);
     onNavigate('CREATE_TASK', {
       title: content.title,
       description: content.description,
@@ -245,7 +255,7 @@ export const VCastManagerScreen: React.FC<{
               {COLUMNS.map(col => (
                 <button
                   key={col.id}
-                  disabled={showActionModal.status === col.id}
+                  disabled={showActionModal.status === col.id || updatingId === showActionModal.id + col.id}
                   onClick={() => handleUpdateStatus(showActionModal.id, col.id)}
                   className={`py-3 px-2 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${
                     showActionModal.status === col.id 
