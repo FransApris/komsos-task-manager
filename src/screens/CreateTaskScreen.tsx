@@ -133,7 +133,7 @@ export const CreateTaskScreen: React.FC<{
           : `Tugas dibuat dan ditugaskan kepada ${assignedUsers.length} petugas.`,
         userId: currentUser.uid,
         userName: currentUser.displayName,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString() // historyEntry disimpan sebagai array, serverTimestamp() tidak bisa di dalam arrayUnion/nested object
       };
 
       const taskDoc = {
@@ -707,7 +707,7 @@ export const CreateTaskScreen: React.FC<{
       {/* MODAL KONFIRMASI SELESAI INSTAN */}
       <AnimatePresence>
         {showConfirmComplete && (
-          <div className="fixed inset-0 z-100 flex items-center justify-center p-5 bg-black/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-5 bg-black/80 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -734,9 +734,11 @@ export const CreateTaskScreen: React.FC<{
                   type="button"
                   onClick={() => {
                     setShowConfirmComplete(false);
-                    // Trigger submit again, but this time it will pass the check
-                    const form = document.querySelector('form');
-                    if (form) form.requestSubmit();
+                    // Trigger submit secara langsung tanpa DOM query
+                    setTimeout(() => {
+                      const fakeEvent = { preventDefault: () => {}, currentTarget: null } as any;
+                      handleSubmit(fakeEvent);
+                    }, 50);
                   }}
                   className="flex-1 py-4 bg-emerald-500 text-black rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-colors"
                 >
