@@ -100,17 +100,24 @@ export const ReportsScreen: React.FC<{
         <div className="space-y-3">
           {reports.length > 0 ? reports.map(report => (
             <div key={report.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer group">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors">
-                    <FileText className="w-5 h-5 text-blue-500" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-white mb-0.5">{report.title}</h3>
-                    <p className="text-[10px] text-gray-500 font-medium">{report.period}</p>
-                  </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors">
+                  <FileText className="w-5 h-5 text-blue-500" />
                 </div>
-
+                <div>
+                  <h3 className="font-bold text-sm text-white mb-0.5">{report.title}</h3>
+                  <p className="text-[10px] text-gray-500 font-medium">{report.period}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-800/50">
+                <div className="text-center">
+                  <p className="text-xs font-bold text-white">{report.stats.totalTasks}</p>
+                  <p className="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Tugas</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-bold text-emerald-500">{report.stats.completedTasks}</p>
+                  <p className="text-[8px] text-gray-500 uppercase font-bold tracking-widest">Selesai</p>
                 </div>
                 <div className="text-center">
                   <p className="text-xs font-bold text-blue-500">{report.stats.activeUsers}</p>
