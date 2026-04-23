@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/* Utility to hide scrollbars but keep functionality */
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  @apply bg-[#0a0f18] overflow-hidden;
+}

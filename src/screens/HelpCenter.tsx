@@ -1,0 +1,248 @@
+import React, { useState } from 'react';
+import { ChevronLeft, ChevronDown, MessageSquare, LifeBuoy, ClipboardList, RefreshCw, Trophy, Settings, Search, Video } from 'lucide-react';
+import { Screen } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
+
+interface HelpCenterProps {
+  onNavigate: (s: Screen) => void;
+}
+
+const faqData = [
+  {
+    category: "Alur Kerja V-Cast",
+    icon: <Video className="w-5 h-5" />,
+    color: "text-indigo-500",
+    bg: "bg-indigo-500/10",
+    items: [
+      {
+        q: "Bagaimana alur kerja (Pipeline) produksi konten V-Cast?",
+        a: "Alur produksi konten di aplikasi ini menggunakan sistem Kanban dengan 5 tahapan utama:\n\n💡 Ide Konten (IDEA): Tahap awal di mana ide-ide baru dikumpulkan dan didiskusikan.\n📝 Pra-Produksi (PRE_PROD): Tahap penyusunan skrip, persiapan alat, dan penentuan jadwal syuting.\n🎥 Syuting / Taping (RECORDING): Proses pengambilan gambar atau rekaman audio/video di lapangan atau studio.\n✂️ Proses Editing (EDITING): Tahap pasca-produksi, termasuk pemotongan video, pemberian efek, dan penyelarasan audio.\n✅ Siap Tayang (PUBLISHED): Konten telah selesai direview dan siap untuk diunggah ke platform media sosial Komsos."
+      },
+      {
+        q: "Bagaimana cara mengubah Ide Konten menjadi Tugas Tim?",
+        a: "1. Buka Pipeline V-Cast: Dari Dashboard Admin, klik menu 'Pipeline V-Cast'.\n2. Pilih Ide Konten: Klik pada kartu konten yang ingin Anda jadikan tugas (biasanya di kolom Ide Konten atau Pra-Produksi).\n3. Klik 'Jadikan Tugas Tim': Di dalam modal aksi kartu, klik tombol berwarna ungu.\n4. Formulir Terisi Otomatis: Anda akan diarahkan ke layar Buat Tugas Baru dengan data (Judul, Deskripsi, Tanggal, Jenis Tugas) yang sudah terisi otomatis.\n5. Lengkapi & Publikasikan: Pilih petugas dan peralatan, lalu klik 'Simpan & Publikasikan Tugas'."
+      },
+      {
+        q: "Apa keuntungan integrasi V-Cast dengan sistem Tugas?",
+        a: "• Efisiensi: Admin tidak perlu mengetik ulang detail konten saat ingin menugaskan tim.\n• Konektivitas: Terdapat indikator visual di layar pembuatan tugas yang menunjukkan sumber data dari Ide Konten V-Cast.\n• Transparansi: Anggota tim mendapatkan notifikasi tugas baru yang detailnya sesuai dengan rencana di pipeline."
+      }
+    ]
+  },
+  {
+    category: "Penugasan & Laporan",
+    icon: <ClipboardList className="w-5 h-5" />,
+    color: "text-blue-500",
+    bg: "bg-blue-500/10",
+    items: [
+      {
+        q: "Bagaimana cara mengambil tugas baru?",
+        a: "Buka menu Dashboard, lalu pindah ke tab 'Semua Tugas'. Pilih tugas yang sesuai dengan keahlian Anda dan klik tombol 'Ambil Tugas Ini'."
+      },
+      {
+        q: "Bagaimana cara melaporkan perkembangan (progress) tugas?",
+        a: "Buka tugas yang sedang Anda kerjakan, lalu klik tombol 'Update Progress'. Anda bisa menambahkan catatan teks dan melampirkan maksimal 5 foto sebagai bukti kerja."
+      },
+      {
+        q: "Tugas saya sudah selesai, apa yang harus dilakukan selanjutnya?",
+        a: "1. Masuk ke Detail Tugas: Klik pada kartu tugas yang sedang Anda kerjakan.\n2. Klik 'Selesaikan Tugas': Tombol ini berada di bagian bawah layar.\n3. Isi Bukti Kerja: Tuliskan catatan singkat mengenai hasil kerja Anda (misal: 'Video sudah diupload ke Drive').\n4. Kirim: Klik 'Kirim Bukti'. Status tugas akan berubah menjadi 'Menunggu Verifikasi'.\n5. Tunggu Verifikasi: Admin atau Koordinator akan meninjau laporan Anda. Jika sudah sesuai, mereka akan menekan tombol 'Verifikasi' dan poin serta XP akan otomatis masuk ke akun Anda."
+      },
+      {
+        q: "Di mana saya bisa melihat daftar tugas yang sudah selesai?",
+        a: "• Untuk Petugas: Di Dashboard, buka tab 'Selesai'. Anda akan melihat riwayat tugas yang pernah Anda kerjakan dan sudah diverifikasi.\n• Untuk Admin/Koordinator: Di Dashboard Admin, terdapat bagian 'Tugas Selesai Terbaru'. Anda juga bisa melihat riwayat lengkap di menu 'Verifikasi Tugas' pada tab 'Selesai'."
+      },
+      {
+        q: "Bagaimana alur verifikasi tugas bagi Admin/Koordinator?",
+        a: "1. Notifikasi: Admin akan menerima notifikasi jika ada petugas yang mengirimkan bukti penyelesaian tugas.\n2. Buka Menu Verifikasi: Klik stat card 'Verifikasi Tugas' di Dashboard Admin.\n3. Tinjau & Sahkan: Klik 'Tinjau Laporan' untuk melihat detail bukti, lalu klik 'Verifikasi' untuk memberikan poin. Jika ada kesalahan, Admin bisa membatalkan verifikasi melalui Detail Tugas (khusus Superadmin)."
+      }
+    ]
+  },
+  {
+    category: "Bursa Pertukaran (Izin & Tukar)",
+    icon: <RefreshCw className="w-5 h-5" />,
+    color: "text-amber-500",
+    bg: "bg-amber-500/10",
+    items: [
+      {
+        q: "Saya mendadak berhalangan hadir di hari H. Apa yang harus saya lakukan?",
+        a: "Segera masuk ke menu Bursa Pertukaran dan tekan tombol (+). Pilih tugas yang ingin Anda lepas, tuliskan alasannya secara jelas, dan kirim. Tugas tersebut akan ditawarkan ke anggota tim lain."
+      },
+      {
+        q: "Apakah saya langsung terbebas dari tugas setelah memasukkannya ke Bursa?",
+        a: "Belum. Anda baru resmi terbebas dari tanggung jawab setelah ada anggota lain yang menekan tombol 'Ambil Alih Tugas' dan pergantian tersebut telah disetujui oleh Koordinator."
+      },
+      {
+        q: "Saya sedang luang, bagaimana cara membantu mengambil tugas teman?",
+        a: "Buka menu Bursa Pertukaran dan lihat tab 'Bursa Tukar'. Jika ada tugas yang sanggup Anda kerjakan, klik 'Ambil Alih Tugas'."
+      }
+    ]
+  },
+  {
+    category: "Sistem Poin & Klasemen",
+    icon: <Trophy className="w-5 h-5" />,
+    color: "text-emerald-500",
+    bg: "bg-emerald-500/10",
+    items: [
+      {
+        q: "Bagaimana cara mengumpulkan Poin Kinerja dan XP?",
+        a: "Poin akan otomatis bertambah setelah Admin memverifikasi tugas Anda yang sudah selesai. Anggota biasa mendapatkan 50 Poin, sedangkan Ketua Tim mendapatkan 75 Poin."
+      },
+      {
+        q: "Apakah poin kinerja saya bisa berkurang?",
+        a: "Ya. Admin dan Koordinator memiliki otoritas untuk mencopot Anda dari tugas jika Anda mangkir tanpa keterangan. Tindakan ini akan memberikan penalti otomatis berupa pengurangan 20 Poin."
+      },
+      {
+        q: "Kapan poin klasemen di-reset?",
+        a: "Poin klasemen (Leaderboard) akan di-reset setiap akhir bulan saat Admin melakukan 'Tutup Buku' dan membagikan lencana (Badge) penghargaan untuk Top 3 anggota terbaik."
+      }
+    ]
+  },
+  {
+    category: "Teknis Aplikasi",
+    icon: <Settings className="w-5 h-5" />,
+    color: "text-purple-500",
+    bg: "bg-purple-500/10",
+    items: [
+      {
+        q: "Bagaimana cara memperbarui level keahlian (Skill) saya di profil?",
+        a: "Keahlian seperti Fotografi, Videografi, Penulisan, dan Desain akan naik level secara otomatis setiap kali Anda menyelesaikan tugas yang berkaitan dengan bidang tersebut. Semakin sering Anda bertugas, semakin tinggi level spesialisasi Anda."
+      }
+    ]
+  }
+];
+
+export const HelpCenter: React.FC<HelpCenterProps> = ({ onNavigate }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [openIndex, setOpenIndex] = useState<string | null>(null);
+
+  const toggleAccordion = (id: string) => {
+    setOpenIndex(openIndex === id ? null : id);
+  };
+
+  // Logika pencarian cerdas
+  const filteredData = faqData.map(category => {
+    const filteredItems = category.items.filter(
+      item => 
+        item.q.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        item.a.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    return { ...category, items: filteredItems };
+  }).filter(category => category.items.length > 0);
+
+  return (
+    <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white relative">
+      <header className="p-5 flex items-center gap-4 sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
+        <button onClick={() => onNavigate('APP_SETTINGS')} className="p-2 bg-[#151b2b] rounded-full border border-gray-800 hover:bg-gray-800 transition-colors">
+          <ChevronLeft className="w-5 h-5 text-gray-300" />
+        </button>
+        <h1 className="text-lg font-extrabold tracking-tight text-white">Pusat Bantuan</h1>
+      </header>
+
+      <div className="p-5">
+        <div className="bg-linear-to-br from-blue-600 to-indigo-700 p-6 rounded-3xl mb-6 relative overflow-hidden shadow-lg shadow-blue-500/20">
+          <div className="absolute -right-4 -bottom-4 opacity-10"><LifeBuoy size={120} /></div>
+          <h2 className="text-2xl font-black text-white mb-2 relative z-10">Ada yang bisa kami bantu?</h2>
+          <p className="text-xs text-blue-200 font-medium mb-4 relative z-10">Cari jawaban atas pertanyaan umum seputar operasional Komsos di bawah ini.</p>
+          
+          <div className="relative z-10">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-blue-300" />
+            </div>
+            <input
+              type="text"
+              className="w-full bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl pl-11 pr-4 py-3 placeholder-blue-200/70 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all text-sm"
+              placeholder="Ketik kata kunci (misal: poin, tukar tugas)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {filteredData.length === 0 ? (
+            <div className="text-center py-10 bg-[#151b2b] rounded-2xl border border-dashed border-gray-800">
+              <Search className="w-8 h-8 text-gray-600 mx-auto mb-3" />
+              <p className="text-sm font-bold text-gray-400">Tidak ada hasil yang cocok</p>
+              <p className="text-xs text-gray-500 mt-1">Coba gunakan kata kunci yang berbeda.</p>
+            </div>
+          ) : (
+            filteredData.map((category, catIdx) => (
+              <div key={catIdx} className="mb-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`p-2 rounded-xl ${category.bg} ${category.color}`}>
+                    {category.icon}
+                  </div>
+                  <h3 className="text-[12px] font-bold text-gray-400 uppercase tracking-widest">{category.category}</h3>
+                </div>
+
+                <div className="space-y-3">
+                  {category.items.map((item, itemIdx) => {
+                    const id = `${catIdx}-${itemIdx}`;
+                    const isOpen = openIndex === id;
+                    
+                    return (
+                      <div key={id} className="bg-[#151b2b] rounded-2xl border border-gray-800 overflow-hidden">
+                        <button
+                          onClick={() => toggleAccordion(id)}
+                          className="w-full p-4 flex justify-between items-center text-left focus:outline-none"
+                        >
+                          <span className={`text-sm font-bold pr-4 transition-colors ${isOpen ? 'text-blue-400' : 'text-gray-200'}`}>
+                            {item.q}
+                          </span>
+                          <motion.div animate={{ rotate: isOpen ? 180 : 0 }} className="shrink-0 text-gray-500">
+                            <ChevronDown className="w-5 h-5" />
+                          </motion.div>
+                        </button>
+                        
+                        <AnimatePresence initial={false}>
+                          {isOpen && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.3, ease: "easeInOut" }}
+                            >
+                              <div className="p-4 pt-0 text-sm text-gray-400 leading-relaxed border-t border-gray-800/50 mt-1">
+                                {item.a}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="mt-10 pt-8 border-t border-gray-800/50">
+          <h3 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4 text-center">Masih Membutuhkan Bantuan?</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button 
+              onClick={() => onNavigate('LIVE_CHAT')}
+              className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex flex-col items-center justify-center gap-2 hover:border-blue-500/50 transition-colors group"
+            >
+              <div className="p-3 bg-blue-500/10 rounded-full group-hover:scale-110 transition-transform">
+                <MessageSquare className="w-6 h-6 text-blue-500" />
+              </div>
+              <span className="text-xs font-bold text-white mt-1">Chat Admin</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('HELPDESK')}
+              className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex flex-col items-center justify-center gap-2 hover:border-amber-500/50 transition-colors group"
+            >
+              <div className="p-3 bg-amber-500/10 rounded-full group-hover:scale-110 transition-transform">
+                <LifeBuoy className="w-6 h-6 text-amber-500" />
+              </div>
+              <span className="text-xs font-bold text-white mt-1">Buat Tiket</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+export default HelpCenter;

@@ -1,0 +1,428 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User's full name"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User's email address"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["SUPERADMIN", "ADMIN_MULTIMEDIA", "ADMIN_PHOTO_VIDEO", "ADMIN_PUBLICATION", "USER"],
+          "description": "User's role in the system"
+        },
+        "img": {
+          "type": "string",
+          "description": "User's profile image ID or URL"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the user was created"
+        },
+        "points": {
+          "type": "number",
+          "description": "Total gamification points"
+        },
+        "level": {
+          "type": "number",
+          "description": "User's current level"
+        },
+        "completedTasksCount": {
+          "type": "number",
+          "description": "Total number of completed tasks"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "ACTIVE", "REJECTED"],
+          "description": "Account verification status"
+        }
+      },
+      "required": ["uid", "displayName", "email", "role", "createdAt", "status"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A multimedia task or assignment",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Task title"
+        },
+        "description": {
+          "type": "string",
+          "description": "Task description"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of task (e.g., Peliputan, Editing)"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the task"
+        },
+        "time": {
+          "type": "string",
+          "description": "Time of the task"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["IN_PROGRESS", "WAITING_VERIFICATION", "COMPLETED"],
+          "description": "Current status of the task"
+        },
+        "assignedUsers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of user IDs assigned to this task"
+        },
+        "subTasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "completed": { "type": "boolean" }
+            }
+          },
+          "description": "List of sub-tasks"
+        },
+        "linkedScheduleId": {
+          "type": "string",
+          "description": "ID of the linked mass schedule"
+        },
+        "linkedScheduleTitle": {
+          "type": "string",
+          "description": "Title of the linked mass schedule"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "type": { "type": "string", "enum": ["SWAP", "STATUS_CHANGE", "ASSIGNMENT", "SYSTEM"] },
+              "message": { "type": "string" },
+              "userId": { "type": "string" },
+              "userName": { "type": "string" },
+              "createdAt": { "type": "string", "format": "date-time" }
+            }
+          },
+          "description": "History of changes to the task"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "User ID of the creator"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the task was created"
+        }
+      },
+      "required": ["title", "type", "date", "time", "status", "createdBy", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User ID who receives the notification"
+        },
+        "title": {
+          "type": "string",
+          "description": "Notification title"
+        },
+        "message": {
+          "type": "string",
+          "description": "Notification message"
+        },
+        "read": {
+          "type": "boolean",
+          "description": "Whether the notification has been read"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the notification was created"
+        }
+      },
+      "required": ["userId", "title", "message", "read", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "A chat message within a task",
+      "type": "object",
+      "properties": {
+        "taskId": {
+          "type": "string",
+          "description": "ID of the task this message belongs to"
+        },
+        "senderId": {
+          "type": "string",
+          "description": "User ID of the sender"
+        },
+        "senderName": {
+          "type": "string",
+          "description": "Name of the sender"
+        },
+        "text": {
+          "type": "string",
+          "description": "Message content"
+        },
+        "image": {
+          "type": "string",
+          "description": "Base64 encoded image attachment"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the message was sent"
+        }
+      },
+      "required": ["taskId", "senderId", "text", "createdAt"]
+    },
+    "Inventory": {
+      "title": "Inventory",
+      "description": "Equipment or tools used by the team",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the equipment"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category (e.g., Camera, Audio, Lighting)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["AVAILABLE", "IN_USE", "MAINTENANCE", "BROKEN"],
+          "description": "Current status of the equipment"
+        },
+        "assignedTo": {
+          "type": "string",
+          "description": "User ID of the person currently using it"
+        },
+        "lastChecked": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last maintenance or check date"
+        }
+      },
+      "required": ["name", "category", "status"]
+    },
+    "MassSchedule": {
+      "title": "MassSchedule",
+      "description": "Schedule for church masses",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "location": { "type": "string" },
+        "status": { "type": "string", "enum": ["OPEN", "CLOSED"] },
+        "assignedUsers": { "type": "array", "items": { "type": "string" } },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "date", "time", "location", "status", "createdBy", "createdAt"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Attendance tracking for tasks or masses",
+      "type": "object",
+      "properties": {
+        "targetId": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["TASK", "MASS"] },
+        "userId": { "type": "string" },
+        "checkInTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["PRESENT", "LATE", "ABSENT"] }
+      },
+      "required": ["targetId", "targetType", "userId", "checkInTime", "status"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Generated reports for the team",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "period": { "type": "string" },
+        "summary": { "type": "string" },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "totalTasks": { "type": "number" },
+            "completedTasks": { "type": "number" },
+            "activeUsers": { "type": "number" }
+          }
+        },
+        "generatedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "period", "summary", "generatedBy", "createdAt"]
+    },
+    "Badge": {
+      "title": "Badge",
+      "description": "A badge or achievement for a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "icon": { "type": "string" },
+        "color": { "type": "string" },
+        "approvals": { "type": "number" },
+        "requiredApprovals": { "type": "number" },
+        "status": { "type": "string", "enum": ["earned", "pending"] },
+        "approvedBy": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["userId", "title", "description", "status"]
+    },
+    "TaskType": {
+      "title": "TaskType",
+      "description": "Configuration for types of tasks",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "color": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "createdAt"]
+    },
+    "VCastContent": {
+      "title": "VCastContent",
+      "description": "Content for V-Cast kanban board",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["IDEA", "PRE_PROD", "RECORDING", "EDITING", "PUBLISHED"] },
+        "targetDate": { "type": "string" },
+        "pic": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "status", "createdAt"]
+    },
+    "SwapRequest": {
+      "title": "SwapRequest",
+      "description": "A request to swap a task assignment",
+      "type": "object",
+      "properties": {
+        "taskId": { "type": "string" },
+        "taskTitle": { "type": "string" },
+        "requesterId": { "type": "string" },
+        "requesterName": { "type": "string" },
+        "reason": { "type": "string" },
+        "suggestedReplacementId": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED", "CANCELLED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "approvedBy": { "type": "string" },
+        "approvedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["taskId", "taskTitle", "requesterId", "requesterName", "reason", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": {
+        "$ref": "#/entities/UserAccount"
+      },
+      "description": "Collection of user profiles"
+    },
+    "tasks": {
+      "schema": {
+        "$ref": "#/entities/Task"
+      },
+      "description": "Collection of tasks"
+    },
+    "notifications": {
+      "schema": {
+        "$ref": "#/entities/Notification"
+      },
+      "description": "Collection of notifications"
+    },
+    "chatMessages": {
+      "schema": {
+        "$ref": "#/entities/ChatMessage"
+      },
+      "description": "Collection of chat messages"
+    },
+    "inventory": {
+      "schema": {
+        "$ref": "#/entities/Inventory"
+      },
+      "description": "Collection of equipment inventory"
+    },
+    "massSchedules": {
+      "schema": {
+        "$ref": "#/entities/MassSchedule"
+      },
+      "description": "Collection of mass schedules"
+    },
+    "attendance": {
+      "schema": {
+        "$ref": "#/entities/Attendance"
+      },
+      "description": "Collection of attendance records"
+    },
+    "reports": {
+      "schema": {
+        "$ref": "#/entities/Report"
+      },
+      "description": "Collection of generated reports"
+    },
+    "badges": {
+      "schema": {
+        "$ref": "#/entities/Badge"
+      },
+      "description": "Collection of user badges"
+    },
+    "taskTypes": {
+      "schema": {
+        "$ref": "#/entities/TaskType"
+      },
+      "description": "Collection of task type configurations"
+    },
+    "vcast": {
+      "schema": {
+        "$ref": "#/entities/VCastContent"
+      },
+      "description": "Collection of V-Cast content cards"
+    },
+    "swapRequests": {
+      "schema": {
+        "$ref": "#/entities/SwapRequest"
+      },
+      "description": "Collection of task swap requests"
+    },
+    "settings": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "Collection of application settings and announcements"
+    }
+  }
+}
