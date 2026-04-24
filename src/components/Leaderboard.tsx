@@ -9,7 +9,10 @@ interface LeaderboardProps {
 }
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ users }) => {
-  const sortedUsers = [...users].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 5);
+  const sortedUsers = [...users]
+    .filter(u => u.status === 'ACTIVE' && u.role === 'USER')
+    .sort((a, b) => (b.points || 0) - (a.points || 0))
+    .slice(0, 5);
 
   const getRankIcon = (index: number) => {
     switch (index) {
@@ -63,7 +66,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ users }) => {
                   <img 
                     src={getAvatarUrl(u)} 
                     alt={u.displayName} 
-                    className="w-full h-full object-cover" 
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
                   />
                 </div>
                 <motion.div 

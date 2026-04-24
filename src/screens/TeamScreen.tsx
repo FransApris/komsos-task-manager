@@ -5,6 +5,7 @@ import { db, doc, updateDoc, deleteDoc, setDoc, serverTimestamp, handleFirestore
 import { AwardBadgeModal } from '../components/AwardBadgeModal';
 import { BadgeGallery } from '../components/BadgeGallery';
 import { getAvatarUrl } from '../lib/avatar';
+import { toast } from 'sonner';
 
 interface TeamScreenProps {
   onNavigate: (s: Screen) => void;
@@ -123,7 +124,7 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
         setIsAdding(false);
         setEditName('');
         setEditEmail('');
-        setErrorMessage('Anggota ditambahkan. Minta mereka mendaftar di halaman Register agar bisa login.');
+        toast.info('Anggota ditambahkan. Minta mereka mendaftar di halaman Register agar bisa login.');
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, 'users');
         setErrorMessage("Gagal menambah anggota tim.");
