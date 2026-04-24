@@ -562,7 +562,17 @@ export const UserDashboard: React.FC<{
               {isSavingNotes ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             </button>
           </div>
-          <textarea value={quickNotes} onChange={(e) => setQuickNotes(e.target.value)} placeholder="Tulis catatan penting di sini..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-2xl p-4 text-sm text-gray-300 focus:border-blue-500 transition-all resize-none h-24" />
+          <textarea
+            value={quickNotes}
+            onChange={(e) => setQuickNotes(e.target.value)}
+            onBlur={handleSaveNotes}
+            maxLength={500}
+            placeholder="Tulis catatan penting di sini..."
+            className="w-full bg-[#0a0f18] border border-gray-800 rounded-2xl p-4 text-sm text-gray-300 focus:border-blue-500 focus:outline-none transition-all resize-none h-24"
+          />
+          <p className={`text-right text-[10px] mt-1.5 font-medium ${quickNotes.length >= 480 ? 'text-red-400' : 'text-gray-600'}`}>
+            {quickNotes.length}/500
+          </p>
         </motion.div>
 
         {recommendedTasks.length > 0 && (
