@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronLeft, FileText, Plus, BarChart, CheckCircle2, Users } from 'lucide-react';
-import { Screen, Role, UserAccount, Task } from '../types';
+import { ChevronLeft, FileText, Plus, BarChart, CheckCircle2, Users, Download, Loader2 } from 'lucide-react';
+import { Screen, Role, UserAccount, Task, Report } from '../types';
 import { db, collection, addDoc, serverTimestamp, query, where, getDocs } from '../firebase';
 import { useData } from '../contexts/DataContext';
 
@@ -13,8 +13,25 @@ export const ReportsScreen: React.FC<{
 }> = ({ onNavigate, role, currentUser, tasksDb = [], usersDb = [] }) => {
   const { reports } = useData();
   const [loading, setLoading] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
 
   const isAdmin = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
+
+  const handleExportPDF = async (report: Report) => {
+    setExportingId(report.id);
+    try {
+      const { exportReportToPDF } = await import('../lib/exportPDF');
+      await exportReportToPDF(report, tasksDb, usersDb);
+      const { toast } = await import('sonner');
+      toast.success(`PDF laporan ${report.period} berhasil diunduh!`);
+    } catch (e) {
+      console.error(e);
+      const { toast } = await import('sonner');
+      toast.error('Gagal mengekspor PDF.');
+    } finally {
+      setExportingId(null);
+    }
+  };
 
   const handleGenerateReport = async () => {
     if (!currentUser) return;
@@ -99,15 +116,26 @@ export const ReportsScreen: React.FC<{
         <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Arsip Laporan</h2>
         <div className="space-y-3">
           {reports.length > 0 ? reports.map(report => (
-            <div key={report.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 hover:border-gray-700 transition-colors cursor-pointer group">
+            <div key={report.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 hover:border-gray-700 transition-colors group">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2.5 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors">
                   <FileText className="w-5 h-5 text-blue-500" />
                 </div>
-                <div>
-                  <h3 className="font-bold text-sm text-white mb-0.5">{report.title}</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-sm text-white mb-0.5 truncate">{report.title}</h3>
                   <p className="text-[10px] text-gray-500 font-medium">{report.period}</p>
                 </div>
+                <button
+                  onClick={() => handleExportPDF(report)}
+                  disabled={exportingId === report.id}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 active:scale-95 transition-all disabled:opacity-50 shrink-0"
+                >
+                  {exportingId === report.id
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Download className="w-3.5 h-3.5" />
+                  }
+                  PDF
+                </button>
               </div>
               
               <div className="grid grid-cols-3 gap-2 pt-4 border-t border-gray-800/50">
