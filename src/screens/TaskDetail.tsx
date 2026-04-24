@@ -302,7 +302,7 @@ export const TaskDetail: React.FC<{
         </div>
       </div>
 
-      <div className="flex border-b border-gray-800/50 bg-[#0a0f18] sticky top-[72px] z-10">
+      <div className="flex border-b border-gray-800/50 bg-[#0a0f18] sticky top-18 z-10">
         <button 
           onClick={() => setActiveTab('DETAIL')}
           className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'DETAIL' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
@@ -606,7 +606,7 @@ export const TaskDetail: React.FC<{
       )}
 
       {status === 'IN_PROGRESS' && activeTab === 'DETAIL' && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[390px] px-5 z-20 flex gap-3">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-97.5 px-5 z-20 flex gap-3">
           <button 
             onClick={() => onNavigate('TASK_UPDATE')}
             className="flex-1 bg-[#151b2b] text-white font-bold py-4 rounded-2xl border border-gray-800 active:scale-[0.98] transition-transform"

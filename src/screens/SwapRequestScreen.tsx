@@ -232,7 +232,7 @@ export const SwapRequestScreen: React.FC<{
         </button>
       </header>
 
-      <div className="flex border-b border-gray-800/50 bg-[#0a0f18] sticky top-[72px] z-10">
+      <div className="flex border-b border-gray-800/50 bg-[#0a0f18] sticky top-18 z-10">
         <button onClick={() => setActiveTab('MINE')} className={`flex-1 py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === 'MINE' ? 'border-amber-500 text-amber-500' : 'border-transparent text-gray-500'}`}>Permintaan Saya</button>
         <button onClick={() => setActiveTab('BURSA')} className={`flex-1 py-4 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'BURSA' ? 'border-amber-500 text-amber-500' : 'border-transparent text-gray-500'}`}><RefreshCw className="w-4 h-4" /> Bursa Tukar</button>
         {isAdmin && (

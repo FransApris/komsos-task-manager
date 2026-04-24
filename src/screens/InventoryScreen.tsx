@@ -368,7 +368,7 @@ export const InventoryScreen: React.FC<{
       </div>
 
       {/* FLOATING ACTION BUTTON: SCANNER */}
-      <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[390px] px-5 z-20 pb-4">
+      <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-97.5 px-5 z-20 pb-4">
         <button 
           onClick={() => setIsScanning(true)}
           className="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-3 uppercase tracking-wider"

@@ -590,7 +590,7 @@ export const CreateTaskScreen: React.FC<{
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-[9px] text-gray-500 uppercase tracking-wider">{user.role}</span>
                             {user.skills && user.skills.length > 0 && (
-                              <span className="text-[8px] font-bold text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded truncate max-w-[100px]">
+                              <span className="text-[8px] font-bold text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded truncate max-w-25">
                                 {user.skills[0]}
                               </span>
                             )}

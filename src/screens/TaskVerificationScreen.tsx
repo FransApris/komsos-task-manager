@@ -186,7 +186,7 @@ export const TaskVerificationScreen: React.FC<{
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{task.type}</p>
-                      <p className="font-bold text-sm text-white truncate max-w-[200px]">{task.title}</p>
+                      <p className="font-bold text-sm text-white truncate max-w-50">{task.title}</p>
                     </div>
                     {activeTab === 'COMPLETED' && (
                       <div className="ml-auto bg-emerald-500/20 text-emerald-500 text-[8px] font-black px-2 py-1 rounded uppercase tracking-tighter">

@@ -325,7 +325,7 @@ export const ScheduleScreen: React.FC<{
                 <CalendarIcon className="w-8 h-8 text-gray-500 opacity-50" />
               </div>
               <h3 className="text-gray-300 font-bold mb-1">Tidak ada jadwal</h3>
-              <p className="text-xs text-gray-500 max-w-[200px]">
+              <p className="text-xs text-gray-500 max-w-50">
                 {isAdminRole ? 'Tidak ada jadwal pelayanan pada tanggal ini.' : 'Anda tidak memiliki jadwal pelayanan pada tanggal ini.'}
               </p>
             </div>

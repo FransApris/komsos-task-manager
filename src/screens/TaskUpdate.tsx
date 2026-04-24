@@ -203,7 +203,7 @@ export const TaskUpdate: React.FC<{
         </div>
       </div>
 
-      <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[390px] px-5 z-20">
+      <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-97.5 px-5 z-20">
         <button 
           onClick={handleUpdate}
           disabled={isLoading || (!progressNotes.trim() && attachments.length === 0)}

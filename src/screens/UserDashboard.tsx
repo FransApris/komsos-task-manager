@@ -471,7 +471,7 @@ export const UserDashboard: React.FC<{
               { title: 'Spesialis', desc: 'Skill Lv. 5', icon: <Target size={20} />, unlocked: user && user.stats && Object.values(user.stats).some(v => v >= 50), colorUncloked: 'text-amber-500', bgUnlocked: 'bg-linear-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' },
               { title: 'Veteran', desc: 'Level 10', icon: <Trophy size={20} />, unlocked: userLevel >= 10, colorUncloked: 'text-amber-500', bgUnlocked: 'bg-linear-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' },
             ].map((achievement, idx) => (
-              <motion.div key={idx} whileHover={{ y: -5 }} className={`min-w-[140px] p-4 rounded-2xl border transition-all ${achievement.unlocked ? achievement.bgUnlocked : 'bg-[#151b2b] border-gray-800 opacity-50'}`}>
+              <motion.div key={idx} whileHover={{ y: -5 }} className={`min-w-35 p-4 rounded-2xl border transition-all ${achievement.unlocked ? achievement.bgUnlocked : 'bg-[#151b2b] border-gray-800 opacity-50'}`}>
                 <div className={`mb-3 ${achievement.unlocked ? achievement.colorUncloked : 'text-gray-600'}`}>{achievement.icon}</div>
                 <p className="text-xs font-bold text-white mb-1">{achievement.title}</p>
                 <p className="text-[9px] text-gray-500 uppercase tracking-wider leading-tight">{achievement.desc}</p>
@@ -732,7 +732,7 @@ export const UserDashboard: React.FC<{
                 <Trophy className="w-8 h-8 text-gray-500" />
               </div>
               <h3 className="font-extrabold text-white mb-1">Klasemen Masih Kosong</h3>
-              <p className="text-xs text-gray-400 leading-relaxed max-w-[250px] mx-auto">
+              <p className="text-xs text-gray-400 leading-relaxed max-w-62.5 mx-auto">
                 Belum ada anggota yang mengumpulkan poin. Ambil tugas dan jadilah yang pertama di puncak klasemen!
               </p>
             </div>

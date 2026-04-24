@@ -189,7 +189,7 @@ export const VCastManagerScreen: React.FC<{
         {COLUMNS.map(col => {
           const colItems = contents.filter(c => c.status === col.id);
           return (
-            <div key={col.id} className="w-[85vw] max-w-[300px] shrink-0 flex flex-col h-full snap-center">
+            <div key={col.id} className="w-[85vw] max-w-75 shrink-0 flex flex-col h-full snap-center">
               <div className={`px-4 py-3 rounded-t-2xl border-t border-x ${col.border} ${col.bg} flex justify-between items-center`}>
                 <h2 className={`text-xs font-bold uppercase tracking-wider ${col.color}`}>{col.title}</h2>
                 <span className={`text-[10px] font-black px-2 py-0.5 rounded-full bg-[#0a0f18] ${col.color}`}>{colItems.length}</span>
@@ -239,7 +239,7 @@ export const VCastManagerScreen: React.FC<{
       {/* MODAL ACTION (Pindahkan Kartu) */}
       {showActionModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm sm:items-center p-0 sm:p-5">
-          <div className="bg-[#151b2b] w-full max-w-[390px] rounded-t-3xl sm:rounded-3xl border-t sm:border border-gray-800 p-6 shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95">
+          <div className="bg-[#151b2b] w-full max-w-97.5 rounded-t-3xl sm:rounded-3xl border-t sm:border border-gray-800 p-6 shadow-2xl animate-in slide-in-from-bottom-10 sm:zoom-in-95">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Aksi Kartu</h3>

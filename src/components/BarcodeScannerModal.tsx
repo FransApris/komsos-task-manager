@@ -120,7 +120,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ onScan
 
           {!isLoading && !error && (
             <div className="absolute inset-0 pointer-events-none z-10">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] border-2 border-emerald-500/50 rounded-3xl">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-62.5 h-62.5 border-2 border-emerald-500/50 rounded-3xl">
                 <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_3px_#10b981] animate-scan" />
               </div>
             </div>

@@ -433,7 +433,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <Trophy className="w-8 h-8 text-gray-500" />
               </div>
               <h3 className="font-extrabold text-white mb-1">Klasemen Masih Kosong</h3>
-              <p className="text-xs text-gray-400 leading-relaxed max-w-[250px] mx-auto">
+              <p className="text-xs text-gray-400 leading-relaxed max-w-62.5 mx-auto">
                 Belum ada anggota yang mengumpulkan poin bulan ini.
               </p>
             </div>

@@ -100,7 +100,7 @@ export const NewTaskAlertScreen: React.FC<NewTaskAlertScreenProps> = ({ onNaviga
                     {task.location && (
                       <div className="flex items-center gap-1.5">
                         <MapPin size={14} className="text-gray-600" />
-                        <span className="truncate max-w-[120px]">{task.location}</span>
+                        <span className="truncate max-w-30">{task.location}</span>
                       </div>
                     )}
                   </div>

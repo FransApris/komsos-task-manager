@@ -118,7 +118,7 @@ export const ChangePassword: React.FC<{
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] p-5 bg-[#0a0f18]/90 backdrop-blur-md border-t border-gray-800/80 z-20">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-97.5 p-5 bg-[#0a0f18]/90 backdrop-blur-md border-t border-gray-800/80 z-20">
         <button 
           onClick={handleUpdatePassword}
           disabled={isLoading}

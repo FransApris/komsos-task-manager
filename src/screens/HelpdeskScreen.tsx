@@ -202,7 +202,7 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
         </div>
 
         {selectedTicket.status !== 'RESOLVED' && (
-          <form onSubmit={handleReply} className="absolute bottom-20 left-1/2 -translate-x-1/2 w-full max-w-[390px] p-4 bg-[#151b2b] border-t border-gray-800 flex gap-2">
+          <form onSubmit={handleReply} className="absolute bottom-20 left-1/2 -translate-x-1/2 w-full max-w-97.5 p-4 bg-[#151b2b] border-t border-gray-800 flex gap-2">
             <input 
               type="text" 
               value={replyText}

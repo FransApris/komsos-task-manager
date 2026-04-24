@@ -121,7 +121,7 @@ export const TaskChat: React.FC<TaskChatProps> = ({ taskId, currentUser, role, u
                     <span className="text-[10px] text-gray-500 font-bold">{msg.senderName}</span>
                   )}
                 </div>
-                <div className={`rounded-2xl shadow-sm min-w-[140px] w-full overflow-hidden ${
+                <div className={`rounded-2xl shadow-sm min-w-35 w-full overflow-hidden ${
                   isCurrentUser(msg.senderId) 
                     ? 'bg-blue-600 rounded-tr-none' 
                     : 'bg-[#151b2b] border border-gray-800 rounded-tl-none'
