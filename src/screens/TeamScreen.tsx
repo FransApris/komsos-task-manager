@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Screen, Role, UserAccount } from '../types';
-import { Users, Mail, Phone, ShieldAlert, CheckCircle2, ChevronDown, Plus, Trash2, Edit2, Save, X, Loader2, Award, Tag } from 'lucide-react';
+import { Users, Mail, Phone, ShieldAlert, CheckCircle2, ChevronDown, Plus, Trash2, Edit2, Save, X, Loader2, Award, Tag, Search, ChevronUp, AlertTriangle } from 'lucide-react';
 import { db, doc, updateDoc, deleteDoc, setDoc, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
 import { AwardBadgeModal } from '../components/AwardBadgeModal';
 import { BadgeGallery } from '../components/BadgeGallery';
@@ -40,6 +40,8 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedUserForBadge, setSelectedUserForBadge] = useState<{id: string, name: string} | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
 
   const startEditing = (user: UserAccount) => {
     setEditingUserId(user.id);
@@ -114,11 +116,14 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
           xp: 0,
           completedTasksCount: 0,
           divisions: editDivisions,
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
+          // Catatan: akun ini hanya di Firestore. Minta anggota daftar sendiri di RegisterScreen
+          // agar mendapat Firebase Auth account yang bisa digunakan untuk login.
         });
         setIsAdding(false);
         setEditName('');
         setEditEmail('');
+        setErrorMessage('Anggota ditambahkan. Minta mereka mendaftar di halaman Register agar bisa login.');
       } catch (error) {
         handleFirestoreError(error, OperationType.CREATE, 'users');
         setErrorMessage("Gagal menambah anggota tim.");
@@ -141,8 +146,13 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
     }
   };
 
-  // --- FUNGSI SORTING BARU ---
-  // Gunakan useMemo agar sorting hanya dijalankan saat data usersDb berubah
+  const availStyles: Record<string, { dot: string; label: string }> = {
+    AVAILABLE: { dot: 'bg-emerald-500', label: 'Tersedia' },
+    BUSY: { dot: 'bg-red-500', label: 'Sibuk' },
+    AWAY: { dot: 'bg-amber-500', label: 'Away' },
+  };
+
+  // --- FUNGSI SORTING & FILTER ---
   const sortedUsers = useMemo(() => {
     // 1. Definisikan bobot untuk masing-masing Role (angka lebih kecil = urutan lebih atas)
     const roleWeights: Record<string, number> = {
@@ -172,6 +182,17 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
       return 0;
     });
   }, [usersDb]);
+
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) return sortedUsers;
+    const q = searchQuery.toLowerCase();
+    return sortedUsers.filter(u =>
+      (u.displayName || '').toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.role || '').toLowerCase().includes(q) ||
+      (u.divisions || []).some(d => d.toLowerCase().includes(q))
+    );
+  }, [sortedUsers, searchQuery]);
 
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white">
@@ -207,11 +228,23 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
         )}
 
         {isSuperAdmin && (
-          <div className="mb-6 bg-blue-500/10 border border-blue-500/20 p-4 rounded-2xl">
+          <div className="mb-4 bg-blue-500/10 border border-blue-500/20 p-4 rounded-2xl">
             <h3 className="font-bold text-sm text-blue-400 mb-1">Pengaturan Tim (RBAC)</h3>
             <p className="text-xs text-gray-400">Sebagai Superadmin, Anda dapat menambah, menghapus, dan mengubah role serta divisi anggota tim.</p>
           </div>
         )}
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Cari nama, email, role, divisi..."
+            className="w-full bg-[#151b2b] border border-gray-800 rounded-2xl pl-9 pr-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+          />
+        </div>
 
         <div className="space-y-4">
           {isAdding && (
@@ -241,13 +274,24 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
             </div>
           )}
 
-          {/* MENGGUNAKAN sortedUsers ALIH-ALIH usersDb */}
-          {sortedUsers.map((member) => (
+          {filteredUsers.length === 0 && searchQuery && (
+            <div className="text-center py-10 bg-[#151b2b] rounded-2xl border border-dashed border-gray-800">
+              <p className="text-gray-500 text-sm">Tidak ada anggota yang cocok dengan "{searchQuery}"</p>
+            </div>
+          )}
+
+          {filteredUsers.map((member) => {
+            const isExpanded = expandedUserId === member.id;
+            return (
             <div key={member.id} className="flex flex-col p-4 bg-[#151b2b] rounded-2xl border border-gray-800 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4 flex-1 overflow-hidden">
-                  <div className="w-12 h-12 rounded-full bg-gray-800 overflow-hidden shrink-0 border border-gray-700">
-                    <img src={getAvatarUrl(member)} alt={member.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <div className="relative w-12 h-12 shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-gray-800 overflow-hidden border border-gray-700">
+                      <img src={getAvatarUrl(member)} alt={member.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                    {/* Online indicator */}
+                    <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#151b2b] ${member.isOnline ? 'bg-emerald-500' : 'bg-gray-600'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     {editingUserId === member.id ? (
@@ -277,6 +321,14 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
                           </div>
                         )}
                         
+                        {/* Availability badge */}
+                        {member.availability && member.availability !== 'AVAILABLE' && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className={`w-1.5 h-1.5 rounded-full ${availStyles[member.availability]?.dot || 'bg-gray-500'}`} />
+                            <span className="text-[9px] font-bold text-gray-500">{availStyles[member.availability]?.label}</span>
+                          </div>
+                        )}
+
                         {isAdmin && (
                           <button onClick={() => setSelectedUserForBadge({ id: member.id || member.uid || '', name: member.displayName || '' })} className="mt-1 text-[10px] bg-yellow-500/10 text-yellow-500 px-3 py-1.5 rounded-lg border border-yellow-500/20 font-bold flex items-center gap-1.5 hover:bg-yellow-500/20 transition-colors">
                             <Award className="w-3.5 h-3.5" /> Beri Lencana
@@ -310,7 +362,16 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
                 </div>
               </div>
 
-              <BadgeGallery userId={member.id || member.uid} />
+              {/* Expand toggle */}
+              <button
+                onClick={() => setExpandedUserId(isExpanded ? null : member.id)}
+                className="mt-3 w-full flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-600 hover:text-gray-400 transition-colors py-1"
+              >
+                {isExpanded ? <><ChevronUp className="w-3 h-3" /> Sembunyikan Badge</> : <><ChevronDown className="w-3 h-3" /> Lihat Badge</>}
+              </button>
+
+              {/* BadgeGallery hanya render saat expanded */}
+              {isExpanded && <BadgeGallery userId={member.id || member.uid} />}
 
               {deleteConfirmId === member.id && (
                 <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
@@ -371,7 +432,8 @@ export const TeamScreen: React.FC<TeamScreenProps> = ({ onNavigate, role, usersD
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
