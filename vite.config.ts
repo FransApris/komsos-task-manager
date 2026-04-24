@@ -50,7 +50,48 @@ export default defineConfig(({mode}) => {
       },
     },
     build: {
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 650,
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            if (!id.includes('node_modules')) return;
+            // React core
+            if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
+              return 'vendor-react';
+            }
+            // Firebase (largest vendor ~630kB — unavoidable due to SDK size)
+            if (id.includes('/firebase/') || id.includes('/@firebase/')) {
+              return 'vendor-firebase';
+            }
+            // Framer Motion / motion
+            if (id.includes('/motion/') || id.includes('/framer-motion/')) {
+              return 'vendor-motion';
+            }
+            // Recharts + D3 deps
+            if (
+              id.includes('/recharts/') ||
+              id.includes('/d3-') ||
+              id.includes('/d3/') ||
+              id.includes('/internmap/') ||
+              id.includes('/robust-predicates/')
+            ) {
+              return 'vendor-recharts';
+            }
+            // Lucide icons
+            if (id.includes('/lucide-react/')) {
+              return 'vendor-lucide';
+            }
+            // QR / Barcode scanner
+            if (id.includes('/html5-qrcode/')) {
+              return 'vendor-html5qrcode';
+            }
+            // PDF generation (already lazy but group with vendor)
+            if (id.includes('/jspdf') || id.includes('/jspdf-autotable/')) {
+              return 'vendor-pdf';
+            }
+          },
+        },
+      },
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
