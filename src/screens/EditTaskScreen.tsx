@@ -554,3 +554,6 @@ export const EditTaskScreen: React.FC<{
 };
 
 export default EditTaskScreen;
+};
+
+export default EditTaskScreen;
