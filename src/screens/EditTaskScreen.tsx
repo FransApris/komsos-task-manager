@@ -550,3 +550,7 @@ export const EditTaskScreen: React.FC<{
         onCancel={() => setShowLeaveConfirm(false)}
       />
     </div>
+  );
+};
+
+export default EditTaskScreen;
