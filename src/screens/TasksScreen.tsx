@@ -1,7 +1,7 @@
 import React from 'react';
 import { Screen, Role, Task, UserAccount, TaskType } from '../types';
-import { CheckSquare, Clock, Video, Calendar, Plus, Image as ImageIcon, FileText, Loader2, Activity } from 'lucide-react';
-import { motion } from 'motion/react';
+import { CheckSquare, Clock, Video, Calendar, Plus, Image as ImageIcon, FileText, Loader2, Activity, Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { getAvatarUrl } from '../lib/avatar';
 
 export const TasksScreen: React.FC<{ 
@@ -14,6 +14,11 @@ export const TasksScreen: React.FC<{
 }> = ({ onNavigate, role, tasksDb = [], usersDb = [], taskTypes = [], setSelectedTaskId }) => { 
   
   const [filter, setFilter] = React.useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [typeFilter, setTypeFilter] = React.useState('Semua');
+  const [dateFrom, setDateFrom] = React.useState('');
+  const [dateTo, setDateTo] = React.useState('');
+  const [showFilters, setShowFilters] = React.useState(false);
   const isAdminRole = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
 
   if (!tasksDb || !usersDb) {
@@ -33,11 +38,48 @@ export const TasksScreen: React.FC<{
     return timeString.trim();
   };
 
+  const knownTypes = ['Peliputan', 'Dokumentasi', 'Publikasi', 'Desain', 'OBS', 'Editing'];
+  const customTypes = taskTypes.map(tt => tt.name).filter(n => !knownTypes.includes(n));
+  const allTypeOptions = ['Semua', ...knownTypes, ...customTypes];
+
+  const activeFilterCount = [
+    typeFilter !== 'Semua',
+    dateFrom !== '',
+    dateTo !== '',
+  ].filter(Boolean).length;
+
+  const clearAllFilters = () => {
+    setTypeFilter('Semua');
+    setDateFrom('');
+    setDateTo('');
+    setSearchQuery('');
+  };
+
   const filteredTasks = tasksDb
     .filter(task => {
       if (filter === 'ALL') return true;
       if (filter === 'ACTIVE') return task.status === 'OPEN' || task.status === 'IN_PROGRESS' || task.status === 'WAITING_VERIFICATION';
       if (filter === 'COMPLETED') return task.status === 'COMPLETED';
+      return true;
+    })
+    .filter(task => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        task.title?.toLowerCase().includes(q) ||
+        task.type?.toLowerCase().includes(q) ||
+        task.description?.toLowerCase().includes(q)
+      );
+    })
+    .filter(task => {
+      if (typeFilter === 'Semua') return true;
+      return task.type?.toLowerCase() === typeFilter.toLowerCase();
+    })
+    .filter(task => {
+      if (!dateFrom && !dateTo) return true;
+      const taskDate = task.date || '';
+      if (dateFrom && taskDate < dateFrom) return false;
+      if (dateTo && taskDate > dateTo) return false;
       return true;
     })
     .sort((a, b) => {
@@ -110,6 +152,99 @@ export const TasksScreen: React.FC<{
       </header>
 
       <div className="p-5">
+        {/* Search Bar */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Cari judul, jenis, deskripsi..."
+            className="w-full bg-[#151b2b] border border-gray-800 rounded-2xl pl-9 pr-9 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-colors"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Filter Toggle Button */}
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={() => setShowFilters(v => !v)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${showFilters ? 'bg-blue-600 border-blue-500 text-white' : 'bg-[#151b2b] border-gray-800 text-gray-400 hover:border-gray-700'}`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            Filter
+            {activeFilterCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center font-black">{activeFilterCount}</span>
+            )}
+            <ChevronDown className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+          </button>
+          {(activeFilterCount > 0 || searchQuery) && (
+            <button onClick={clearAllFilters} className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all">
+              <X className="w-3 h-3" /> Reset
+            </button>
+          )}
+        </div>
+
+        {/* Expandable Filter Panel */}
+        <AnimatePresence>
+          {showFilters && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden mb-4"
+            >
+              <div className="bg-[#151b2b] rounded-2xl border border-gray-800 p-4 space-y-4">
+                {/* Type Filter */}
+                <div>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Jenis Tugas</p>
+                  <div className="flex flex-wrap gap-2">
+                    {allTypeOptions.map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setTypeFilter(t)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${typeFilter === t ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-500/20' : 'bg-[#0a0f18] border-gray-700 text-gray-400 hover:border-gray-600'}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date Range Filter */}
+                <div>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Rentang Tanggal</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-gray-600 mb-1 block">Dari</label>
+                      <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={e => setDateFrom(e.target.value)}
+                        className="w-full bg-[#0a0f18] border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors scheme-dark"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-600 mb-1 block">Sampai</label>
+                      <input
+                        type="date"
+                        value={dateTo}
+                        onChange={e => setDateTo(e.target.value)}
+                        className="w-full bg-[#0a0f18] border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500 transition-colors scheme-dark"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex gap-4 border-b border-gray-800 mb-6">
           <button onClick={() => setFilter('ALL')} className={`pb-3 font-bold text-sm transition-all relative ${filter === 'ALL' ? 'text-blue-400' : 'text-gray-500'}`}>Semua <span className="ml-1.5 text-[10px] opacity-60">({counts.all})</span>{filter === 'ALL' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}</button>
           <button onClick={() => setFilter('ACTIVE')} className={`pb-3 font-bold text-sm transition-all relative ${filter === 'ACTIVE' ? 'text-blue-400' : 'text-gray-500'}`}>Aktif <span className="ml-1.5 text-[10px] opacity-60">({counts.active})</span>{filter === 'ACTIVE' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}</button>
@@ -171,7 +306,15 @@ export const TasksScreen: React.FC<{
             );
           }) : (
             <motion.div variants={itemVariants} className="text-center py-12 bg-[#151b2b] rounded-2xl border border-dashed border-gray-800">
-              <p className="text-gray-500 text-xs italic">Belum ada tugas terjadwal.</p>
+              <Search className="w-8 h-8 text-gray-700 mx-auto mb-3 opacity-50" />
+              <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">
+                {searchQuery || typeFilter !== 'Semua' || dateFrom || dateTo
+                  ? 'Tidak ada tugas yang cocok dengan filter'
+                  : 'Belum ada tugas terjadwal.'}
+              </p>
+              {(searchQuery || typeFilter !== 'Semua' || dateFrom || dateTo) && (
+                <button onClick={clearAllFilters} className="mt-3 text-blue-400 text-xs font-bold hover:underline">Reset filter</button>
+              )}
             </motion.div>
           )}
         </motion.div>
