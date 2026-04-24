@@ -47,6 +47,7 @@ export const TaskDetail: React.FC<{
 
   const status = task.status;
   const isAdminRole = role === 'SUPERADMIN' || role?.startsWith('ADMIN_');
+  const isAssigned = task.assignedUsers?.some(id => id?.trim() === currentUser?.uid?.trim()) ?? false;
 
   const handleGivePenalty = async (uid: string, userName?: string) => {
     openConfirm(
@@ -225,6 +226,14 @@ export const TaskDetail: React.FC<{
     }
   };
 
+  const getTaskImage = (type: string) => {
+    const t = type ? type.toLowerCase() : '';
+    if (t === 'publikasi' || t === 'publication') return '/publication.jpg';
+    if (t === 'peliputan' || t === 'video') return '/video.jpg';
+    if (t === 'dokumentasi' || t === 'photo') return '/kamera.jpg';
+    return '/background.jpg';
+  };
+
   const getIcon = (type: string) => {
     const t = type?.toLowerCase();
     switch(t) {
@@ -277,15 +286,13 @@ export const TaskDetail: React.FC<{
               <Edit2 className="w-5 h-5" />
             </button>
           )}
-          <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
-            <MoreHorizontal className="w-5 h-5 text-gray-300" />
-          </button>
+  
         </div>
       </header>
 
       <div className="h-48 bg-gray-800 relative">
         <img 
-          src="/background.jpg" 
+          src={getTaskImage(task.type)} 
           alt="Latar Belakang Tugas"
           className="w-full h-full object-cover opacity-50" 
           referrerPolicy="no-referrer"
@@ -424,7 +431,7 @@ export const TaskDetail: React.FC<{
           </div>
         )}
 
-        {task.assignedUsers?.includes(currentUser?.uid || '') && task.status !== 'COMPLETED' && (
+        {isAssigned && task.status !== 'COMPLETED' && (
           <div className="pt-2">
             <button 
               onClick={() => onNavigate('SWAP_REQUEST')}
@@ -456,7 +463,7 @@ export const TaskDetail: React.FC<{
                     <p className="text-xs text-gray-200 font-medium">{h.message}</p>
                     <div className="flex justify-between items-center mt-2">
                       <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Oleh: {h.userName}</span>
-                      <span className="text-[10px] text-gray-500">{(h.createdAt?.toDate ? h.createdAt.toDate() : new Date(h.createdAt)).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-[10px] text-gray-500">{(h.createdAt?.toDate ? h.createdAt.toDate() : h.createdAt ? new Date(h.createdAt) : new Date()).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
                 </div>
@@ -485,7 +492,7 @@ export const TaskDetail: React.FC<{
                       <div>
                         <span className="text-xs font-bold text-blue-400 block">{progress.userName}</span>
                         <span className="text-[10px] text-gray-500">
-                          {(progress.date?.toDate ? progress.date.toDate() : new Date(progress.date)).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {(progress.date?.toDate ? progress.date.toDate() : progress.date ? new Date(progress.date) : new Date()).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       
@@ -605,14 +612,16 @@ export const TaskDetail: React.FC<{
         </div>
       )}
 
-      {status === 'IN_PROGRESS' && activeTab === 'DETAIL' && (
+      {status === 'IN_PROGRESS' && activeTab === 'DETAIL' && (isAssigned || isAdminRole) && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-97.5 px-5 z-20 flex gap-3">
+          {isAssigned && (
           <button 
             onClick={() => onNavigate('TASK_UPDATE')}
             className="flex-1 bg-[#151b2b] text-white font-bold py-4 rounded-2xl border border-gray-800 active:scale-[0.98] transition-transform"
           >
             Update Progress
           </button>
+          )}
           {isAdminRole ? (
             <button 
               onClick={() => setShowAdminCompleteModal(true)}
