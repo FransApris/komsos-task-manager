@@ -4,6 +4,7 @@ import { Screen, UserAccount, Role } from '../types';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from '../firebase';
 import { toast } from 'sonner';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { KanbanCardSkeleton } from '../components/Skeleton';
 
 // Definisi Tipe Data Konten V-Cast
 interface VCastContent {
@@ -155,9 +156,28 @@ export const VCastManagerScreen: React.FC<{
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0f18] text-gray-500">
-        <Loader2 className="animate-spin mb-2 w-8 h-8 text-blue-500" />
-        <p className="text-xs font-bold uppercase tracking-widest">Memuat Papan Kanban...</p>
+      <div className="flex-1 flex flex-col bg-[#0a0f18] text-white h-screen overflow-hidden">
+        <header className="p-5 flex justify-between items-center bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50 shrink-0">
+          <div className="h-8 w-8 animate-pulse bg-gray-800 rounded-full" />
+          <div className="space-y-1.5 text-center">
+            <div className="h-3 w-32 animate-pulse bg-gray-800 rounded-full mx-auto" />
+            <div className="h-2.5 w-24 animate-pulse bg-gray-700 rounded-full mx-auto" />
+          </div>
+          <div className="h-8 w-8 animate-pulse bg-gray-800 rounded-full" />
+        </header>
+        <div className="flex-1 flex gap-4 overflow-x-auto p-4">
+          {COLUMNS.slice(0, 3).map(col => (
+            <div key={col.id} className="flex flex-col w-64 shrink-0">
+              <div className={`p-3 rounded-t-2xl border ${col.bg} ${col.border} flex items-center justify-between`}>
+                <div className="h-3 w-28 animate-pulse bg-gray-700 rounded-full" />
+                <div className="h-5 w-5 animate-pulse bg-gray-700 rounded-full" />
+              </div>
+              <div className={`flex-1 bg-[#151b2b] border-x border-b ${col.border} rounded-b-2xl p-3 space-y-3`}>
+                {[0, 1].map(i => <KanbanCardSkeleton key={i} />)}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

@@ -12,6 +12,7 @@ import { getAvatarUrl } from '../lib/avatar';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { UserCardSkeleton } from '../components/Skeleton';
 
 interface UserVerificationScreenProps {
   onNavigate: (screen: Screen) => void;
@@ -161,9 +162,8 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
         </div>
 
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-            <p className="text-gray-500 text-sm font-medium">Memuat data pendaftaran...</p>
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, i) => <UserCardSkeleton key={i} />)}
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="text-center py-20 bg-[#151b2b] rounded-3xl border border-gray-800 border-dashed">

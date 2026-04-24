@@ -1,8 +1,9 @@
 import React from 'react';
 import { Screen, Role, Task, UserAccount, TaskType } from '../types';
-import { CheckSquare, Clock, Video, Calendar, Plus, Image as ImageIcon, FileText, Loader2, Activity, Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { CheckSquare, Clock, Video, Calendar, Plus, Image as ImageIcon, FileText, Activity, Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getAvatarUrl } from '../lib/avatar';
+import { TaskCardSkeleton } from '../components/Skeleton';
 
 export const TasksScreen: React.FC<{ 
   onNavigate: (s: Screen) => void, 
@@ -23,9 +24,13 @@ export const TasksScreen: React.FC<{
 
   if (!tasksDb || !usersDb) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0f18] text-gray-400">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-2" />
-        <p className="text-xs font-bold uppercase tracking-widest">Sinkronisasi...</p>
+      <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 text-white">
+        <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
+          <div className="h-6 w-32 animate-pulse bg-gray-800 rounded-lg" />
+        </header>
+        <div className="p-5 space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => <TaskCardSkeleton key={i} />)}
+        </div>
       </div>
     );
   }

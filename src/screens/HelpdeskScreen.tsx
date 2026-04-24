@@ -4,6 +4,7 @@ import { Screen, Role, UserAccount } from '../types';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, arrayUnion, where, limit, handleFirestoreError, OperationType } from '../firebase';
 import { toast } from 'sonner';
 import { ConfirmationModal } from '../components/ConfirmationModal';
+import { TicketRowSkeleton } from '../components/Skeleton';
 
 interface HelpdeskScreenProps {
   onNavigate: (s: Screen) => void;
@@ -397,7 +398,9 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
         {activeTab === 'LIST' && (
           <div className="space-y-3">
             {isLoading ? (
-              <div className="text-center py-10"><Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto" /></div>
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => <TicketRowSkeleton key={i} />)}
+              </div>
             ) : tickets.length > 0 ? (
               tickets.map(ticket => (
                 <div key={ticket.id} onClick={() => setSelectedTicket(ticket)} className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 cursor-pointer hover:border-blue-500/50 transition-all flex items-start gap-4 group">
