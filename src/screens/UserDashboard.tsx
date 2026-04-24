@@ -167,14 +167,16 @@ export const UserDashboard: React.FC<{
         
         if (days > 0) {
           setCountdown(`${days} Hari ${hours}j ${minutes}m`);
-        } else {
+        } else if (hours > 0) {
           setCountdown(`${hours}j ${minutes}m`);
+        } else {
+          setCountdown(`${minutes} Menit Lagi`);
         }
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [tasksDb, user]); 
+  }, [myUpcomingTasks.length > 0 ? myUpcomingTasks[0].id : null, myOverdueTasks.length]); 
 
   const handleSaveNotes = async () => {
     if (!user || !user.id) return;
@@ -496,6 +498,9 @@ export const UserDashboard: React.FC<{
             <div className="p-2 bg-white/20 rounded-xl"><Clock className="w-5 h-5 text-white" /></div>
             <p className="text-[10px] font-bold text-indigo-100 uppercase tracking-widest">Tugas Terdekat</p>
           </div>
+          {myUpcomingTasks.length > 0 && (
+            <p className="text-xs font-bold text-indigo-200 mb-2 truncate opacity-80">{myUpcomingTasks[0].title} · {myUpcomingTasks[0].date}</p>
+          )}
           <p className="text-3xl font-black text-white mb-1">{countdown}</p>
           <p className="text-[10px] text-indigo-100 font-medium uppercase tracking-widest opacity-80">Waktu Tersisa</p>
         </motion.div>
