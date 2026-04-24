@@ -476,13 +476,13 @@ export const UserDashboard: React.FC<{
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
             {[
-              { title: 'Pemula', desc: 'Selesaikan 1 tugas', icon: <CheckCircle size={20} />, unlocked: completedTasksCount >= 1, colorUncloked: 'text-amber-500', bgUnlocked: 'bg-linear-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' },
-              { title: 'Konsisten', desc: 'Streak 3 hari', icon: <Flame size={20} />, unlocked: currentStreak >= 3, colorUncloked: 'text-amber-500', bgUnlocked: 'bg-linear-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' },
-              { title: 'Spesialis', desc: 'Skill Lv. 5', icon: <Target size={20} />, unlocked: user && user.stats && Object.values(user.stats).some(v => v >= 50), colorUncloked: 'text-amber-500', bgUnlocked: 'bg-linear-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' },
-              { title: 'Veteran', desc: 'Level 10', icon: <Trophy size={20} />, unlocked: userLevel >= 10, colorUncloked: 'text-amber-500', bgUnlocked: 'bg-linear-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' },
+              { title: 'Pemula',    desc: 'Selesaikan 1 tugas', icon: <CheckCircle size={20} />, unlocked: completedTasksCount >= 1,  colorUnlocked: 'text-amber-500',   bgUnlocked: 'bg-linear-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30' },
+              { title: 'Konsisten', desc: 'Streak 3 hari',      icon: <Flame size={20} />,       unlocked: currentStreak >= 3,         colorUnlocked: 'text-orange-500',  bgUnlocked: 'bg-linear-to-br from-orange-500/20 to-red-500/20 border-orange-500/30' },
+              { title: 'Spesialis', desc: 'Skill Lv. 5',        icon: <Target size={20} />,      unlocked: user?.stats ? Object.values(user.stats).some(v => v >= 40) : false, colorUnlocked: 'text-blue-500', bgUnlocked: 'bg-linear-to-br from-blue-500/20 to-indigo-500/20 border-blue-500/30' },
+              { title: 'Veteran',   desc: 'Level 10',           icon: <Trophy size={20} />,      unlocked: userLevel >= 10,            colorUnlocked: 'text-purple-500',  bgUnlocked: 'bg-linear-to-br from-purple-500/20 to-violet-500/20 border-purple-500/30' },
             ].map((achievement, idx) => (
               <motion.div key={idx} whileHover={{ y: -5 }} className={`min-w-35 p-4 rounded-2xl border transition-all ${achievement.unlocked ? achievement.bgUnlocked : 'bg-[#151b2b] border-gray-800 opacity-50'}`}>
-                <div className={`mb-3 ${achievement.unlocked ? achievement.colorUncloked : 'text-gray-600'}`}>{achievement.icon}</div>
+                <div className={`mb-3 ${achievement.unlocked ? achievement.colorUnlocked : 'text-gray-600'}`}>{achievement.icon}</div>
                 <p className="text-xs font-bold text-white mb-1">{achievement.title}</p>
                 <p className="text-[9px] text-gray-500 uppercase tracking-wider leading-tight">{achievement.desc}</p>
               </motion.div>
