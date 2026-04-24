@@ -25,7 +25,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-5 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-200 flex items-center justify-center p-5 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
       <div className="bg-[#151b2b] w-full max-w-sm rounded-3xl border border-gray-800 p-8 shadow-2xl animate-in zoom-in-95 duration-300">
         <div className={`w-16 h-16 ${isDanger ? 'bg-red-500/10' : 'bg-blue-500/10'} rounded-full flex items-center justify-center mx-auto mb-6`}>
           <AlertTriangle className={`w-8 h-8 ${isDanger ? 'text-red-500' : 'text-blue-500'}`} />

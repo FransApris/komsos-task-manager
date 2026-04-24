@@ -48,7 +48,7 @@ export const EmailSupport: React.FC<{ onNavigate: (s: Screen) => void }> = ({ on
           <CheckCircle2 className="w-10 h-10 text-emerald-500" />
         </div>
         <h2 className="text-xl font-bold mb-2 animate-in slide-in-from-bottom-4 duration-500 delay-100">Pesan Terkirim!</h2>
-        <p className="text-sm text-gray-400 max-w-[250px] animate-in slide-in-from-bottom-4 duration-500 delay-200">
+        <p className="text-sm text-gray-400 max-w-62.5 animate-in slide-in-from-bottom-4 duration-500 delay-200">
           Tim Komsos akan meninjau pesan Anda dan merespons secepatnya.
         </p>
       </div>
