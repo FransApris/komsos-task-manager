@@ -12,9 +12,20 @@ import {
   orderBy, 
   onSnapshot,
   arrayUnion,
-  increment
+  increment,
+  getDoc
 } from "../firebase";
 import { sendNotificationToAdmins } from "./notificationService";
+
+/**
+ * Konstanta XP per level — gunakan di semua screen agar konsisten.
+ */
+export const XP_PER_LEVEL = 500;
+
+/**
+ * Hitung level berdasarkan total XP.
+ */
+export const calcLevel = (totalXp: number): number => Math.max(1, Math.floor(totalXp / XP_PER_LEVEL) + 1);
 
 /**
  * Menentukan key stat Firestore berdasarkan tipe tugas.
@@ -169,6 +180,13 @@ export const revokeTaskPoints = async (task: any, currentUser: any) => {
 
         const statKey = getStatKeyFromType(task.type || '');
         if (statKey) userUpdate[statKey] = increment(-10);
+
+        // Hitung level baru setelah XP dikurangi
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const currentXp = (userSnap.data().xp || 0) - pointsToDeduct;
+          userUpdate.level = calcLevel(Math.max(0, currentXp));
+        }
 
         await updateDoc(userRef, userUpdate);
 

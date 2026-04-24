@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { ChevronLeft, CheckCircle2, Video, FileText, Activity, Users, Briefcase, Image as ImageIcon } from 'lucide-react';
 import { Screen, Task, UserAccount } from '../types';
 import { db, auth, doc, updateDoc, serverTimestamp, increment } from '../firebase';
-import { getStatKeyFromType } from '../services/taskService';
+import { getStatKeyFromType, calcLevel } from '../services/taskService';
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
 
@@ -62,6 +62,11 @@ export const TaskVerificationScreen: React.FC<{
 
           const statKey = getStatKeyFromType(task.type || '');
           if (statKey) userUpdate[statKey] = increment(10);
+
+          // Hitung level baru
+          const currentUserData = (usersDb || []).find((u: any) => (u.uid || u.id) === uid);
+          const currentXp = currentUserData?.xp || 0;
+          userUpdate.level = calcLevel(currentXp + earnedPoints);
 
           await updateDoc(userRef, userUpdate);
         }

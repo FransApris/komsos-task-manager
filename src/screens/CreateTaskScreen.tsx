@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ChevronLeft, Calendar, Clock, MapPin, Users, FileText, CheckCircle2, AlertCircle, X, Camera, Crown, Briefcase, Sparkles, Link, PlayCircle } from 'lucide-react';
 import { Screen, UserAccount, Inventory, TaskType } from '../types';
 import { db, collection, addDoc, serverTimestamp, doc, updateDoc, increment } from '../firebase';
-import { getStatKeyFromType } from '../services/taskService';
+import { getStatKeyFromType, calcLevel } from '../services/taskService';
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
@@ -208,6 +208,11 @@ export const CreateTaskScreen: React.FC<{
 
           const statKey = getStatKeyFromType(taskType);
           if (statKey) userUpdate[statKey] = increment(10);
+
+          // Hitung level baru
+          const currentUserData = (usersDb || []).find((u: any) => (u.uid || u.id) === uid);
+          const currentXp = currentUserData?.xp || 0;
+          userUpdate.level = calcLevel(currentXp + earnedPoints);
 
           await updateDoc(userRef, userUpdate);
         }

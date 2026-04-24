@@ -121,7 +121,7 @@ export const UserDashboard: React.FC<{
   [usersDb, user?.uid]);
 
   const currentXp = (user && user.xp) ? user.xp : 0;
-  const xpPerLevel = 1000;
+  const xpPerLevel = 500;
   const levelProgress = (currentXp % xpPerLevel) / xpPerLevel * 100;
 
   const getSkillProgress = (category: keyof NonNullable<UserAccount['stats']>) => {

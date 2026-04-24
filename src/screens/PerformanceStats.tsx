@@ -37,7 +37,12 @@ export const PerformanceStats: React.FC<{
   
   // Mencegah Invalid Array Length pada perhitungan progres
   const totalPoints = currentUser.points || 0;
+  const totalXp = currentUser.xp || 0;
   const taskCount = completedTasks.length || 0;
+  const XP_PER_LEVEL = 500;
+  const computedLevel = currentUser.level || Math.max(1, Math.floor(totalXp / XP_PER_LEVEL) + 1);
+  const xpInLevel = totalXp % XP_PER_LEVEL;
+  const xpLevelPct = Math.min((xpInLevel / XP_PER_LEVEL) * 100, 100);
   const badgeCount = badgesDb.filter(b => b.userId === currentUser.uid).length || 0;
 
   return (
@@ -72,21 +77,20 @@ export const PerformanceStats: React.FC<{
           <div className="flex justify-between items-end mb-4">
             <div>
               <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Level Anggota</p>
-              <h2 className="text-2xl font-black text-white">Level {currentUser.level || 1}</h2>
+              <h2 className="text-2xl font-black text-white">Level {computedLevel}</h2>
             </div>
             <Award className="w-10 h-10 text-blue-500" />
           </div>
           
-          {/* Progress Bar Manual (Lebih aman daripada library grafik yang sering error) */}
           <div className="h-3 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
             <motion.div 
               initial={{ width: 0 }}
-              animate={{ width: `${Math.min((totalPoints % 100), 100)}%` }}
+              animate={{ width: `${xpLevelPct}%` }}
               className="h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]"
             />
           </div>
           <p className="text-[10px] text-gray-500 mt-3 font-bold uppercase tracking-tighter">
-            {100 - (totalPoints % 100)} Poin lagi menuju Level Selanjutnya
+            {xpInLevel} / {XP_PER_LEVEL} XP &mdash; {XP_PER_LEVEL - xpInLevel} XP lagi ke Level {computedLevel + 1}
           </p>
         </div>
 

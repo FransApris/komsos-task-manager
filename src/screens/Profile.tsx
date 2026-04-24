@@ -92,7 +92,7 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
     }
   };
 
-  const XP_PER_LEVEL = 200;
+  const XP_PER_LEVEL = 500;
   const totalXp = user?.xp || 0;
   const level = user?.level || Math.max(1, Math.floor(totalXp / XP_PER_LEVEL) + 1);
   const xpInLevel = totalXp % XP_PER_LEVEL;

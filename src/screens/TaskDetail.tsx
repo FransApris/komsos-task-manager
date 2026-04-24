@@ -5,7 +5,7 @@ import { db, doc, updateDoc, serverTimestamp, collection, addDoc, arrayUnion, ar
 import { TaskChat } from './TaskChat';
 import { getAvatarUrl } from '../lib/avatar';
 import { toast } from 'sonner';
-import { revokeTaskPoints, getStatKeyFromType } from '../services/taskService';
+import { revokeTaskPoints, getStatKeyFromType, calcLevel, XP_PER_LEVEL } from '../services/taskService';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const TaskDetail: React.FC<{ 
@@ -131,6 +131,11 @@ export const TaskDetail: React.FC<{
 
           const statKey = getStatKeyFromType(task.type || '');
           if (statKey) userUpdate[statKey] = increment(10);
+
+          // Hitung level baru berdasarkan XP saat ini + XP baru
+          const currentUserData = usersDb.find(u => (u.uid || u.id) === uid);
+          const currentXp = currentUserData?.xp || 0;
+          userUpdate.level = calcLevel(currentXp + earnedPoints);
 
           await updateDoc(userRef, userUpdate);
         }
