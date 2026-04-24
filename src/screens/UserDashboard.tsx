@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone, RefreshCw, Circle, HelpCircle, PlayCircle } from 'lucide-react';
+import { Bell, Video, Calendar, Clock, LogOut, Image as ImageIcon, FileText, CheckSquare, UserCheck, Users, Activity, Zap, Star, TrendingUp, Edit3, Save, Timer, Loader2, Globe, Sparkles, CheckCircle, ShieldCheck, ChevronRight, Flame, Trophy, Target, Award, Megaphone, RefreshCw, Circle, HelpCircle, PlayCircle, AlertCircle } from 'lucide-react';
 import { Screen, UserAccount, Task, Notification, TaskType, AvailabilityStatus } from '../types';
 import { Leaderboard } from '../components/Leaderboard';
 import { motion, AnimatePresence } from 'motion/react';
@@ -97,6 +97,10 @@ export const UserDashboard: React.FC<{
       return dateB - dateA;
     });
 
+  const today = new Date().toISOString().split('T')[0];
+  const myOverdueTasks = myActiveTasks.filter(t => t.date < today && (t.status === 'OPEN' || t.status === 'IN_PROGRESS'));
+  const myUpcomingTasks = myActiveTasks.filter(t => !(t.date < today && (t.status === 'OPEN' || t.status === 'IN_PROGRESS')));
+
   const displayedTasks = taskTab === 'MINE' ? myActiveTasks : taskTab === 'ALL' ? allActiveTasks : myCompletedTasks;
 
   const unreadCount = (notificationsDb || []).filter(n => !n.read).length;
@@ -129,12 +133,12 @@ export const UserDashboard: React.FC<{
 
   // --- HITUNG MUNDUR (TANPA DETIK) ---
   useEffect(() => {
-    if (myActiveTasks.length === 0) {
-      setCountdown('Tidak ada tugas terdekat');
+    if (myUpcomingTasks.length === 0) {
+      setCountdown(myOverdueTasks.length > 0 ? 'Ada tugas yang terlewat!' : 'Tidak ada tugas terdekat');
       return;
     }
 
-    const nextTask = myActiveTasks[0];
+    const nextTask = myUpcomingTasks[0];
 
     const timer = setInterval(() => {
       const now = new Date().getTime();
@@ -214,15 +218,21 @@ export const UserDashboard: React.FC<{
     );
   }).slice(0, 3);
 
-  const statsData = [
-    { name: 'Sen', tasks: 2 },
-    { name: 'Sel', tasks: 5 },
-    { name: 'Rab', tasks: 3 },
-    { name: 'Kam', tasks: 8 },
-    { name: 'Jum', tasks: 4 },
-    { name: 'Sab', tasks: 10 },
-    { name: 'Min', tasks: 6 },
-  ];
+  const statsData = useMemo(() => {
+    const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const dateStr = d.toISOString().split('T')[0];
+      const count = (tasksDb || []).filter(t => {
+        const taskDate = t.updatedAt?.seconds
+          ? new Date(t.updatedAt.seconds * 1000).toISOString().split('T')[0]
+          : t.date;
+        return t.status === 'COMPLETED' && taskDate === dateStr;
+      }).length;
+      return { name: days[d.getDay()], tasks: count };
+    });
+  }, [tasksDb]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -275,10 +285,10 @@ export const UserDashboard: React.FC<{
   
   const userLevel = (user && user.level) ? user.level : 1;
   const userPoints = (user && user.points) ? user.points : 0;
-  const completedTasksCount = (user && user.completedTasksCount) ? user.completedTasksCount : 0;
+  const completedTasksCount = myCompletedTasks.length;
   
   const sortedUsers = [...usersDb].sort((a, b) => (b.points || 0) - (a.points || 0));
-  const userRank = user ? sortedUsers.findIndex(u => u.id === user.id) + 1 : 0;
+  const userRank = user ? sortedUsers.findIndex(u => (u.uid || u.id) === (user.uid || user.id)) + 1 : 0;
   
   const availability = (user && user.availability) ? user.availability : 'AVAILABLE';
   const availStyles = {
@@ -628,6 +638,23 @@ export const UserDashboard: React.FC<{
           </motion.button>
         </motion.div>
 
+        {myOverdueTasks.length > 0 && (
+          <motion.div variants={itemVariants} className="mb-4 bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <p className="text-xs font-black text-red-500 uppercase tracking-widest">{myOverdueTasks.length} Tugas Terlewat</p>
+            </div>
+            <div className="space-y-2">
+              {myOverdueTasks.map(t => (
+                <button key={t.id} onClick={() => { setSelectedTaskId(t.id); onNavigate('TASK_DETAIL'); }} className="w-full text-left p-3 bg-red-500/5 rounded-xl border border-red-500/20 hover:border-red-500/40 transition-colors">
+                  <p className="text-xs font-bold text-white">{t.title}</p>
+                  <p className="text-[10px] text-red-400 mt-0.5">{t.date} · {t.type}</p>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         <motion.div variants={itemVariants} className="flex justify-between items-center mb-4">
           <div className="flex gap-2 bg-[#151b2b] p-1.5 rounded-xl border border-gray-800 overflow-x-auto no-scrollbar">
             <button 
@@ -660,23 +687,24 @@ export const UserDashboard: React.FC<{
             const customColor = customTypeObj ? customTypeObj.color : null;
             const customStyle = customColor ? { backgroundColor: `${customColor}20` } : {};
             const isCompleted = task.status === 'COMPLETED';
+            const isOverdue = !isCompleted && task.date < today && (task.status === 'OPEN' || task.status === 'IN_PROGRESS');
 
             return (
               <motion.div 
                 variants={itemVariants}
                 key={task.id}
-                className={`bg-[#151b2b] rounded-2xl overflow-hidden border border-gray-800 shadow-lg cursor-pointer transition-all hover:border-${isCompleted ? 'emerald' : 'blue'}-500/50 relative`} 
+                className={`bg-[#151b2b] rounded-2xl overflow-hidden border ${isOverdue ? 'border-red-500/30' : 'border-gray-800'} shadow-lg cursor-pointer transition-all hover:border-${isCompleted ? 'emerald' : 'blue'}-500/50 relative`} 
                 onClick={() => { setSelectedTaskId(task.id); onNavigate('TASK_DETAIL'); }}
                 whileTap={{ scale: 0.98 }}
               >
-                {taskTab === 'ALL' && user && task.assignedUsers && task.assignedUsers.includes(user.uid) && (
+                {taskTab === 'ALL' && user && task.assignedUsers && task.assignedUsers.some(id => id?.trim() === user.uid?.trim()) && (
                   <div className="absolute top-0 right-0 w-2 h-full bg-blue-500 z-10 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
                 )}
 
                 <div className="h-32 bg-gray-800 relative">
                   <img src={getTaskImage(task.type)} className="w-full h-full object-cover opacity-60 mix-blend-overlay" alt={task.title} referrerPolicy="no-referrer" />
-                  <div className={`absolute top-3 left-3 ${isCompleted ? 'bg-emerald-600' : 'bg-blue-600'} text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5 shadow-md`}>
-                    <span className={`w-1.5 h-1.5 bg-white rounded-full ${!isCompleted ? 'animate-pulse' : ''}`}></span> {isCompleted ? 'Selesai & Terverifikasi' : 'Sedang Berlangsung'}
+                  <div className={`absolute top-3 left-3 ${isCompleted ? 'bg-emerald-600' : isOverdue ? 'bg-red-600' : 'bg-blue-600'} text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider flex items-center gap-1.5 shadow-md`}>
+                    <span className={`w-1.5 h-1.5 bg-white rounded-full ${!isCompleted && !isOverdue ? 'animate-pulse' : ''}`}></span> {isCompleted ? 'Selesai & Terverifikasi' : isOverdue ? 'Terlewat' : 'Sedang Berlangsung'}
                   </div>
                 </div>
                 <div className="p-4">

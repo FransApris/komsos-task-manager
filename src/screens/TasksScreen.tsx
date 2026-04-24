@@ -14,7 +14,7 @@ export const TasksScreen: React.FC<{
   setSelectedTaskId: (id: string) => void
 }> = ({ onNavigate, role, tasksDb = [], usersDb = [], taskTypes = [], setSelectedTaskId }) => { 
   
-  const [filter, setFilter] = React.useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
+  const [filter, setFilter] = React.useState<'ALL' | 'ACTIVE' | 'COMPLETED' | 'OVERDUE'>('ALL');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [typeFilter, setTypeFilter] = React.useState('Semua');
   const [dateFrom, setDateFrom] = React.useState('');
@@ -60,11 +60,15 @@ export const TasksScreen: React.FC<{
     setSearchQuery('');
   };
 
+  const today = new Date().toISOString().split('T')[0];
+  const isTaskOverdue = (task: Task) => task.date < today && (task.status === 'OPEN' || task.status === 'IN_PROGRESS');
+
   const filteredTasks = tasksDb
     .filter(task => {
       if (filter === 'ALL') return true;
-      if (filter === 'ACTIVE') return task.status === 'OPEN' || task.status === 'IN_PROGRESS' || task.status === 'WAITING_VERIFICATION';
+      if (filter === 'ACTIVE') return (task.status === 'OPEN' || task.status === 'IN_PROGRESS' || task.status === 'WAITING_VERIFICATION') && !isTaskOverdue(task);
       if (filter === 'COMPLETED') return task.status === 'COMPLETED';
+      if (filter === 'OVERDUE') return isTaskOverdue(task);
       return true;
     })
     .filter(task => {
@@ -109,8 +113,9 @@ export const TasksScreen: React.FC<{
 
   const counts = {
     all: tasksDb.length,
-    active: tasksDb.filter(t => t.status === 'OPEN' || t.status === 'IN_PROGRESS' || t.status === 'WAITING_VERIFICATION').length,
-    completed: tasksDb.filter(t => t.status === 'COMPLETED').length
+    active: tasksDb.filter(t => (t.status === 'OPEN' || t.status === 'IN_PROGRESS' || t.status === 'WAITING_VERIFICATION') && !isTaskOverdue(t)).length,
+    completed: tasksDb.filter(t => t.status === 'COMPLETED').length,
+    overdue: tasksDb.filter(t => isTaskOverdue(t)).length
   };
 
   const getIcon = (type: string) => {
@@ -250,10 +255,11 @@ export const TasksScreen: React.FC<{
           )}
         </AnimatePresence>
 
-        <div className="flex gap-4 border-b border-gray-800 mb-6">
-          <button onClick={() => setFilter('ALL')} className={`pb-3 font-bold text-sm transition-all relative ${filter === 'ALL' ? 'text-blue-400' : 'text-gray-500'}`}>Semua <span className="ml-1.5 text-[10px] opacity-60">({counts.all})</span>{filter === 'ALL' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}</button>
-          <button onClick={() => setFilter('ACTIVE')} className={`pb-3 font-bold text-sm transition-all relative ${filter === 'ACTIVE' ? 'text-blue-400' : 'text-gray-500'}`}>Aktif <span className="ml-1.5 text-[10px] opacity-60">({counts.active})</span>{filter === 'ACTIVE' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}</button>
-          <button onClick={() => setFilter('COMPLETED')} className={`pb-3 font-bold text-sm transition-all relative ${filter === 'COMPLETED' ? 'text-blue-400' : 'text-gray-500'}`}>Selesai <span className="ml-1.5 text-[10px] opacity-60">({counts.completed})</span>{filter === 'COMPLETED' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}</button>
+        <div className="flex gap-4 border-b border-gray-800 mb-6 overflow-x-auto no-scrollbar">
+          <button onClick={() => setFilter('ALL')} className={`pb-3 font-bold text-sm transition-all relative whitespace-nowrap ${filter === 'ALL' ? 'text-blue-400' : 'text-gray-500'}`}>Semua <span className="ml-1.5 text-[10px] opacity-60">({counts.all})</span>{filter === 'ALL' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}</button>
+          <button onClick={() => setFilter('ACTIVE')} className={`pb-3 font-bold text-sm transition-all relative whitespace-nowrap ${filter === 'ACTIVE' ? 'text-blue-400' : 'text-gray-500'}`}>Aktif <span className="ml-1.5 text-[10px] opacity-60">({counts.active})</span>{filter === 'ACTIVE' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}</button>
+          <button onClick={() => setFilter('COMPLETED')} className={`pb-3 font-bold text-sm transition-all relative whitespace-nowrap ${filter === 'COMPLETED' ? 'text-blue-400' : 'text-gray-500'}`}>Selesai <span className="ml-1.5 text-[10px] opacity-60">({counts.completed})</span>{filter === 'COMPLETED' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-full"></div>}</button>
+          <button onClick={() => setFilter('OVERDUE')} className={`pb-3 font-bold text-sm transition-all relative whitespace-nowrap ${filter === 'OVERDUE' ? 'text-red-400' : 'text-gray-500'}`}>Terlewat {counts.overdue > 0 && <span className="ml-1.5 text-[10px] opacity-60">({counts.overdue})</span>}{filter === 'OVERDUE' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-500 rounded-full"></div>}</button>
         </div>
         
         <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
@@ -269,7 +275,7 @@ export const TasksScreen: React.FC<{
                 whileTap={{ scale: 0.98 }}
                 className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 cursor-pointer transition-all relative overflow-hidden group hover:border-blue-500/50"
               >
-                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${getStatusColor(task.status)} group-hover:w-2 transition-all`}></div>
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isTaskOverdue(task) ? 'bg-red-500' : getStatusColor(task.status)} group-hover:w-2 transition-all`}></div>
                 <div className="pl-3">
                   <div className="flex justify-between items-start mb-3">
                     <div>
@@ -283,9 +289,13 @@ export const TasksScreen: React.FC<{
                       >
                         {getIcon(task.type)}
                       </div>
-                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${task.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-500' : task.status === 'WAITING_VERIFICATION' ? 'bg-amber-500/20 text-amber-500' : 'bg-blue-500/20 text-blue-500'}`}>
-                        {task.status.replace('_', ' ')}
-                      </span>
+                      {isTaskOverdue(task) ? (
+                        <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter bg-red-500/20 text-red-500">Terlewat</span>
+                      ) : (
+                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${task.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-500' : task.status === 'WAITING_VERIFICATION' ? 'bg-amber-500/20 text-amber-500' : 'bg-blue-500/20 text-blue-500'}`}>
+                          {task.status.replace('_', ' ')}
+                        </span>
+                      )}
                     </div>
                   </div>
                   
