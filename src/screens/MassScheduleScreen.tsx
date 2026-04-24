@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, Plus, Calendar, Clock, MapPin, CheckCircle2, UserPlus, Trash2, Edit2, Tag, FileText, Users, Activity, Video, Image as ImageIcon, X } from 'lucide-react';
 import { Screen, Role, UserAccount, MassSchedule, Task, TaskType } from '../types';
-import { db, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from '../firebase';
+import { db, collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, arrayUnion } from '../firebase';
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -118,12 +118,11 @@ export const MassScheduleScreen: React.FC<{
 
   const handleJoin = async (schedule: MassSchedule) => {
     if (!currentUser) return;
-    if (schedule.assignedUsers?.includes(currentUser.uid)) return;
-    
-    const updatedUsers = [...(schedule.assignedUsers || []), currentUser.uid];
+    const uid = currentUser.uid || currentUser.id;
+    if (schedule.assignedUsers?.includes(uid)) return;
     try {
       await updateDoc(doc(db, 'massSchedules', schedule.id), {
-        assignedUsers: updatedUsers,
+        assignedUsers: arrayUnion(uid),
         updatedAt: serverTimestamp()
       });
       toast.success('Berhasil bergabung ke panitia agenda');
@@ -471,7 +470,7 @@ export const MassScheduleScreen: React.FC<{
                           task.status === 'WAITING_VERIFICATION' ? 'bg-amber-500/20 text-amber-500' : 
                           'bg-blue-500/20 text-blue-500'
                         }`}>
-                          {task.status.replace('_', ' ')}
+                          {{ 'OPEN': 'Dibuka', 'IN_PROGRESS': 'Berlangsung', 'WAITING_VERIFICATION': 'Menunggu', 'COMPLETED': 'Selesai' }[task.status] ?? task.status.replace(/_/g, ' ')}
                         </span>
                       </div>
                       

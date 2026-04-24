@@ -10,10 +10,12 @@ export const ScheduleScreen: React.FC<{
   onNavigate: (s: Screen) => void, 
   role?: Role, 
   usersDb?: UserAccount[],
-  tasksDb: Task[]
-}> = ({ onNavigate, role, usersDb = [], tasksDb }) => {
+  tasksDb: Task[],
+  setSelectedTaskId?: (id: string) => void
+}> = ({ onNavigate, role, usersDb = [], tasksDb, setSelectedTaskId }) => {
   const today = new Date();
-  const [selectedDate, setSelectedDate] = useState(today.getDate());
+  const [weekOffset, setWeekOffset] = React.useState(0);
+  const [selectedDate, setSelectedDate] = React.useState(today.getDate());
   const [filter, setFilter] = useState('Semua');
 
   // State untuk Fitur Edit & Hapus
@@ -39,7 +41,7 @@ export const ScheduleScreen: React.FC<{
   // Menghasilkan tanggal untuk minggu ini
   const dates = [];
   const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Senin
+  startOfWeek.setDate(today.getDate() - today.getDay() + 1 + weekOffset); // Senin
 
   const dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
   for (let i = 0; i < 7; i++) {
@@ -158,7 +160,16 @@ export const ScheduleScreen: React.FC<{
       <div className="p-5">
         {/* Penggulir Tanggal */}
         <div className="flex items-center justify-between mb-6">
-          <button className="p-1 text-gray-500 hover:text-white transition-colors"><ChevronLeft className="w-5 h-5" /></button>
+          <button 
+            onClick={() => {
+              const newOffset = weekOffset - 7;
+              setWeekOffset(newOffset);
+              const s = new Date(today);
+              s.setDate(today.getDate() - today.getDay() + 1 + newOffset);
+              setSelectedDate(s.getDate());
+            }}
+            className="p-1 text-gray-500 hover:text-white transition-colors"
+          ><ChevronLeft className="w-5 h-5" /></button>
           <div className="flex gap-2 overflow-x-auto no-scrollbar px-2">
             {dates.map((d) => (
               <button 
@@ -178,7 +189,16 @@ export const ScheduleScreen: React.FC<{
               </button>
             ))}
           </div>
-          <button className="p-1 text-gray-500 hover:text-white transition-colors"><ChevronRight className="w-5 h-5" /></button>
+          <button 
+            onClick={() => {
+              const newOffset = weekOffset + 7;
+              setWeekOffset(newOffset);
+              const s = new Date(today);
+              s.setDate(today.getDate() - today.getDay() + 1 + newOffset);
+              setSelectedDate(s.getDate());
+            }}
+            className="p-1 text-gray-500 hover:text-white transition-colors"
+          ><ChevronRight className="w-5 h-5" /></button>
         </div>
 
         {/* Filter Kategori */}
@@ -308,7 +328,7 @@ export const ScheduleScreen: React.FC<{
                         </>
                       ) : (
                         <button 
-                          onClick={() => onNavigate('TASK_DETAIL')}
+                          onClick={() => { if (setSelectedTaskId) setSelectedTaskId(task.id); onNavigate('TASK_DETAIL'); }}
                           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors shadow-md active:scale-95"
                         >
                           Detail
