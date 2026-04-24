@@ -138,7 +138,20 @@ export const TasksScreen: React.FC<{
     if (t === 'peliputan') return 'bg-blue-500/10';
     if (t === 'dokumentasi') return 'bg-emerald-500/10';
     if (t === 'publikasi') return 'bg-amber-500/10';
+    if (t === 'desain') return 'bg-purple-500/10';
+    if (t === 'obs') return 'bg-red-500/10';
+    if (t === 'editing') return 'bg-indigo-500/10';
     return 'bg-gray-500/10';
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'OPEN': return 'Dibuka';
+      case 'IN_PROGRESS': return 'Berlangsung';
+      case 'WAITING_VERIFICATION': return 'Menunggu Verifikasi';
+      case 'COMPLETED': return 'Selesai';
+      default: return status.replace(/_/g, ' ');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -293,7 +306,7 @@ export const TasksScreen: React.FC<{
                         <span className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter bg-red-500/20 text-red-500">Terlewat</span>
                       ) : (
                         <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${task.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-500' : task.status === 'WAITING_VERIFICATION' ? 'bg-amber-500/20 text-amber-500' : 'bg-blue-500/20 text-blue-500'}`}>
-                          {task.status.replace('_', ' ')}
+                          {getStatusLabel(task.status)}
                         </span>
                       )}
                     </div>
@@ -307,7 +320,7 @@ export const TasksScreen: React.FC<{
                         const u = usersDb?.find(user => user.uid === uid || user.id === uid);
                         return (
                           <div key={i} className="w-6 h-6 rounded-full border-2 border-[#151b2b] bg-gray-800 overflow-hidden shadow-sm">
-                            <img src={getAvatarUrl(u)} alt="Avatar" className="w-full h-full object-cover" />
+                            <img src={getAvatarUrl(u)} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           </div>
                         );
                       })}
