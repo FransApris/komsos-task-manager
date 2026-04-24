@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, MoreVertical, Mic, Video, Edit3, CheckCircle2, Calendar, User, Trash2, X, Save, Loader2, PlayCircle, ClipboardList } from 'lucide-react';
+import { ChevronLeft, Plus, MoreVertical, Edit3, CheckCircle2, Calendar, User, Trash2, X, Save, Loader2, PlayCircle, ClipboardList } from 'lucide-react';
 import { Screen, UserAccount, Role } from '../types';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp } from '../firebase';
 import { toast } from 'sonner';
@@ -205,7 +205,7 @@ export const VCastManagerScreen: React.FC<{
       </header>
 
       {/* KANBAN BOARD (Horizontal Scroll) */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden flex gap-4 p-5 snap-x snap-mandatory hide-scrollbar">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden flex gap-4 p-5 snap-x snap-mandatory no-scrollbar">
         {COLUMNS.map(col => {
           const colItems = contents.filter(c => c.status === col.id);
           return (
@@ -284,7 +284,7 @@ export const VCastManagerScreen: React.FC<{
                   }`}
                 >
                   {showActionModal.status === col.id && <CheckCircle2 className="w-3 h-3" />}
-                  {col.title.split(' ')[1]}
+                  {col.title.split(' ').slice(1).join(' ')}
                 </button>
               ))}
             </div>
