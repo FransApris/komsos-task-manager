@@ -5,6 +5,7 @@ import { db, collection, addDoc, serverTimestamp, doc, updateDoc, increment } fr
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const CreateTaskScreen: React.FC<{ 
   onNavigate: (s: Screen) => void,
@@ -34,6 +35,33 @@ export const CreateTaskScreen: React.FC<{
   const [showConfirmComplete, setShowConfirmComplete] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
+  // Dirty flag — true jika user sudah mengisi setidaknya satu field
+  const isDirty = useMemo(() => {
+    const initialTitle = prefillData?.title || '';
+    const initialDate = prefillData?.date || '';
+    const initialLocation = prefillData?.location || '';
+    const initialDescription = prefillData?.description || '';
+    return (
+      title !== initialTitle ||
+      date !== initialDate ||
+      location !== initialLocation ||
+      description !== initialDescription ||
+      timeStart !== '' ||
+      timeEnd !== '' ||
+      assignedUsers.length > 0 ||
+      requiredEquipment.length > 0
+    );
+  }, [title, date, location, description, timeStart, timeEnd, assignedUsers, requiredEquipment, prefillData]);
+
+  const handleGoBack = () => {
+    if (isDirty) {
+      setShowLeaveConfirm(true);
+    } else {
+      onNavigate('TASKS');
+    }
+  };
 
   // FILTER AGENDA: Hanya tampilkan agenda hari ini atau mendatang
   const upcomingMassSchedules = useMemo(() => {
@@ -245,7 +273,7 @@ export const CreateTaskScreen: React.FC<{
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40">
       <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
-        <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800" onClick={() => onNavigate('TASKS')}>
+        <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800" onClick={handleGoBack}>
           <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
         <h1 className="text-sm font-extrabold tracking-widest uppercase text-gray-400">Buat Tugas Baru</h1>
@@ -749,6 +777,17 @@ export const CreateTaskScreen: React.FC<{
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmationModal
+        isOpen={showLeaveConfirm}
+        title="Tinggalkan Form?"
+        message="Ada data yang belum disimpan. Jika Anda keluar sekarang, semua perubahan akan hilang."
+        confirmText="Ya, Keluar"
+        cancelText="Lanjut Edit"
+        isDanger={false}
+        onConfirm={() => onNavigate('TASKS')}
+        onCancel={() => setShowLeaveConfirm(false)}
+      />
     </div>
   );
 };

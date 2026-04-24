@@ -5,6 +5,7 @@ import { db, doc, updateDoc, serverTimestamp, arrayUnion } from '../firebase';
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
 import { getAvatarUrl } from '../lib/avatar';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const EditTaskScreen: React.FC<{ 
   onNavigate: (s: Screen) => void,
@@ -30,9 +31,9 @@ export const EditTaskScreen: React.FC<{
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // FILTER AGENDA: Hanya tampilkan agenda hari ini atau mendatang
-  // TAPI tetap sertakan agenda yang saat ini ditautkan meskipun sudah lampau
   const filteredMassSchedules = useMemo(() => {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -42,6 +43,33 @@ export const EditTaskScreen: React.FC<{
       return scheduleDate >= now || s.id === task.linkedScheduleId;
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [massSchedules, task.linkedScheduleId]);
+
+  // Dirty flag — true jika ada field yang berbeda dari nilai awal task
+  const isDirty = useMemo(() => {
+    const [origStart, origEnd] = task.time
+      ? task.time.split('-').map((p: string) => p.trim())
+      : ['', ''];
+    return (
+      taskType !== (task.type || 'Peliputan') ||
+      title !== (task.title || '') ||
+      date !== (task.date || '') ||
+      timeStart !== (origStart || '') ||
+      timeEnd !== (origEnd || '') ||
+      location !== (task.location || '') ||
+      description !== (task.description || '') ||
+      teamLeaderId !== (task.teamLeaderId || '') ||
+      JSON.stringify([...assignedUsers].sort()) !== JSON.stringify([...(task.assignedUsers || [])].sort()) ||
+      JSON.stringify([...requiredEquipment].sort()) !== JSON.stringify([...(task.requiredEquipment || [])].sort())
+    );
+  }, [taskType, title, date, timeStart, timeEnd, location, description, teamLeaderId, assignedUsers, requiredEquipment, task]);
+
+  const handleGoBack = () => {
+    if (isDirty) {
+      setShowLeaveConfirm(true);
+    } else {
+      onNavigate('TASKS');
+    }
+  };
 
   // Parse time from task.time (e.g., "08:00 - 10:00")
   useEffect(() => {
@@ -154,7 +182,7 @@ export const EditTaskScreen: React.FC<{
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 no-scrollbar">
       <header className="p-5 flex items-center gap-4 sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
-        <button onClick={() => onNavigate('TASKS')} className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
+        <button onClick={handleGoBack} className="p-2 bg-[#151b2b] rounded-full border border-gray-800">
           <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
         <h1 className="text-xl font-extrabold">Edit Tugas</h1>
@@ -510,8 +538,15 @@ export const EditTaskScreen: React.FC<{
           </div>
         </div>
       )}
-    </div>
-  );
-};
 
-export default EditTaskScreen;
+      <ConfirmationModal
+        isOpen={showLeaveConfirm}
+        title="Tinggalkan Form?"
+        message="Ada perubahan yang belum disimpan. Jika Anda keluar sekarang, semua perubahan akan hilang."
+        confirmText="Ya, Keluar"
+        cancelText="Lanjut Edit"
+        isDanger={false}
+        onConfirm={() => onNavigate('TASKS')}
+        onCancel={() => setShowLeaveConfirm(false)}
+      />
+    </div>
