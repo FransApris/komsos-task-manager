@@ -41,7 +41,7 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
     const ticketsRef = collection(db, 'helpdesk_tickets');
     const q = isAdmin 
       ? query(ticketsRef, orderBy('updatedAt', 'desc'), limit(50))
-      : query(ticketsRef, where('userId', '==', currentUser.uid), orderBy('updatedAt', 'desc'), limit(20));
+      : query(ticketsRef, where('userId', '==', currentUser.uid || currentUser.id), orderBy('updatedAt', 'desc'), limit(20));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const ticketData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -68,13 +68,13 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
     setIsSubmitting(true);
     try {
       await addDoc(collection(db, 'helpdesk_tickets'), {
-        userId: currentUser.uid,
+        userId: currentUser.uid || currentUser.id,
         userName: currentUser.displayName,
         subject: newSubject,
         category: newCategory,
         status: 'OPEN',
         messages: [{
-          senderId: currentUser.uid,
+          senderId: currentUser.uid || currentUser.id,
           senderName: currentUser.displayName,
           text: newMessage,
           timestamp: new Date().toISOString()
@@ -101,7 +101,7 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
     setIsReplying(true);
     try {
       const newReply = {
-        senderId: currentUser.uid,
+        senderId: currentUser.uid || currentUser.id,
         senderName: currentUser.displayName,
         text: replyText,
         timestamp: new Date().toISOString()
@@ -278,11 +278,11 @@ export const HelpdeskScreen: React.FC<HelpdeskScreenProps> = ({ onNavigate, role
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Judul / Subjek</label>
-                <input type="text" required value={newSubject} onChange={(e) => setNewSubject(e.target.value)} placeholder="Contoh: Kamera Canon 7D Error" className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500" />
+                <input type="text" required maxLength={100} value={newSubject} onChange={(e) => setNewSubject(e.target.value)} placeholder="Contoh: Kamera Canon 7D Error" className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500" />
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Detail Pesan</label>
-                <textarea required rows={5} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Jelaskan secara detail keluhan atau pesan Anda di sini..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
+                <textarea required rows={5} maxLength={1000} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Jelaskan secara detail keluhan atau pesan Anda di sini..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 resize-none"></textarea>
               </div>
               <button type="submit" disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20 flex justify-center items-center gap-2">
                 {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />} Kirim Pesan
