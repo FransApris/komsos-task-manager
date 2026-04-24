@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, MapPin, Camera, CheckCircle2, AlertCircle, Loader2, Navigation, Info, ShieldCheck, UserCheck, Calendar, Clock, RefreshCw } from 'lucide-react';
 import { Screen, Role, UserAccount, Task } from '../types';
-import { db, collection, addDoc, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
+import { db, collection, addDoc, serverTimestamp, handleFirestoreError, OperationType, getDocs, query, where } from '../firebase';
 import { motion } from 'motion/react';
 import { toast } from 'sonner';
 import { CameraModal } from '../components/CameraModal';
@@ -32,9 +32,10 @@ export const AttendanceScreen: React.FC<{
   const [showCamera, setShowCamera] = useState(false);
 
   // Filter tugas yang sedang berlangsung untuk user ini
+  const myUid = currentUser?.uid || currentUser?.id || '';
   const myActiveTasks = tasksDb.filter(t => 
     t.status === 'IN_PROGRESS' && 
-    t.assignedUsers?.includes(currentUser?.uid || '')
+    t.assignedUsers?.includes(myUid)
   );
 
   // Hitung jarak antara dua koordinat (Haversine Formula)
@@ -92,6 +93,7 @@ export const AttendanceScreen: React.FC<{
 
   const handleCheckIn = async () => {
     if (!currentUser) return;
+    const uid = currentUser.uid || currentUser.id;
     if (!isLocationValid) {
       toast.error("Anda berada di luar jangkauan lokasi gereja.");
       return;
@@ -107,14 +109,45 @@ export const AttendanceScreen: React.FC<{
 
     setIsLoading(true);
     try {
+      // Cegah duplicate check-in untuk target yang sama hari ini
+      const today = new Date().toISOString().split('T')[0];
+      const dupQ = query(
+        collection(db, 'attendance'),
+        where('userId', '==', uid),
+        where('targetId', '==', targetId)
+      );
+      const dupSnap = await getDocs(dupQ);
+      if (!dupSnap.empty) {
+        toast.error('Anda sudah melakukan check-in untuk penugasan ini.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Kompres selfie sebelum simpan ke Firestore (maks ~40KB)
+      let selfieData = selfieImg;
+      try {
+        const res = await fetch(selfieImg);
+        const blob = await res.blob();
+        const canvas = document.createElement('canvas');
+        const img = await createImageBitmap(blob);
+        const scale = Math.min(1, 300 / Math.max(img.width, img.height));
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        img.close();
+        selfieData = canvas.toDataURL('image/jpeg', 0.5);
+      } catch {
+        // Jika kompresi gagal, gunakan data asli
+      }
       const attendanceData = {
         targetId,
         targetType,
-        userId: currentUser.uid,
+        userId: uid,
         checkInTime: serverTimestamp(),
         status: 'PRESENT',
         distanceMeters: distance,
-        selfieUrl: selfieImg,
+        selfieUrl: selfieData,
         location: location ? { lat: location.lat, lng: location.lng } : null
       };
 
@@ -170,7 +203,7 @@ export const AttendanceScreen: React.FC<{
             <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
               <motion.div 
                 initial={{ width: 0 }}
-                animate={{ width: isLocating ? '30%' : `${Math.min(100, (MAX_RADIUS_METERS / (distance || 1)) * 100)}%` }}
+                animate={{ width: isLocating ? '30%' : distance !== null ? `${Math.max(4, Math.min(100, (1 - Math.min(distance, MAX_RADIUS_METERS * 2) / (MAX_RADIUS_METERS * 2)) * 100))}%` : '0%' }}
                 className={`h-full ${isLocationValid ? 'bg-emerald-500' : 'bg-red-500'}`}
               />
             </div>
