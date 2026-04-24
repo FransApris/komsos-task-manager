@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { MobileWrapper } from './components/MobileWrapper'; 
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { BottomNav } from './components/BottomNav';
 import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider, useData } from './contexts/DataContext';
@@ -446,12 +447,20 @@ export default function App() {
   // 4. RENDER UTAMA
   // ==========================================
   return (
+    <ErrorBoundary name="App">
     <AuthProvider>
       <DataProvider>
         <ChatProvider>
           <Toaster position="top-center" theme="dark" richColors />
           <ReminderRunner currentUser={currentUser} tasksDb={tasksDb} notificationsDb={notificationsDb} />
           <MobileWrapper>
+            <ErrorBoundary
+              name="Screen"
+              onReset={() => {
+                const isAdmin = currentUser?.role === 'SUPERADMIN' || currentUser?.role?.startsWith('ADMIN_');
+                handleNavigate(currentUser ? (isAdmin ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD') : 'LOGIN');
+              }}
+            >
             <Suspense 
               fallback={
                 <div className="flex-1 flex flex-col items-center justify-center bg-[#0a0f18] text-white">
@@ -462,6 +471,7 @@ export default function App() {
             >
               {renderScreen()}
             </Suspense>
+            </ErrorBoundary>
             {!isOnline && (
               <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500/95 text-black text-center text-[11px] font-bold py-1.5 px-4 flex items-center justify-center gap-2 backdrop-blur-sm">
                 <span className="w-2 h-2 rounded-full bg-black/50 inline-block animate-pulse" />
@@ -478,5 +488,6 @@ export default function App() {
         </ChatProvider>
       </DataProvider>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }
