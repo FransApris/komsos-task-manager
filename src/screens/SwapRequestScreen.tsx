@@ -237,7 +237,7 @@ export const SwapRequestScreen: React.FC<{
           }}
           className="p-2 text-gray-400 hover:text-white transition-colors"
         >
-          <RefreshCw className="w-5 h-5" />
+          <RefreshCw className={`w-5 h-5 transition-transform ${isRefreshing ? 'animate-spin' : ''}`} />
         </button>
       </header>
 
@@ -268,7 +268,7 @@ export const SwapRequestScreen: React.FC<{
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-bold text-white pr-4">{req.taskTitle}</h4>
                           <div className="flex flex-col items-end gap-2">
-                            <span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-500'}`}>{req.status.replace('_', ' ')}</span>
+                            <span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-500'}`}>{getStatusLabel(req.status)}</span>
                             {req.status === 'OPEN' && (
                               <button onClick={() => handleCancelRequest(req.id)} disabled={loadingId === req.id} className="text-[10px] font-bold text-red-500 hover:underline">
                                 Batalkan
@@ -294,7 +294,7 @@ export const SwapRequestScreen: React.FC<{
                         <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${req.status === 'APPROVED' ? 'bg-emerald-500' : 'bg-gray-600'}`}></div>
                         <div className="flex justify-between items-start pl-2">
                           <h4 className="font-bold text-white text-sm pr-4">{req.taskTitle}</h4>
-                          <span className={`text-[9px] font-black px-2 py-1 rounded uppercase ${req.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-500' : req.status === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-500'}`}>{req.status.replace('_', ' ')}</span>
+                          <span className={`text-[9px] font-black px-2 py-1 rounded uppercase ${req.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-500' : req.status === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-500'}`}>{getStatusLabel(req.status)}</span>
                         </div>
                         <p className="text-[10px] text-gray-600 mt-1 pl-2">{req.taskDate}</p>
                       </div>
@@ -409,7 +409,7 @@ export const SwapRequestScreen: React.FC<{
                       <option value="" disabled>-- Pilih Tugas Anda --</option>
                       {mySwappableTasks.map(t => <option key={t.id} value={t.id}>{t.title} ({t.date})</option>)}
                     </select>
-                    <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Alasan pertukaran..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white h-28 resize-none focus:border-amber-500 outline-none" />
+                    <textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Alasan pertukaran..." className="w-full bg-[#0a0f18] border border-gray-800 rounded-xl px-4 py-3 text-sm text-white h-28 resize-none focus:border-amber-500 outline-none" />
                     <button onClick={handleCreateRequest} disabled={isCreating || !selectedTaskId || !reason.trim()} className="w-full py-4 font-bold text-black bg-amber-500 rounded-xl disabled:opacity-50 transition-all">Kirim ke Bursa</button>
                   </>
                 )}
