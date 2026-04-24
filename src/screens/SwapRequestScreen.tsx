@@ -17,6 +17,7 @@ export const SwapRequestScreen: React.FC<{
   const [selectedTaskId, setSelectedTaskId] = useState('');
   const [reason, setReason] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [requests, setRequests] = useState<any[]>([]);
 
@@ -35,26 +36,34 @@ export const SwapRequestScreen: React.FC<{
     return () => unsub();
   }, []);
 
+  const today = new Date().toISOString().split('T')[0];
+
   // Semua tugas yang sudah ada di Bursa (dari siapa pun)
   const tasksInBursaIds = requests.filter(r => r.status === 'OPEN' || r.status === 'PENDING_APPROVAL').map(r => r.taskId);
   const myRequests = requests.filter(r => r.requesterId?.trim() === currentUserId?.trim());
+  const myActiveRequests = myRequests.filter(r => r.status === 'OPEN' || r.status === 'PENDING_APPROVAL');
+  const myHistoryRequests = myRequests.filter(r => r.status === 'APPROVED' || r.status === 'CANCELLED' || r.status === 'REJECTED');
 
-  // 2. FILTER TUGAS: Menggunakan .trim() untuk membersihkan spasi tidak kasat mata
+  // Filter tugas yang bisa ditukar — tidak overdue
   const mySwappableTasks = (tasksDb || []).filter(t => {
     const assigned = t.assignedUsers || [];
-    // Cek kecocokan ID dengan lebih fleksibel (uid atau id)
-    const isAssigned = assigned.some(id => 
-      id?.trim() === currentUserId?.trim() || 
-      (user?.uid && id?.trim() === user.uid.trim()) || 
+    const isAssigned = assigned.some(id =>
+      id?.trim() === currentUserId?.trim() ||
+      (user?.uid && id?.trim() === user.uid.trim()) ||
       (user?.id && id?.trim() === user.id.trim())
     );
-    
-    // Konsisten dengan Dashboard: Hanya tugas OPEN atau IN_PROGRESS yang bisa ditukar
     const isSwappableStatus = t.status === 'IN_PROGRESS' || t.status === 'OPEN';
     const notInBursa = !tasksInBursaIds.includes(t.id);
-
-    return isAssigned && isSwappableStatus && notInBursa;
+    const notOverdue = t.date >= today;
+    return isAssigned && isSwappableStatus && notInBursa && notOverdue;
   });
+
+  // Penawaran di bursa — exclude overdue tasks
+  const bursaOpenRequests = requests.filter(r =>
+    r.requesterId?.trim() !== currentUserId?.trim() &&
+    r.status === 'OPEN' &&
+    (r.taskDate ? r.taskDate >= today : true)
+  );
 
   const handleCreateRequest = async () => {
     if (!selectedTaskId || !reason.trim()) {
@@ -222,8 +231,8 @@ export const SwapRequestScreen: React.FC<{
         <h1 className="text-lg font-extrabold tracking-tight flex-1">Bursa Pertukaran</h1>
         <button 
           onClick={() => {
-            setIsLoading(true);
-            setTimeout(() => setIsLoading(false), 500);
+            setIsRefreshing(true);
+            setTimeout(() => setIsRefreshing(false), 500);
             toast.success('Data diperbarui');
           }}
           className="p-2 text-gray-400 hover:text-white transition-colors"
@@ -243,51 +252,69 @@ export const SwapRequestScreen: React.FC<{
       <div className="p-5">
         {activeTab === 'MINE' ? (
           <div className="space-y-4">
-            {myRequests.length === 0 ? (
+            {myActiveRequests.length === 0 && myHistoryRequests.length === 0 ? (
               <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800">
                 <p className="text-gray-500 mb-2">Belum ada permintaan.</p>
                 <p className="text-[10px] text-gray-600 px-10">Tugas Anda yang bisa ditukar akan muncul di tombol + di bawah.</p>
               </div>
             ) : (
-              myRequests.map(req => (
-                <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 relative">
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500' : req.status === 'APPROVED' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-white pr-4">{req.taskTitle}</h4>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500/20 text-blue-400' : req.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-500' : req.status === 'CANCELLED' ? 'bg-gray-500/20 text-gray-500' : 'bg-amber-500/20 text-amber-500'}`}>{req.status.replace('_', ' ')}</span>
-                      {req.status === 'OPEN' && (
-                        <button 
-                          onClick={() => handleCancelRequest(req.id)}
-                          disabled={loadingId === req.id}
-                          className="text-[10px] font-bold text-red-500 hover:underline"
-                        >
-                          Batalkan
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 italic">"{req.reason}"</p>
-                  {req.status === 'PENDING_APPROVAL' && (
-                    <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-blue-400 bg-blue-500/5 p-2 rounded-lg border border-blue-500/10">
-                      <ShieldCheck className="w-3.5 h-3.5" /> Menunggu persetujuan koordinator agar digantikan oleh {req.accepterName}
-                    </div>
-                  )}
-                </div>
-              ))
+              <>
+                {myActiveRequests.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Aktif</p>
+                    {myActiveRequests.map(req => (
+                      <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800 relative">
+                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500' : 'bg-amber-500'}`}></div>
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-bold text-white pr-4">{req.taskTitle}</h4>
+                          <div className="flex flex-col items-end gap-2">
+                            <span className={`text-[10px] font-black px-2 py-1 rounded uppercase ${req.status === 'PENDING_APPROVAL' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-500'}`}>{req.status.replace('_', ' ')}</span>
+                            {req.status === 'OPEN' && (
+                              <button onClick={() => handleCancelRequest(req.id)} disabled={loadingId === req.id} className="text-[10px] font-bold text-red-500 hover:underline">
+                                Batalkan
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-400 italic">"{req.reason}"</p>
+                        {req.status === 'PENDING_APPROVAL' && (
+                          <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-blue-400 bg-blue-500/5 p-2 rounded-lg border border-blue-500/10">
+                            <ShieldCheck className="w-3.5 h-3.5" /> Menunggu persetujuan koordinator agar digantikan oleh {req.accepterName}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </>
+                )}
+                {myHistoryRequests.length > 0 && (
+                  <>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-4">Riwayat</p>
+                    {myHistoryRequests.map(req => (
+                      <div key={req.id} className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 relative opacity-60">
+                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl ${req.status === 'APPROVED' ? 'bg-emerald-500' : 'bg-gray-600'}`}></div>
+                        <div className="flex justify-between items-start pl-2">
+                          <h4 className="font-bold text-white text-sm pr-4">{req.taskTitle}</h4>
+                          <span className={`text-[9px] font-black px-2 py-1 rounded uppercase ${req.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-500' : req.status === 'REJECTED' ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-500'}`}>{req.status.replace('_', ' ')}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-600 mt-1 pl-2">{req.taskDate}</p>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
             )}
           </div>
         ) : activeTab === 'BURSA' ? (
           <div className="space-y-4">
              <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-start gap-3 mb-6"><AlertCircle className="w-5 h-5 text-amber-500" /><p className="text-xs text-gray-300">Bantu teman Anda jika Anda memiliki waktu luang.</p></div>
-            {requests.filter(r => r.requesterId?.trim() !== currentUserId?.trim() && r.status === 'OPEN').length === 0 ? (
+            {bursaOpenRequests.length === 0 ? (
               <div className="text-center py-16 bg-[#151b2b] rounded-3xl border border-dashed border-gray-800">
                 <RefreshCw className="w-10 h-10 text-gray-700 mx-auto mb-4 animate-pulse" />
                 <p className="text-gray-500 mb-2">Bursa sedang sepi.</p>
                 <p className="text-[10px] text-gray-600 px-10">Belum ada teman yang meminta bantuan saat ini.</p>
               </div>
             ) : (
-              requests.filter(r => r.requesterId?.trim() !== currentUserId?.trim() && r.status === 'OPEN').map(req => (
+              bursaOpenRequests.map(req => (
                 <div key={req.id} className="bg-[#151b2b] p-5 rounded-2xl border border-gray-800">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-2">
