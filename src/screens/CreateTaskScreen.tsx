@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ChevronLeft, Calendar, Clock, MapPin, Users, FileText, CheckCircle2, AlertCircle, X, Camera, Crown, Briefcase, Sparkles, Link, PlayCircle } from 'lucide-react';
 import { Screen, UserAccount, Inventory, TaskType } from '../types';
 import { db, collection, addDoc, serverTimestamp, doc, updateDoc, increment } from '../firebase';
+import { getStatKeyFromType } from '../services/taskService';
 import { useData } from '../contexts/DataContext';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
@@ -205,16 +206,8 @@ export const CreateTaskScreen: React.FC<{
             completedTasksCount: increment(1)
           };
 
-          const typeLower = taskType.toLowerCase();
-          if (typeLower.includes('dokumentasi') || typeLower.includes('foto')) {
-            userUpdate['stats.photography'] = increment(10);
-          } else if (typeLower.includes('peliputan') || typeLower.includes('video') || typeLower.includes('obs')) {
-            userUpdate['stats.videography'] = increment(10);
-          } else if (typeLower.includes('publikasi') || typeLower.includes('nulis') || typeLower.includes('artikel')) {
-            userUpdate['stats.writing'] = increment(10);
-          } else if (typeLower.includes('desain') || typeLower.includes('design')) {
-            userUpdate['stats.design'] = increment(10);
-          }
+          const statKey = getStatKeyFromType(taskType);
+          if (statKey) userUpdate[statKey] = increment(10);
 
           await updateDoc(userRef, userUpdate);
         }

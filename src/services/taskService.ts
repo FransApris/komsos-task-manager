@@ -17,6 +17,19 @@ import {
 import { sendNotificationToAdmins } from "./notificationService";
 
 /**
+ * Menentukan key stat Firestore berdasarkan tipe tugas.
+ * Mengembalikan null jika tipe tidak cocok dengan bidang manapun.
+ */
+export const getStatKeyFromType = (taskType: string): 'stats.photography' | 'stats.videography' | 'stats.writing' | 'stats.design' | null => {
+  const t = taskType?.toLowerCase() || '';
+  if (t.includes('dokumentasi') || t.includes('foto') || t.includes('photography')) return 'stats.photography';
+  if (t.includes('peliputan') || t.includes('video') || t.includes('obs') || t.includes('videography')) return 'stats.videography';
+  if (t.includes('publikasi') || t.includes('nulis') || t.includes('artikel') || t.includes('writing') || t.includes('publication')) return 'stats.writing';
+  if (t.includes('desain') || t.includes('design') || t.includes('editing')) return 'stats.design';
+  return null;
+};
+
+/**
  * 1. MENAMBAH TUGAS BARU (Hanya untuk Role ADMIN)
  */
 export const addTask = async (
@@ -154,16 +167,8 @@ export const revokeTaskPoints = async (task: any, currentUser: any) => {
           completedTasksCount: increment(-1)
         };
 
-        const typeLower = task.type?.toLowerCase() || '';
-        if (typeLower.includes('dokumentasi') || typeLower.includes('foto')) {
-          userUpdate['stats.photography'] = increment(-10);
-        } else if (typeLower.includes('peliputan') || typeLower.includes('video') || typeLower.includes('obs')) {
-          userUpdate['stats.videography'] = increment(-10);
-        } else if (typeLower.includes('publikasi') || typeLower.includes('nulis') || typeLower.includes('artikel')) {
-          userUpdate['stats.writing'] = increment(-10);
-        } else if (typeLower.includes('desain') || typeLower.includes('design')) {
-          userUpdate['stats.design'] = increment(-10);
-        }
+        const statKey = getStatKeyFromType(task.type || '');
+        if (statKey) userUpdate[statKey] = increment(-10);
 
         await updateDoc(userRef, userUpdate);
 

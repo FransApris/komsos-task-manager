@@ -5,7 +5,7 @@ import { db, doc, updateDoc, serverTimestamp, collection, addDoc, arrayUnion, ar
 import { TaskChat } from './TaskChat';
 import { getAvatarUrl } from '../lib/avatar';
 import { toast } from 'sonner';
-import { revokeTaskPoints } from '../services/taskService';
+import { revokeTaskPoints, getStatKeyFromType } from '../services/taskService';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 
 export const TaskDetail: React.FC<{ 
@@ -129,16 +129,8 @@ export const TaskDetail: React.FC<{
             completedTasksCount: increment(1)
           };
 
-          const typeLower = task.type?.toLowerCase() || '';
-          if (typeLower.includes('dokumentasi') || typeLower.includes('foto')) {
-            userUpdate['stats.photography'] = increment(10);
-          } else if (typeLower.includes('peliputan') || typeLower.includes('video') || typeLower.includes('obs')) {
-            userUpdate['stats.videography'] = increment(10);
-          } else if (typeLower.includes('publikasi') || typeLower.includes('nulis') || typeLower.includes('artikel')) {
-            userUpdate['stats.writing'] = increment(10);
-          } else if (typeLower.includes('desain') || typeLower.includes('design')) {
-            userUpdate['stats.design'] = increment(10);
-          }
+          const statKey = getStatKeyFromType(task.type || '');
+          if (statKey) userUpdate[statKey] = increment(10);
 
           await updateDoc(userRef, userUpdate);
         }
