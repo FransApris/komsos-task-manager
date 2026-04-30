@@ -14,6 +14,7 @@ const ROLE_LABEL: Record<string, string> = {
 export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void; currentUser?: UserAccount | null }> = ({ onNavigate, currentUser }) => {
   const [showCacheModal, setShowCacheModal] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [showReloadPrompt, setShowReloadPrompt] = useState(false);
 
   const handleClearCache = async () => {
     setIsClearing(true);
@@ -33,7 +34,11 @@ export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void; currentUse
       localStorage.clear();
       authValues.forEach(([k, v]) => { if (v !== null) localStorage.setItem(k, v); });
 
+      // Hapus sessionStorage
+      sessionStorage.clear();
+
       setShowCacheModal(false);
+      setShowReloadPrompt(true);
       toast.success('Cache aplikasi berhasil dibersihkan.');
     } catch {
       toast.error('Gagal membersihkan cache. Coba lagi.');
@@ -179,7 +184,7 @@ export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void; currentUse
             </div>
             <h3 className="font-bold text-lg mb-2 text-white">Hapus Cache?</h3>
             <p className="text-sm text-gray-400 mb-6">
-              Cache Service Worker dan data lokal akan dihapus. Data login Anda tetap aman. Aplikasi mungkin memuat lebih lama pada sesi berikutnya.
+              Cache Service Worker, localStorage, dan sessionStorage akan dihapus. Data login Anda tetap aman.
             </p>
             <div className="flex gap-3">
               <button
@@ -195,6 +200,35 @@ export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void; currentUse
                 className="flex-1 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
               >
                 {isClearing ? 'Menghapus...' : 'Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Reload setelah cache dihapus */}
+      {showReloadPrompt && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-5">
+          <div className="w-full max-w-sm bg-[#151b2b] rounded-3xl p-6 border border-emerald-500/30 text-center">
+            <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-8 h-8 text-emerald-500" />
+            </div>
+            <h3 className="font-bold text-lg mb-2 text-white">Cache Berhasil Dihapus</h3>
+            <p className="text-sm text-gray-400 mb-6">
+              Muat ulang aplikasi sekarang agar perubahan berlaku sepenuhnya.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowReloadPrompt(false)}
+                className="flex-1 py-3 rounded-xl font-bold bg-gray-800 text-white hover:bg-gray-700 transition-colors"
+              >
+                Nanti
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="flex-1 py-3 rounded-xl font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+              >
+                Muat Ulang
               </button>
             </div>
           </div>
