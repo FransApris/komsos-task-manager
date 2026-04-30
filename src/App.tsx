@@ -413,7 +413,7 @@ export default function App() {
       case 'EDIT_PROFILE':
         return <EditProfile onNavigate={handleNavigate} user={currentUser} />;
       case 'APP_SETTINGS':
-        return <AppSettings onNavigate={handleNavigate} />;
+        return <AppSettings onNavigate={handleNavigate} currentUser={currentUser} />;
       case 'NOTIFICATIONS':
         return <Notifications onNavigate={handleNavigate} role={currentUser?.role || 'USER'} notificationsDb={notificationsDb} />;
       case 'NOTIFICATION_SETTINGS':

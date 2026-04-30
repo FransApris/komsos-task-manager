@@ -1,9 +1,17 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Moon, Globe, Trash2, Info, Lock, HelpCircle, Bell } from 'lucide-react';
-import { Screen } from '../types';
+import { ChevronLeft, Moon, Globe, Trash2, Info, Lock, HelpCircle, Bell, User } from 'lucide-react';
+import { Screen, UserAccount } from '../types';
 import { toast } from 'sonner';
 
-export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void }> = ({ onNavigate }) => {
+const ROLE_LABEL: Record<string, string> = {
+  SUPERADMIN: 'Super Admin',
+  ADMIN_MULTIMEDIA: 'Koordinator Multimedia',
+  ADMIN_PHOTO_VIDEO: 'Koordinator Photo & Video',
+  ADMIN_PUBLICATION: 'Koordinator Publikasi',
+  USER: 'Anggota',
+};
+
+export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void; currentUser?: UserAccount | null }> = ({ onNavigate, currentUser }) => {
   const [showCacheModal, setShowCacheModal] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
@@ -112,6 +120,30 @@ export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void }> = ({ onN
             </div>
           </div>
         </div>
+
+        {/* AKUN */}
+        {currentUser && (
+          <div>
+            <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Akun</h3>
+            <div className="bg-[#151b2b] rounded-2xl border border-gray-800 overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b border-gray-800">
+                <div className="flex items-center gap-3">
+                  <User className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <span className="font-bold text-sm text-white block">{currentUser.displayName || '—'}</span>
+                    <span className="text-[10px] text-gray-500">{ROLE_LABEL[currentUser.role ?? ''] ?? currentUser.role}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <Info className="w-5 h-5 text-gray-400" />
+                  <span className="text-sm text-gray-400 break-all">{currentUser.email}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* TENTANG */}
         <div>
