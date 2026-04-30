@@ -1,13 +1,38 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Moon, Globe, Trash2, Info, Lock, HelpCircle, Check, X } from 'lucide-react';
+import { ChevronLeft, Moon, Globe, Trash2, Info, Lock, HelpCircle, Bell } from 'lucide-react';
 import { Screen } from '../types';
+import { toast } from 'sonner';
 
 export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void }> = ({ onNavigate }) => {
-  const [darkMode, setDarkMode] = useState(true);
-  const [showLangModal, setShowLangModal] = useState(false);
   const [showCacheModal, setShowCacheModal] = useState(false);
-  const [language, setLanguage] = useState('Indonesia');
-  const [cacheSize, setCacheSize] = useState('24 MB');
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearCache = async () => {
+    setIsClearing(true);
+    try {
+      // Hapus semua Service Worker cache (PWA)
+      if ('caches' in window) {
+        const cacheKeys = await caches.keys();
+        await Promise.all(cacheKeys.map(key => caches.delete(key)));
+      }
+      // Hapus localStorage kecuali kunci autentikasi Firebase
+      const authKeysToKeep: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('firebase:')) authKeysToKeep.push(key);
+      }
+      const authValues = authKeysToKeep.map(k => [k, localStorage.getItem(k)] as [string, string | null]);
+      localStorage.clear();
+      authValues.forEach(([k, v]) => { if (v !== null) localStorage.setItem(k, v); });
+
+      setShowCacheModal(false);
+      toast.success('Cache aplikasi berhasil dibersihkan.');
+    } catch {
+      toast.error('Gagal membersihkan cache. Coba lagi.');
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-[#0a0f18] overflow-y-auto pb-40 relative text-white">
@@ -16,45 +41,56 @@ export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void }> = ({ onN
           <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
         <h1 className="text-sm font-extrabold tracking-widest uppercase text-gray-400">Pengaturan</h1>
-        <div className="w-9"></div>
+        <div className="w-9" />
       </header>
 
       <div className="p-5 space-y-6">
+        {/* TAMPILAN & BAHASA */}
         <div>
-          <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Tampilan & Bahasa</h3>
+          <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Tampilan &amp; Bahasa</h3>
           <div className="bg-[#151b2b] rounded-2xl border border-gray-800 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-gray-800">
+            {/* Dark mode: hanya tersedia mode gelap */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-800 opacity-50 cursor-not-allowed">
               <div className="flex items-center gap-3">
                 <Moon className="w-5 h-5 text-gray-400" />
-                <span className="font-bold text-sm text-white">Mode Gelap</span>
+                <div>
+                  <span className="font-bold text-sm text-white block">Mode Gelap</span>
+                  <span className="text-[10px] text-gray-500">Aplikasi hanya tersedia dalam mode gelap</span>
+                </div>
               </div>
-              <div 
-                onClick={() => setDarkMode(!darkMode)}
-                className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-colors ${darkMode ? 'bg-blue-600' : 'bg-gray-700'}`}
-              >
-                <div className={`w-4 h-4 rounded-full bg-white transition-transform ${darkMode ? 'translate-x-6' : 'translate-x-0'}`} />
+              <div className="w-12 h-6 rounded-full p-1 bg-blue-600">
+                <div className="w-4 h-4 rounded-full bg-white translate-x-6" />
               </div>
             </div>
-            <div 
-              className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-800/50"
-              onClick={() => setShowLangModal(true)}
-            >
+            {/* Bahasa: read-only */}
+            <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
                 <Globe className="w-5 h-5 text-gray-400" />
-                <span className="font-bold text-sm text-white">Bahasa</span>
+                <div>
+                  <span className="font-bold text-sm text-white block">Bahasa</span>
+                  <span className="text-[10px] text-gray-500">Multi-bahasa belum tersedia</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500 font-medium">{language}</span>
-                <ChevronLeft className="w-4 h-4 text-gray-600 rotate-180" />
-              </div>
+              <span className="text-sm text-gray-500 font-medium">Indonesia</span>
             </div>
           </div>
         </div>
 
+        {/* NOTIFIKASI & KEAMANAN */}
         <div>
-          <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Privasi & Keamanan</h3>
+          <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Notifikasi &amp; Keamanan</h3>
           <div className="bg-[#151b2b] rounded-2xl border border-gray-800 overflow-hidden">
-            <div 
+            <div
+              className="flex items-center justify-between p-4 border-b border-gray-800 cursor-pointer hover:bg-gray-800/50"
+              onClick={() => onNavigate('NOTIFICATION_SETTINGS')}
+            >
+              <div className="flex items-center gap-3">
+                <Bell className="w-5 h-5 text-gray-400" />
+                <span className="font-bold text-sm text-white">Pengaturan Notifikasi</span>
+              </div>
+              <ChevronLeft className="w-4 h-4 text-gray-600 rotate-180" />
+            </div>
+            <div
               className="flex items-center justify-between p-4 border-b border-gray-800 cursor-pointer hover:bg-gray-800/50"
               onClick={() => onNavigate('CHANGE_PASSWORD')}
             >
@@ -64,7 +100,7 @@ export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void }> = ({ onN
               </div>
               <ChevronLeft className="w-4 h-4 text-gray-600 rotate-180" />
             </div>
-            <div 
+            <div
               className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-800/50"
               onClick={() => setShowCacheModal(true)}
             >
@@ -72,15 +108,16 @@ export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void }> = ({ onN
                 <Trash2 className="w-5 h-5 text-red-400" />
                 <span className="font-bold text-sm text-red-400">Hapus Cache Aplikasi</span>
               </div>
-              <span className="text-xs text-gray-500">{cacheSize}</span>
+              <ChevronLeft className="w-4 h-4 text-gray-600 rotate-180" />
             </div>
           </div>
         </div>
 
+        {/* TENTANG */}
         <div>
           <h3 className="font-bold text-sm mb-3 text-gray-400 uppercase tracking-wider">Tentang</h3>
           <div className="bg-[#151b2b] rounded-2xl border border-gray-800 overflow-hidden">
-            <div 
+            <div
               className="flex items-center justify-between p-4 border-b border-gray-800 cursor-pointer hover:bg-gray-800/50"
               onClick={() => onNavigate('HELP_CENTER')}
             >
@@ -101,49 +138,31 @@ export const AppSettings: React.FC<{ onNavigate: (s: Screen) => void }> = ({ onN
         </div>
       </div>
 
-      {/* Language Modal */}
-      {showLangModal && (
-        <div className="absolute inset-0 z-50 flex items-end bg-black/60 backdrop-blur-sm">
-          <div className="w-full bg-[#151b2b] rounded-t-3xl p-6 border-t border-gray-800 animate-in slide-in-from-bottom-10">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-lg text-white">Pilih Bahasa</h3>
-              <button onClick={() => setShowLangModal(false)} className="p-2 bg-gray-800 rounded-full">
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="space-y-3">
-              {['Indonesia', 'English'].map(lang => (
-                <button 
-                  key={lang}
-                  onClick={() => { setLanguage(lang); setShowLangModal(false); }}
-                  className={`w-full flex items-center justify-between p-4 rounded-xl border transition-colors ${language === lang ? 'border-blue-500 bg-blue-500/10' : 'border-gray-800 bg-[#0a0f18] hover:bg-gray-800'}`}
-                >
-                  <span className={`font-medium ${language === lang ? 'text-blue-400' : 'text-gray-300'}`}>{lang}</span>
-                  {language === lang && <Check className="w-5 h-5 text-blue-500" />}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cache Modal */}
+      {/* Modal Hapus Cache */}
       {showCacheModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-5">
-          <div className="w-full max-w-sm bg-[#151b2b] rounded-3xl p-6 border border-gray-800 text-center animate-in zoom-in-95">
+          <div className="w-full max-w-sm bg-[#151b2b] rounded-3xl p-6 border border-gray-800 text-center">
             <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Trash2 className="w-8 h-8 text-red-500" />
             </div>
             <h3 className="font-bold text-lg mb-2 text-white">Hapus Cache?</h3>
-            <p className="text-sm text-gray-400 mb-6">Anda akan menghapus {cacheSize} data sementara. Aplikasi mungkin memuat sedikit lebih lama pada awalnya.</p>
+            <p className="text-sm text-gray-400 mb-6">
+              Cache Service Worker dan data lokal akan dihapus. Data login Anda tetap aman. Aplikasi mungkin memuat lebih lama pada sesi berikutnya.
+            </p>
             <div className="flex gap-3">
-              <button onClick={() => setShowCacheModal(false)} className="flex-1 py-3 rounded-xl font-bold bg-gray-800 text-white hover:bg-gray-700 transition-colors">Batal</button>
-              <button 
-                onClick={() => { setCacheSize('0 MB'); setShowCacheModal(false); }} 
-                className="flex-1 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-colors"
-                disabled={cacheSize === '0 MB'}
+              <button
+                onClick={() => setShowCacheModal(false)}
+                disabled={isClearing}
+                className="flex-1 py-3 rounded-xl font-bold bg-gray-800 text-white hover:bg-gray-700 transition-colors disabled:opacity-50"
               >
-                Hapus
+                Batal
+              </button>
+              <button
+                onClick={handleClearCache}
+                disabled={isClearing}
+                className="flex-1 py-3 rounded-xl font-bold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {isClearing ? 'Menghapus...' : 'Hapus'}
               </button>
             </div>
           </div>
