@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, Camera, Loader2, Save, User, Phone, FileText, Check, Plus, X, Trash2, Award, Briefcase, Calendar, Shield } from 'lucide-react';
+import { ChevronLeft, Camera, Loader2, Save, User, Phone, FileText, Check, Plus, X, Award, Briefcase, Calendar, Shield } from 'lucide-react';
 import { Screen, UserAccount, Role, AvailabilityStatus, PortfolioLink } from '../types';
 import { db, auth, doc, updateDoc, serverTimestamp } from '../firebase';
 import { updateProfile } from 'firebase/auth';
@@ -92,7 +92,15 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
           setPreviewImage(compressedBase64);
           setIsUploading(false);
         };
+        img.onerror = () => {
+          toast.error('Gagal memproses foto.');
+          setIsUploading(false);
+        };
         img.src = event.target?.result as string;
+      };
+      reader.onerror = () => {
+        toast.error('Gagal membaca file.');
+        setIsUploading(false);
       };
       reader.readAsDataURL(file);
     } catch (error) {
@@ -141,13 +149,22 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
         displayName: displayName.trim(),
         phone: phone.trim(),
         bio: bio.trim(),
-        role: role,
         availability: availability,
         gender: gender,
         skills: skills,
         portfolioLinks: portfolioLinks,
         updatedAt: serverTimestamp()
       };
+
+      // Hanya SUPERADMIN yang boleh ubah role, dan tidak boleh demote diri sendiri
+      if (user.role === 'SUPERADMIN' && role !== 'SUPERADMIN') {
+        toast.error('Superadmin tidak dapat mengubah role akun sendiri.');
+        setIsSaving(false);
+        return;
+      }
+      if (user.role === 'SUPERADMIN') {
+        updateData.role = role;
+      }
 
       if (previewImage) {
         // Gunakan field 'img' agar sinkron dengan getAvatarUrl dan bagian lain aplikasi
@@ -284,6 +301,28 @@ export const EditProfile: React.FC<EditProfileProps> = ({ onNavigate, user }) =>
                 {user?.role || 'USER'}
               </div>
             )}
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-1.5 ml-1">
+              <User className="w-3.5 h-3.5" /> Jenis Kelamin
+            </label>
+            <div className="flex gap-2">
+              {(['MALE', 'FEMALE', 'OTHER'] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGender(g)}
+                  className={`flex-1 py-3 rounded-xl text-xs font-bold border transition-all ${
+                    gender === g
+                      ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                      : 'bg-[#0a0f18] border-gray-800 text-gray-500 hover:border-gray-700'
+                  }`}
+                >
+                  {g === 'MALE' ? 'Laki-laki' : g === 'FEMALE' ? 'Perempuan' : 'Lainnya'}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>
