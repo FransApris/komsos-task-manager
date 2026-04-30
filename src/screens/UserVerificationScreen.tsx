@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  ArrowLeft, CheckCircle2, XCircle, User as UserIcon, 
-  Mail, Shield, UserCheck, Loader2, Search 
+  ArrowLeft, XCircle, User as UserIcon, 
+  Mail, Shield, UserCheck, Loader2, Search, Calendar, ChevronDown
 } from 'lucide-react';
 import { 
   db, collection, query, where, getDocs, 
@@ -24,6 +24,7 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [coordPickerUserId, setCoordPickerUserId] = useState<string | null>(null);
 
   // Identifikasi akses
   const isSuperAdmin = role === 'SUPERADMIN';
@@ -94,7 +95,13 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
         }
       }
 
-      toast.success(`Pengguna berhasil diverifikasi sebagai ${newRole === 'USER' ? 'Petugas' : 'Koordinator'}`);
+      const roleLabels: Record<string, string> = {
+        'USER': 'Petugas',
+        'ADMIN_MULTIMEDIA': 'Koordinator Multimedia',
+        'ADMIN_PHOTO_VIDEO': 'Koordinator Photo & Video',
+        'ADMIN_PUBLICATION': 'Koordinator Publikasi',
+      };
+      toast.success(`Pengguna berhasil diverifikasi sebagai ${roleLabels[newRole as string] || newRole}`);
       setPendingUsers(prev => prev.filter(u => u.id !== userId));
     } catch (error: any) {
       console.error("Error verifying user:", error);
@@ -196,6 +203,19 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
                       <div className="flex items-center gap-1.5 text-gray-500 text-xs">
                         <Mail size={12} /> {u.email}
                       </div>
+                      {u.gender && (
+                        <div className="flex items-center gap-1.5 text-gray-500 text-xs mt-1">
+                          <UserIcon size={12} /> {u.gender === 'MALE' ? 'Laki-laki' : u.gender === 'FEMALE' ? 'Perempuan' : 'Lainnya'}
+                        </div>
+                      )}
+                      {u.createdAt && (
+                        <div className="flex items-center gap-1.5 text-gray-500 text-xs mt-1">
+                          <Calendar size={12} /> Daftar: {(() => {
+                            const d = u.createdAt?.toDate ? u.createdAt.toDate() : new Date((u.createdAt?.seconds || 0) * 1000);
+                            return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                          })()}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -208,17 +228,39 @@ export const UserVerificationScreen: React.FC<UserVerificationScreenProps> = ({ 
                       {isProcessing === u.id ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
                       SETUJU PETUGAS
                     </button>
-                    
+
                     {/* HANYA SUPERADMIN YANG BISA MELIHAT TOMBOL INI */}
                     {isSuperAdmin && (
-                      <button 
-                        onClick={() => handleVerify(u.id, 'ADMIN_MULTIMEDIA')}
+                      <button
+                        onClick={() => setCoordPickerUserId(coordPickerUserId === u.id ? null : u.id)}
                         disabled={isProcessing === u.id}
-                        className="flex items-center justify-center gap-2 bg-purple-600 text-white text-xs font-bold py-3 rounded-xl hover:bg-purple-700 transition-all active:scale-95 disabled:opacity-50"
+                        className="flex items-center justify-center gap-1.5 bg-purple-600 text-white text-xs font-bold py-3 rounded-xl hover:bg-purple-700 transition-all active:scale-95 disabled:opacity-50"
                       >
                         {isProcessing === u.id ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
-                        SETUJU KOORD.
+                        KOORD.
+                        <ChevronDown size={12} className={`transition-transform duration-200 ${coordPickerUserId === u.id ? 'rotate-180' : ''}`} />
                       </button>
+                    )}
+
+                    {/* Picker tipe koordinator (muncul saat tombol KOORD. diklik) */}
+                    {isSuperAdmin && coordPickerUserId === u.id && (
+                      <div className="col-span-2 grid grid-cols-3 gap-2">
+                        {([
+                          { r: 'ADMIN_MULTIMEDIA' as Role, label: 'Multimedia' },
+                          { r: 'ADMIN_PHOTO_VIDEO' as Role, label: 'Photo/Video' },
+                          { r: 'ADMIN_PUBLICATION' as Role, label: 'Publikasi' },
+                        ]).map(({ r, label }) => (
+                          <button
+                            key={r}
+                            onClick={() => { setCoordPickerUserId(null); handleVerify(u.id, r); }}
+                            disabled={isProcessing === u.id}
+                            className="flex flex-col items-center justify-center gap-1 bg-purple-500/10 text-purple-400 text-[10px] font-bold py-2.5 px-1 rounded-xl border border-purple-500/30 hover:bg-purple-500/20 transition-all active:scale-95 disabled:opacity-50 leading-tight"
+                          >
+                            <Shield size={12} />
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     )}
 
                     <button 

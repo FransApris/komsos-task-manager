@@ -170,6 +170,39 @@ export const TaskDetail: React.FC<{
     );
   };
 
+  const handleTakeTask = async () => {
+    if (!currentUser) return;
+    openConfirm(
+      'Ambil Tugas',
+      `Apakah Anda yakin ingin mengambil tugas "${task.title}"? Tugas akan langsung berstatus Sedang Berlangsung.`,
+      async () => {
+        setIsLoading(true);
+        try {
+          const uid = currentUser.uid || currentUser.id;
+          await updateDoc(doc(db, 'tasks', task.id), {
+            assignedUsers: arrayUnion(uid),
+            status: 'IN_PROGRESS',
+            updatedAt: serverTimestamp(),
+            history: arrayUnion({
+              id: `h_${Date.now()}`,
+              type: 'ASSIGNMENT',
+              message: `${currentUser.displayName} mengambil tugas ini.`,
+              userId: uid,
+              userName: currentUser.displayName,
+              createdAt: new Date().toISOString()
+            })
+          });
+          toast.success('Tugas berhasil diambil!');
+        } catch (err) {
+          console.error('Error taking task:', err);
+          toast.error('Gagal mengambil tugas.');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    );
+  };
+
   const getTaskTimes = (dateStr: string, timeStr: string) => {
     const parts = timeStr.split('-').map(p => p.trim());
     const startStr = parts[0];
@@ -269,7 +302,7 @@ export const TaskDetail: React.FC<{
   return (
     <div className={`flex-1 flex flex-col bg-[#0a0f18] ${activeTab === 'DETAIL' ? 'overflow-y-auto pb-40' : 'overflow-hidden'}`}>
       <header className="p-5 flex justify-between items-center sticky top-0 bg-[#0a0f18]/90 backdrop-blur-md z-20 border-b border-gray-800/50">
-        <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800" onClick={() => onNavigate(isAdminRole ? 'ADMIN_DASHBOARD' : 'USER_DASHBOARD')}>
+        <button className="p-2 bg-[#151b2b] rounded-full border border-gray-800" onClick={() => onNavigate('TASKS')}>
           <ChevronLeft className="w-5 h-5 text-gray-300" />
         </button>
         <h1 className="text-lg font-extrabold tracking-tight text-white">Detail Tugas</h1>
@@ -297,10 +330,10 @@ export const TaskDetail: React.FC<{
         <div className="absolute inset-0 bg-linear-to-t from-[#0a0f18] to-transparent"></div>
         <div className="absolute bottom-4 left-5">
           <div className="flex items-center gap-2 mb-2">
+            {status === 'OPEN' && <span className="bg-gray-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Terbuka</span>}
             {status === 'IN_PROGRESS' && <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Sedang Berlangsung</span>}
             {status === 'WAITING_VERIFICATION' && <span className="bg-yellow-500 text-black text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Menunggu Verifikasi</span>}
             {status === 'COMPLETED' && <span className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Selesai</span>}
-            <span className="bg-gray-800/80 backdrop-blur text-gray-300 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider border border-gray-700">Tinggi</span>
           </div>
           <h2 className="text-2xl font-extrabold leading-tight text-white">{task.title}</h2>
         </div>
@@ -609,8 +642,21 @@ export const TaskDetail: React.FC<{
         </div>
       )}
 
+      {status === 'OPEN' && activeTab === 'DETAIL' && !isAdminRole && currentUser && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-lg px-5 z-20">
+          <button
+            onClick={handleTakeTask}
+            disabled={isLoading}
+            className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+            Ambil Tugas Ini
+          </button>
+        </div>
+      )}
+
       {status === 'IN_PROGRESS' && activeTab === 'DETAIL' && (isAssigned || isAdminRole) && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-97.5 px-5 z-20 flex gap-3">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-lg px-5 z-20 flex gap-3">
           {isAssigned && (
           <button 
             onClick={() => onNavigate('TASK_UPDATE')}

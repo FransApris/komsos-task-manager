@@ -374,7 +374,7 @@ export default function App() {
       case 'REGISTER':
         return <RegisterScreen onNavigate={handleNavigate} />;
       case 'USER_VERIFICATION':
-        return <UserVerificationScreen onNavigate={handleNavigate} />;
+        return <UserVerificationScreen onNavigate={handleNavigate} role={currentUser?.role} />;
       case 'TASK_VERIFICATION':
         return <TaskVerificationScreen onNavigate={handleNavigate} setSelectedTaskId={setSelectedTaskId} tasksDb={tasksDb} usersDb={usersDb} />;
       case 'ADMIN_DASHBOARD':
