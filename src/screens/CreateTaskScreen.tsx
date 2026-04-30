@@ -126,8 +126,10 @@ export const CreateTaskScreen: React.FC<{
     });
   }, [usersDb, taskType, title, description]);
 
+  const getUserId = (u: UserAccount) => u.uid || u.id || '';
+
   const otherUsers = useMemo(() => {
-    return usersDb.filter(user => user.role !== 'SUPERADMIN' && !recommendedUsers.find(ru => ru.uid === user.uid));
+    return usersDb.filter(user => user.role !== 'SUPERADMIN' && !recommendedUsers.find(ru => getUserId(ru) === getUserId(user)));
   }, [usersDb, recommendedUsers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,6 +138,11 @@ export const CreateTaskScreen: React.FC<{
 
     if (!title.trim()) {
       toast.error("Judul tugas harus diisi!");
+      return;
+    }
+
+    if (timeStart && timeEnd && timeEnd <= timeStart) {
+      toast.error('Waktu selesai harus lebih dari waktu mulai!');
       return;
     }
 
@@ -152,7 +159,7 @@ export const CreateTaskScreen: React.FC<{
       : '';
 
     try {
-      const status = markAsCompleted ? 'COMPLETED' : 'IN_PROGRESS';
+      const status = markAsCompleted ? 'COMPLETED' : (assignedUsers.length > 0 ? 'IN_PROGRESS' : 'OPEN');
       
       const historyEntry = {
         id: Math.random().toString(36).substr(2, 9),
@@ -218,14 +225,27 @@ export const CreateTaskScreen: React.FC<{
         }
       }
 
-      await addDoc(collection(db, 'notifications'), {
-        userId: 'ALL',
-        title: 'Tugas Baru Ditugaskan',
-        message: `Tugas baru "${title}" telah dibuat oleh ${currentUser.displayName}.`,
-        type: 'TASK',
-        read: false,
-        createdAt: serverTimestamp()
-      });
+      if (assignedUsers.length > 0) {
+        await Promise.all(assignedUsers.map(uid =>
+          addDoc(collection(db, 'notifications'), {
+            userId: uid,
+            title: 'Tugas Baru Ditugaskan',
+            message: `Tugas "${title}" telah ditugaskan kepada Anda oleh ${currentUser.displayName}.`,
+            type: 'TASK',
+            read: false,
+            createdAt: serverTimestamp()
+          })
+        ));
+      } else {
+        await addDoc(collection(db, 'notifications'), {
+          userId: 'ALL',
+          title: 'Tugas Baru Tersedia',
+          message: `Tugas baru "${title}" tersedia dan belum ditugaskan.`,
+          type: 'TASK',
+          read: false,
+          createdAt: serverTimestamp()
+        });
+      }
 
       setIsSubmitting(false);
       setShowSuccess(true);
@@ -593,24 +613,26 @@ export const CreateTaskScreen: React.FC<{
                     <Sparkles className="w-3 h-3" /> Rekomendasi (Sesuai Skill)
                   </h4>
                   <div className="space-y-2">
-                    {recommendedUsers.map(user => (
+                    {recommendedUsers.map(user => {
+                      const uid = getUserId(user);
+                      return (
                       <button
-                        key={user.uid}
+                        key={uid}
                         type="button"
-                        onClick={() => toggleUser(user.uid)}
+                        onClick={() => toggleUser(uid)}
                         className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                          assignedUsers.includes(user.uid)
+                          assignedUsers.includes(uid)
                             ? 'bg-blue-600/10 border-blue-500'
                             : 'bg-purple-500/5 border-purple-500/20 hover:border-purple-500/50'
                         }`}
                       >
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 ${
-                          assignedUsers.includes(user.uid) ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-400'
+                          assignedUsers.includes(uid) ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-400'
                         }`}>
                           {user.displayName.charAt(0)}
                         </div>
                         <div className="text-left flex-1">
-                          <p className={`text-sm font-bold line-clamp-1 ${assignedUsers.includes(user.uid) ? 'text-blue-400' : 'text-gray-200'}`}>
+                          <p className={`text-sm font-bold line-clamp-1 ${assignedUsers.includes(uid) ? 'text-blue-400' : 'text-gray-200'}`}>
                             {user.displayName}
                           </p>
                           <div className="flex items-center gap-1.5 mt-0.5">
@@ -622,11 +644,12 @@ export const CreateTaskScreen: React.FC<{
                             )}
                           </div>
                         </div>
-                        {assignedUsers.includes(user.uid) && (
+                        {assignedUsers.includes(uid) && (
                           <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" />
                         )}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -637,33 +660,36 @@ export const CreateTaskScreen: React.FC<{
                   {recommendedUsers.length > 0 ? 'Anggota Lainnya' : 'Semua Anggota'}
                 </h4>
                 <div className="space-y-2">
-                  {otherUsers.map(user => (
+                  {otherUsers.map(user => {
+                    const uid = getUserId(user);
+                    return (
                     <button
-                      key={user.uid}
+                      key={uid}
                       type="button"
-                      onClick={() => toggleUser(user.uid)}
+                      onClick={() => toggleUser(uid)}
                       className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                        assignedUsers.includes(user.uid)
+                        assignedUsers.includes(uid)
                           ? 'bg-blue-600/10 border-blue-500'
                           : 'bg-[#0a0f18] border-gray-800 hover:border-gray-700'
                       }`}
                     >
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 ${
-                        assignedUsers.includes(user.uid) ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-400'
+                        assignedUsers.includes(uid) ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-400'
                       }`}>
                         {user.displayName.charAt(0)}
                       </div>
                       <div className="text-left flex-1">
-                        <p className={`text-sm font-bold line-clamp-1 ${assignedUsers.includes(user.uid) ? 'text-blue-400' : 'text-gray-200'}`}>
+                        <p className={`text-sm font-bold line-clamp-1 ${assignedUsers.includes(uid) ? 'text-blue-400' : 'text-gray-200'}`}>
                           {user.displayName}
                         </p>
                         <p className="text-[9px] text-gray-500 uppercase tracking-wider mt-0.5">{user.role}</p>
                       </div>
-                      {assignedUsers.includes(user.uid) && (
+                      {assignedUsers.includes(uid) && (
                         <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0" />
                       )}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
