@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { ChevronLeft, LogOut, Settings2, User, Activity, Bell, Award, Camera, Edit3, Heart, Star, Zap, Shield, Target, Globe, Youtube, Instagram, ExternalLink } from 'lucide-react';
+import { ChevronLeft, LogOut, Settings2, User, Activity, Bell, Award, Camera, Edit3, Heart, Star, Zap, Shield, Target, Globe, Youtube, Instagram, ExternalLink, Phone, FileText } from 'lucide-react';
 import { Screen, UserAccount, Badge, Task } from '../types';
-import { db, collection, query, where, onSnapshot, addDoc, serverTimestamp } from '../firebase';
+import { db, collection, query, where, onSnapshot } from '../firebase';
 import { getAvatarUrl } from '../lib/avatar';
 
 const badgeIcons: Record<string, any> = {
@@ -33,7 +33,6 @@ const SkillBar: React.FC<{ label: string; value: number; color: string }> = ({ l
 
 export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () => void, user?: UserAccount | null }> = ({ onNavigate, onLogout, user }) => {
   const [badges, setBadges] = useState<Badge[]>([]);
-  const [isClaiming, setIsClaiming] = useState(false);
   const [userTasks, setUserTasks] = useState<Task[]>([]);
 
   useEffect(() => {
@@ -63,23 +62,6 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
     });
     return () => unsubscribe();
   }, [user?.uid]);
-
-  const claimStarterBadges = async () => {
-    if (!user?.uid || isClaiming || badges.length > 0) return;
-    setIsClaiming(true);
-    const starterBadges = [
-      { title: 'Anggota Baru', icon: 'Award', color: '#3b82f6', description: 'Selamat bergabung di Komsos Juanda!', status: 'earned' as const },
-      { title: 'Fotografer', icon: 'Camera', color: '#10b981', description: 'Telah mendokumentasikan 5 acara.', status: 'earned' as const },
-      { title: 'Penulis Berita', icon: 'Edit3', color: '#f59e0b', description: 'Telah menulis 3 artikel berita.', status: 'earned' as const }
-    ];
-    for (const b of starterBadges) {
-      await addDoc(collection(db, 'badges'), {
-        ...b, userId: user.uid, approvals: 1, requiredApprovals: 1,
-        approvedBy: ['System'], createdAt: serverTimestamp()
-      });
-    }
-    setIsClaiming(false);
-  };
 
   const getRoleLabel = (r?: string | null) => {
     switch (r) {
@@ -174,6 +156,24 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
             {availLabel}
           </span>
         </div>
+
+        {/* Bio & Kontak */}
+        {(user?.bio || user?.phone) && (
+          <div className="mt-4 w-full space-y-2">
+            {user?.bio && (
+              <div className="flex items-start gap-2 bg-white/5 rounded-2xl px-4 py-3">
+                <FileText className="w-3.5 h-3.5 text-gray-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-gray-400 italic leading-relaxed">"{user.bio}"</p>
+              </div>
+            )}
+            {user?.phone && (
+              <div className="flex items-center gap-2 bg-white/5 rounded-2xl px-4 py-3">
+                <Phone className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                <p className="text-xs text-gray-400">{user.phone}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="px-5 space-y-5 pt-4">
@@ -265,15 +265,8 @@ export const Profile: React.FC<{ onNavigate: (s: Screen) => void, onLogout: () =
             </div>
           </div>
         ) : (
-          <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-2xl text-center">
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-3">Belum ada badge</p>
-            <button
-              onClick={claimStarterBadges}
-              disabled={isClaiming}
-              className="text-[10px] font-black text-blue-500 hover:text-blue-400 transition-colors uppercase tracking-widest disabled:opacity-50"
-            >
-              {isClaiming ? 'Mengklaim...' : 'Klaim Badge Awal →'}
-            </button>
+          <div className="p-4 bg-gray-800/30 border border-gray-800 rounded-2xl text-center">
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Belum ada badge pencapaian.</p>
           </div>
         )}
 

@@ -211,7 +211,7 @@ export const UserDashboard: React.FC<{
   };
 
   const recommendedTasks = (tasksDb || []).filter(t => {
-    if (t.status !== 'IN_PROGRESS') return false;
+    if (t.status !== 'OPEN') return false;
     if (!user || !user.skills || user.skills.length === 0) return false;
     return user.skills.some(skill => 
       t.title.toLowerCase().includes(skill.toLowerCase()) || 
@@ -410,6 +410,24 @@ export const UserDashboard: React.FC<{
             )}
           </div>
         </motion.div>
+
+        {/* Peringatan tugas terlewat — tampil di posisi menonjol */}
+        {myOverdueTasks.length > 0 && (
+          <motion.div variants={itemVariants} className="mb-6 bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0 animate-pulse" />
+              <p className="text-xs font-black text-red-500 uppercase tracking-widest">{myOverdueTasks.length} Tugas Terlewat!</p>
+            </div>
+            <div className="space-y-2">
+              {myOverdueTasks.map(t => (
+                <button key={t.id} onClick={() => { setSelectedTaskId(t.id); onNavigate('TASK_DETAIL'); }} className="w-full text-left p-3 bg-red-500/5 rounded-xl border border-red-500/20 hover:border-red-500/40 transition-colors">
+                  <p className="text-xs font-bold text-white">{t.title}</p>
+                  <p className="text-[10px] text-red-400 mt-0.5">{t.date} · {t.type}</p>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3 mb-6">
           <div className="bg-[#151b2b] p-4 rounded-2xl border border-gray-800 flex items-center gap-3">
@@ -652,23 +670,6 @@ export const UserDashboard: React.FC<{
             <ChevronRight className="w-4 h-4 text-blue-500/50 ml-auto" />
           </motion.button>
         </motion.div>
-
-        {myOverdueTasks.length > 0 && (
-          <motion.div variants={itemVariants} className="mb-4 bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-              <p className="text-xs font-black text-red-500 uppercase tracking-widest">{myOverdueTasks.length} Tugas Terlewat</p>
-            </div>
-            <div className="space-y-2">
-              {myOverdueTasks.map(t => (
-                <button key={t.id} onClick={() => { setSelectedTaskId(t.id); onNavigate('TASK_DETAIL'); }} className="w-full text-left p-3 bg-red-500/5 rounded-xl border border-red-500/20 hover:border-red-500/40 transition-colors">
-                  <p className="text-xs font-bold text-white">{t.title}</p>
-                  <p className="text-[10px] text-red-400 mt-0.5">{t.date} · {t.type}</p>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
 
         <motion.div variants={itemVariants} className="flex justify-between items-center mb-4">
           <div className="flex gap-2 bg-[#151b2b] p-1.5 rounded-xl border border-gray-800 overflow-x-auto no-scrollbar">
